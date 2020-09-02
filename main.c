@@ -1,3 +1,7 @@
+/*
+	Compile with: cc main.c `pkg-config --cflags --libs lua-5.1`
+*/
+
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
