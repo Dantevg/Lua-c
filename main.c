@@ -1,5 +1,5 @@
 /*
-	Compile with: cc main.c `pkg-config --cflags --libs lua-5.1`
+	Compile with: cc main.c -I/usr/local/include/lua -llua
 */
 
 #include <lua.h>
