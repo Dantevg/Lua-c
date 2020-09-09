@@ -1,5 +1,7 @@
 /*
-	Compile with: cc main.c -I/usr/local/include/lua -llua
+	Compile with:
+	- MacOS: cc main.c -I/usr/local/include/lua -llua
+	- Ubuntu: cc main.c -I/usr/include/lua5.3 -llua5.3
 */
 
 #include <lua.h>
