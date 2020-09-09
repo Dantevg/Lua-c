@@ -17,7 +17,7 @@ int main(){
 	/* INIT */
 	lua_State *L = luaL_newstate(); // Initialise new Lua state
 	luaL_openlibs(L); // Load default libs
-	luaL_dofile(L, "main.lua"); // Run file
+	luaL_dofile(L, "player.lua"); // Run file
 	
 	/* RUN */
 	lua_getglobal(L, "player1"); // Get player table
