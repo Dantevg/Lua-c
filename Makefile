@@ -12,3 +12,9 @@ main: main.c
 
 player: player.c
 	cc player.c -o bin/player $(args)
+
+callbacks: callbacks.c
+	cc callbacks.c -o bin/callbacks $(args)
+
+eventwait: eventwait.c
+	cc eventwait.c -o bin/eventwait $(args)
