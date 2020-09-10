@@ -20,10 +20,8 @@ int l_colour(lua_State *L){
 int l_pixel(lua_State *L){
 	lua_getglobal(L, "scale");
 	int scale = lua_tointeger(L, -1);
-	lua_pop(L, 1);
-	
-	int x = lua_tointeger(L, -2);
-	int y = lua_tointeger(L, -1);
+	int x = lua_tointeger(L, -3);
+	int y = lua_tointeger(L, -2);
 	
 	SDL_RenderSetScale(renderer, scale, scale);
 	SDL_RenderDrawPoint(renderer, x, y);
@@ -42,12 +40,6 @@ int main(){
 	lua_pushcfunction(L, l_colour);
 	lua_setglobal(L, "colour");
 	
-	lua_pushinteger(L, 600);
-	lua_setglobal(L, "width");
-	
-	lua_pushinteger(L, 400);
-	lua_setglobal(L, "height");
-	
 	if(luaL_loadfile(L, "sdl2.lua") == LUA_OK){
 		if(lua_pcall(L, 0, 0, 0) == LUA_OK){
 			printf("[C] Code executed successfully\n");
@@ -64,7 +56,7 @@ int main(){
 	window = SDL_CreateWindow("Test window",
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		600, 400,
-		SDL_WINDOW_SHOWN);
+		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	if(window == NULL){
 		printf("Could not initialize window: %s\n", SDL_GetError());
 		return -1;
@@ -94,6 +86,13 @@ int main(){
 		SDL_RenderClear(renderer);
 		
 		// Run lua draw function
+		int w, h;
+		SDL_GetWindowSize(window, &w, &h);
+		lua_pushinteger(L, w);
+		lua_setglobal(L, "width");
+		lua_pushinteger(L, h);
+		lua_setglobal(L, "height");
+		
 		lua_getglobal(L, "draw");
 		if(lua_isfunction(L, -1)){
 			lua_pushinteger(L, SDL_GetTicks()-t);
