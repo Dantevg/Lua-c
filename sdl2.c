@@ -63,7 +63,7 @@ int main(){
 	}
 	
 	// Create renderer
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if(renderer == NULL){
 		printf("Could not initialize renderer: %s\n", SDL_GetError());
 		return -1;
