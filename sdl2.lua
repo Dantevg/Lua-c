@@ -1,5 +1,13 @@
 scale = 4
 frame = 0
+t = 0
+
+function randompixels()
+	for i = 1, 10 do
+		colour(math.random(255), math.random(255), math.random(255), 255)
+		pixel(math.random(width/scale)-1, math.random(height/scale)-1)
+	end
+end
 
 function randomfill()
 	for x = 1, math.floor(width/scale) do
@@ -11,7 +19,7 @@ function randomfill()
 end
 
 -- Adapted from https://github.com/klassmann/sdl2-lua53-example/blob/master/src/script.lua
-function spiral(t)
+function spiral()
 	local n = 100
 	local speed = 5000
 	for i = 1, n do
@@ -23,11 +31,12 @@ function spiral(t)
 	end
 end
 
-function draw(t)
+function draw(dt)
+	t = t+dt
 	frame = frame+1
-	if frame % 120 == 0 then -- Print average FPS every 120 frames
-		print( math.floor(frame / t * 1000) )
+	if frame % 50 == 0 then -- Print average FPS every 50 frames
+		print( math.floor(1 / dt * 1000) )
 	end
 	
-	spiral(t)
+	spiral()
 end
