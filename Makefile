@@ -21,5 +21,5 @@ callbacks: callbacks.c
 eventwait: eventwait.c
 	cc eventwait.c -o bin/eventwait $(INCLUDE_LUA)
 
-sdl2: sdl2.c
-	cc sdl2.c -o bin/sdl2 $(INCLUDE_LUA) $(INCLUDE_SDL)
+sdl2: sdl2/sdl2.c
+	cc sdl2/sdl2.c -o bin/sdl2 $(INCLUDE_LUA) $(INCLUDE_SDL)
