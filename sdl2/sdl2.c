@@ -4,38 +4,17 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+#include "screen.c"
+
 struct Window {
 	SDL_Window *sdl;
 	int width;
 	int height;
 } window;
 
-SDL_Renderer *renderer;
 SDL_Texture *texture;
 lua_State *L;
 unsigned int t0;
-
-int l_colour(lua_State *L){
-	int r = lua_tointeger(L, -4);
-	int g = lua_tointeger(L, -3);
-	int b = lua_tointeger(L, -2);
-	int a = lua_tointeger(L, -1);
-	SDL_SetRenderDrawColor(renderer, r, g, b, a);
-	
-	return 0;
-}
-
-int l_pixel(lua_State *L){
-	lua_getglobal(L, "scale");
-	int scale = lua_tointeger(L, -1);
-	int x = lua_tointeger(L, -3);
-	int y = lua_tointeger(L, -2);
-	
-	SDL_RenderSetScale(renderer, scale, scale);
-	SDL_RenderDrawPoint(renderer, x, y);
-	
-	return 0;
-}
 
 void resize(){
 	
@@ -86,11 +65,7 @@ int main(){
 	L = luaL_newstate();
 	luaL_openlibs(L);
 	
-	lua_pushcfunction(L, l_pixel);
-	lua_setglobal(L, "pixel");
-	
-	lua_pushcfunction(L, l_colour);
-	lua_setglobal(L, "colour");
+	screen_init(L);
 	
 	if(luaL_loadfile(L, "sdl2.lua") == LUA_OK){
 		if(lua_pcall(L, 0, 0, 0) == LUA_OK){
