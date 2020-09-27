@@ -1,19 +1,18 @@
-scale = 4
 frame = 0
 t = 0
 
 function randompixels()
 	for i = 1, 10 do
-		colour(math.random(255), math.random(255), math.random(255), 255)
-		pixel(math.random(width/scale)-1, math.random(height/scale)-1)
+		screen.colour(math.random(255), math.random(255), math.random(255), 255)
+		screen.pixel(math.random(screen.getWidth())-1, math.random(screen.getHeight())-1)
 	end
 end
 
 function randomfill()
-	for x = 1, math.floor(width/scale) do
-		for y = 1, math.floor(height/scale) do
-			colour(math.random(255), math.random(255), math.random(255), 255)
-			pixel(x-1, y-1)
+	for x = 1, math.floor(screen.getWidth()) do
+		for y = 1, math.floor(screen.getHeight()) do
+			screen.colour(math.random(255), math.random(255), math.random(255), 255)
+			screen.pixel(x-1, y-1)
 		end
 	end
 end
@@ -26,8 +25,8 @@ function spiral()
 		local x = math.floor(i * math.sin(i*t/speed))
 		local y = math.floor(i * math.cos(i*t/speed))
 		local l = 255 - i*255//n
-		colour(l, l, l, 255)
-		pixel(width/scale//2 + x, height/scale//2 + y)
+		screen.colour(l, l, l, 255)
+		screen.pixel(screen.getWidth()//2 + x, screen.getHeight()//2 + y)
 	end
 end
 
@@ -38,5 +37,6 @@ function draw(dt)
 		print( math.floor(1 / dt * 1000) )
 	end
 	
+	screen.setScale(4)
 	spiral()
 end
