@@ -7,17 +7,44 @@
 #include "screen.c"
 
 struct Window {
-	SDL_Window *sdl;
+	SDL_Window *window;
+	SDL_Texture *texture;
 	int width;
 	int height;
 } window;
 
-SDL_Texture *texture;
 lua_State *L;
 unsigned int t0;
 
+void checkSDL(void *data, char *errstr){
+	if(data == NULL){
+		printf(errstr, SDL_GetError());
+		exit(-1);
+	}
+}
+
 void resize(){
+	// Create a new texture
+	SDL_Texture *newtexture = SDL_CreateTexture(renderer,
+		SDL_PIXELFORMAT_RGBA8888,
+		SDL_TEXTUREACCESS_TARGET,
+		window.width, window.height);
+	checkSDL(window.texture, "Could not initialize texture: %s\n");
 	
+	// Set the source and destination rect
+	SDL_Rect rect;
+	rect.x = 0;
+	rect.y = 0;
+	SDL_QueryTexture(window.texture, NULL, NULL, &rect.w, &rect.h);
+	rect.w = (window.width < rect.w) ? window.width : rect.w;
+	rect.h = (window.height < rect.h) ? window.height : rect.h;
+	
+	// Copy over texture data
+	SDL_SetRenderTarget(renderer, newtexture);
+	SDL_RenderCopy(renderer, window.texture, &rect, &rect);
+	SDL_SetRenderTarget(renderer, NULL);
+	SDL_DestroyTexture(window.texture);
+	window.texture = newtexture;
 }
 
 int loop(unsigned int dt){
@@ -26,17 +53,21 @@ int loop(unsigned int dt){
 	while(SDL_PollEvent(&event)){
 		if(event.type == SDL_QUIT){
 			return 1;
+		}else if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED){
+			window.width = event.window.data1;
+			window.height = event.window.data2;
+			resize();
 		}
 	}
 	
 	// Clear screen
-	SDL_SetRenderTarget(renderer, texture);
+	SDL_SetRenderTarget(renderer, window.texture);
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderClear(renderer);
 	
 	// Run lua draw function
 	int w, h;
-	SDL_GetWindowSize(window.sdl, &w, &h);
+	SDL_GetWindowSize(window.window, &w, &h);
 	lua_pushinteger(L, w);
 	lua_setglobal(L, "width");
 	lua_pushinteger(L, h);
@@ -54,7 +85,7 @@ int loop(unsigned int dt){
 	
 	// Display
 	SDL_SetRenderTarget(renderer, NULL);
-	SDL_RenderCopy(renderer, texture, NULL, NULL);
+	SDL_RenderCopy(renderer, window.texture, NULL, NULL);
 	SDL_RenderPresent(renderer);
 	
 	return 0;
@@ -82,32 +113,23 @@ int main(){
 	// Create window
 	window.width = 600;
 	window.height = 400;
-	window.sdl = SDL_CreateWindow("Test window",
+	window.window = SDL_CreateWindow("Test window",
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		window.width, window.height,
 		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-	if(window.sdl == NULL){
-		printf("Could not initialize window: %s\n", SDL_GetError());
-		return -1;
-	}
+	checkSDL(window.window, "Could not initialize window: %s\n");
 	
 	// Create renderer
-	renderer = SDL_CreateRenderer(window.sdl, -1,
+	renderer = SDL_CreateRenderer(window.window, -1,
 		SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
-	if(renderer == NULL){
-		printf("Could not initialize renderer: %s\n", SDL_GetError());
-		return -1;
-	}
+	checkSDL(renderer, "Could not initialize renderer: %s\n");
 	
 	// Create texture
-	texture = SDL_CreateTexture(renderer,
+	window.texture = SDL_CreateTexture(renderer,
 		SDL_PIXELFORMAT_RGBA8888,
 		SDL_TEXTUREACCESS_TARGET,
 		window.width, window.height);
-	if(texture == NULL){
-		printf("Could not initialize texture: %s\n", SDL_GetError());
-		return -1;
-	}
+	checkSDL(window.texture, "Could not initialize texture: %s\n");
 	
 	// Main loop
 	t0 = SDL_GetTicks();
@@ -120,11 +142,11 @@ int main(){
 	}
 	
 	// Exit
+	SDL_DestroyTexture(window.texture);
 	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window.sdl);
-	lua_close(L);
-	renderer = NULL;
+	SDL_DestroyWindow(window.window);
 	SDL_Quit();
+	lua_close(L);
 	
 	return 0;
 }
