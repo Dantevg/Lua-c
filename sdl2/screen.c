@@ -90,3 +90,27 @@ void screen_init(lua_State *L){
 	lua_setfield(L, -2, "colour"); // stack: {table, ...}
 	lua_pop(L, 1); // stack: {...}
 }
+
+void screen_resize(){
+	// Create a new texture
+	SDL_Texture *newtexture = SDL_CreateTexture(window.renderer,
+		SDL_PIXELFORMAT_RGBA8888,
+		SDL_TEXTUREACCESS_TARGET,
+		window.width, window.height);
+	checkSDL(window.texture, "Could not initialize texture: %s\n");
+	
+	// Set the source and destination rect
+	SDL_Rect rect;
+	rect.x = 0;
+	rect.y = 0;
+	SDL_QueryTexture(window.texture, NULL, NULL, &rect.w, &rect.h);
+	rect.w = (window.width < rect.w) ? window.width : rect.w;
+	rect.h = (window.height < rect.h) ? window.height : rect.h;
+	
+	// Copy over texture data
+	SDL_SetRenderTarget(window.renderer, newtexture);
+	SDL_RenderCopy(window.renderer, window.texture, &rect, &rect);
+	SDL_SetRenderTarget(window.renderer, NULL);
+	SDL_DestroyTexture(window.texture);
+	window.texture = newtexture;
+}
