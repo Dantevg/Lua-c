@@ -27,6 +27,7 @@ int loop(unsigned int dt){
 	SDL_SetRenderTarget(window.renderer, window.texture);
 	SDL_SetRenderDrawColor(window.renderer, 0, 0, 0, 255);
 	SDL_RenderClear(window.renderer);
+	SDL_RenderSetScale(window.renderer, window.scale, window.scale);
 	
 	// Run lua draw function
 	lua_getglobal(L, "draw");
@@ -52,40 +53,20 @@ int main(){
 	L = luaL_newstate();
 	luaL_openlibs(L);
 	
-	screen_init(L);
-	
-	if(luaL_loadfile(L, "sdl2.lua") == LUA_OK){
-		if(lua_pcall(L, 0, 0, 0) == LUA_OK){
-			printf("[C] Code executed successfully\n");
-		}
-	}
 	
 	// Init SDL
 	if(SDL_Init(SDL_INIT_VIDEO) < 0){
 		printf("Could not initialize SDL: %s\n", SDL_GetError());
 		return -1;
 	}
-	
-	// Create window
-	window.width = 600;
-	window.height = 400;
-	window.window = SDL_CreateWindow("Test window",
-		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		window.width, window.height,
-		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-	checkSDL(window.window, "Could not initialize window: %s\n");
-	
-	// Create window.renderer
-	window.renderer = SDL_CreateRenderer(window.window, -1,
-		SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
-	checkSDL(window.renderer, "Could not initialize renderer: %s\n");
-	
-	// Create texture
-	window.texture = SDL_CreateTexture(window.renderer,
-		SDL_PIXELFORMAT_RGBA8888,
-		SDL_TEXTUREACCESS_TARGET,
-		window.width, window.height);
-	checkSDL(window.texture, "Could not initialize texture: %s\n");
+
+	screen_init(L);
+
+	if(luaL_loadfile(L, "sdl2.lua") == LUA_OK){
+		if(lua_pcall(L, 0, 0, 0) == LUA_OK){
+			printf("[C] Code executed successfully\n");
+		}
+	}
 	
 	// Main loop
 	t0 = SDL_GetTicks();

@@ -30,6 +30,7 @@ function spiral()
 	end
 end
 
+screen.setScale(4)
 function draw(dt)
 	t = t+dt
 	frame = frame+1
@@ -37,6 +38,5 @@ function draw(dt)
 		print( math.floor(1 / dt * 1000) )
 	end
 	
-	screen.setScale(4)
 	spiral()
 end

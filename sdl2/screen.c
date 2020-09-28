@@ -4,12 +4,15 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+/* C library definitions */
+
 struct Window {
 	SDL_Window *window;
 	SDL_Texture *texture;
 	SDL_Renderer *renderer;
 	int width;
 	int height;
+	int scale;
 } window;
 
 int get_scale(){
@@ -18,35 +21,85 @@ int get_scale(){
 	return scale;
 }
 
+void screen_createWindow(){
+	window.width = 600;
+	window.height = 400;
+	window.scale = 2;
+	// Create window
+	window.window = SDL_CreateWindow("Test window",
+		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+		window.width, window.height,
+		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	checkSDL(window.window, "Could not initialize window: %s\n");
+	
+	// Create window.renderer
+	window.renderer = SDL_CreateRenderer(window.window, -1,
+		SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
+	checkSDL(window.renderer, "Could not initialize renderer: %s\n");
+	
+	// Create texture
+	window.texture = SDL_CreateTexture(window.renderer,
+		SDL_PIXELFORMAT_RGBA8888,
+		SDL_TEXTUREACCESS_TARGET,
+		window.width, window.height);
+	checkSDL(window.texture, "Could not initialize texture: %s\n");
+}
+
+void screen_resize(){
+	// Create a new texture
+	SDL_Texture *newtexture = SDL_CreateTexture(window.renderer,
+		SDL_PIXELFORMAT_RGBA8888,
+		SDL_TEXTUREACCESS_TARGET,
+		window.width, window.height);
+	checkSDL(window.texture, "Could not initialize texture: %s\n");
+	
+	// Set the source and destination rect
+	SDL_Rect rect;
+	rect.x = 0;
+	rect.y = 0;
+	SDL_QueryTexture(window.texture, NULL, NULL, &rect.w, &rect.h);
+	rect.w = (window.width < rect.w) ? window.width : rect.w;
+	rect.h = (window.height < rect.h) ? window.height : rect.h;
+	
+	// Copy over texture data
+	SDL_SetRenderTarget(window.renderer, newtexture);
+	SDL_RenderCopy(window.renderer, window.texture, &rect, &rect);
+	SDL_SetRenderTarget(window.renderer, NULL);
+	SDL_DestroyTexture(window.texture);
+	window.texture = newtexture;
+}
+
+/* Lua API definitions */
+
 // Returns the window width
 int screen_getWidth(lua_State *L){
-	lua_pushinteger(L, window.width / get_scale());
+	lua_pushinteger(L, window.width / window.scale);
 	
 	return 1;
 }
 
 // Returns the window height
 int screen_getHeight(lua_State *L){
-	lua_pushinteger(L, window.height / get_scale());
+	lua_pushinteger(L, window.height / window.scale);
 	
 	return 1;
 }
 
 // Returns the rendering scale
 int screen_getScale(lua_State *L){
-	lua_pushinteger(L, get_scale());
+	lua_pushinteger(L, window.scale);
 	
 	return 1;
 }
 
 // Sets the rendering scale
 int screen_setScale(lua_State *L){
-	int scale = lua_tointeger(L, -1);
-	SDL_RenderSetScale(window.renderer, scale, scale);
+	window.scale = lua_tointeger(L, -1);
 	
 	return 0;
 }
 
+// Sets drawing colour
 int screen_colour(lua_State *L){
 	int r = lua_tointeger(L, -4);
 	int g = lua_tointeger(L, -3);
@@ -57,6 +110,7 @@ int screen_colour(lua_State *L){
 	return 0;
 }
 
+// Sets pixel
 int screen_pixel(lua_State *L){
 	int x = lua_tointeger(L, -2);
 	int y = lua_tointeger(L, -1);
@@ -89,28 +143,6 @@ void screen_init(lua_State *L){
 	lua_pushcfunction(L, screen_colour); // stack: {screen_colour, table, ...}
 	lua_setfield(L, -2, "colour"); // stack: {table, ...}
 	lua_pop(L, 1); // stack: {...}
-}
 
-void screen_resize(){
-	// Create a new texture
-	SDL_Texture *newtexture = SDL_CreateTexture(window.renderer,
-		SDL_PIXELFORMAT_RGBA8888,
-		SDL_TEXTUREACCESS_TARGET,
-		window.width, window.height);
-	checkSDL(window.texture, "Could not initialize texture: %s\n");
-	
-	// Set the source and destination rect
-	SDL_Rect rect;
-	rect.x = 0;
-	rect.y = 0;
-	SDL_QueryTexture(window.texture, NULL, NULL, &rect.w, &rect.h);
-	rect.w = (window.width < rect.w) ? window.width : rect.w;
-	rect.h = (window.height < rect.h) ? window.height : rect.h;
-	
-	// Copy over texture data
-	SDL_SetRenderTarget(window.renderer, newtexture);
-	SDL_RenderCopy(window.renderer, window.texture, &rect, &rect);
-	SDL_SetRenderTarget(window.renderer, NULL);
-	SDL_DestroyTexture(window.texture);
-	window.texture = newtexture;
+	screen_createWindow();
 }
