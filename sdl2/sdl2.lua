@@ -1,4 +1,4 @@
-local screen = require "screen2"
+local screen = require "screen"
 
 frame = 0
 t = 0

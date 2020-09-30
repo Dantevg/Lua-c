@@ -4,6 +4,8 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+#include "util.c"
+
 /* C library definitions */
 
 struct Window {
@@ -19,30 +21,6 @@ int get_scale(){
 	float scale;
 	SDL_RenderGetScale(window.renderer, &scale, NULL);
 	return scale;
-}
-
-void screen_createWindow(){
-	window.width = 600;
-	window.height = 400;
-	window.scale = 2;
-	// Create window
-	window.window = SDL_CreateWindow("Test window",
-		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		window.width, window.height,
-		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-	checkSDL(window.window, "Could not initialize window: %s\n");
-	
-	// Create window.renderer
-	window.renderer = SDL_CreateRenderer(window.window, -1,
-		SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
-	checkSDL(window.renderer, "Could not initialize renderer: %s\n");
-	
-	// Create texture
-	window.texture = SDL_CreateTexture(window.renderer,
-		SDL_PIXELFORMAT_RGBA8888,
-		SDL_TEXTUREACCESS_TARGET,
-		window.width, window.height);
-	checkSDL(window.texture, "Could not initialize texture: %s\n");
 }
 
 void screen_resize(){
@@ -120,29 +98,61 @@ int screen_pixel(lua_State *L){
 	return 0;
 }
 
-void screen_init(lua_State *L){
-	lua_newtable(L); // stack: {table, ...}
-	lua_pushvalue(L, -1); // stack: {table, table, ...}
-	lua_setglobal(L, "screen"); // stack: {table, ...}
+int screen_present(lua_State *L){
+	// Display
+	SDL_SetRenderTarget(window.renderer, NULL);
+	SDL_RenderCopy(window.renderer, window.texture, NULL, NULL);
+	SDL_RenderPresent(window.renderer);
 	
-	lua_pushcfunction(L, screen_getWidth); // stack: {screen_getWidth, table, ...}
-	lua_setfield(L, -2, "getWidth"); // stack: {table, ...}
+	// Clear screen
+	SDL_SetRenderTarget(window.renderer, window.texture);
+	SDL_SetRenderDrawColor(window.renderer, 0, 0, 0, 255);
+	SDL_RenderClear(window.renderer);
+	SDL_RenderSetScale(window.renderer, window.scale, window.scale);
 	
-	lua_pushcfunction(L, screen_getHeight); // stack: {screen_getHeight, table, ...}
-	lua_setfield(L, -2, "getHeight"); // stack: {table, ...}
-	
-	lua_pushcfunction(L, screen_getScale); // stack: {screen_getScale, table, ...}
-	lua_setfield(L, -2, "getScale"); // stack: {table, ...}
-	
-	lua_pushcfunction(L, screen_setScale); // stack: {screen_setScale, table, ...}
-	lua_setfield(L, -2, "setScale"); // stack: {table, ...}
-	
-	lua_pushcfunction(L, screen_pixel); // stack: {screen_pixel, table, ...}
-	lua_setfield(L, -2, "pixel"); // stack: {table, ...}
-	
-	lua_pushcfunction(L, screen_colour); // stack: {screen_colour, table, ...}
-	lua_setfield(L, -2, "colour"); // stack: {table, ...}
-	lua_pop(L, 1); // stack: {...}
+	return 0;
+}
 
-	screen_createWindow();
+int screen_init(lua_State *L){
+	window.width = 600;
+	window.height = 400;
+	window.scale = 2;
+	// Create window
+	window.window = SDL_CreateWindow("SDL2 Window",
+		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+		window.width, window.height,
+		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	checkSDL(window.window, "Could not initialize window: %s\n");
+	
+	// Create window.renderer
+	window.renderer = SDL_CreateRenderer(window.window, -1,
+		SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
+	checkSDL(window.renderer, "Could not initialize renderer: %s\n");
+	
+	// Create texture
+	window.texture = SDL_CreateTexture(window.renderer,
+		SDL_PIXELFORMAT_RGBA8888,
+		SDL_TEXTUREACCESS_TARGET,
+		window.width, window.height);
+	checkSDL(window.texture, "Could not initialize texture: %s\n");
+	
+	return 0;
+}
+
+static const struct luaL_Reg screen[] = {
+	{"getWidth", screen_getWidth},
+	{"getHeight", screen_getHeight},
+	{"getScale", screen_getScale},
+	{"setScale", screen_setScale},
+	{"colour", screen_colour},
+	{"pixel", screen_pixel},
+	{"present", screen_present},
+	{"init", screen_init},
+	{NULL, NULL}
+};
+
+int luaopen_screen2(lua_State *L){
+	lua_newtable(L);
+	luaL_setfuncs(L, screen, 0);
+	return 1;
 }
