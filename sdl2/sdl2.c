@@ -5,7 +5,6 @@
 #include <lauxlib.h>
 
 #include "util.c"
-#include "screen.c"
 
 struct Timer {
 	int id;     // The function id in the lua registry
@@ -43,7 +42,7 @@ int l_addTimer(lua_State *L){
 	// and the callback wouldn't be able to use it anymore.
 	static struct Timer timer;
 	timer.id = luaL_ref(L, LUA_REGISTRYINDEX);
-	timer.delay = lua_tointeger(L, -1);
+	timer.delay = luaL_checkinteger(L, -1);
 	timer.repeat = 1;
 	
 	SDL_AddTimer(timer.delay, timer_callback, &timer);
