@@ -41,7 +41,7 @@ int l_addTimer(lua_State *L){
 	struct Timer *timer;
 	timer->id = luaL_ref(L, LUA_REGISTRYINDEX);
 	timer->delay = lua_tointeger(L, -1);
-	timer->repeat = 1;
+	// timer->repeat = 1;
 	
 	SDL_AddTimer(timer->delay, timer_callback, timer);
 	return 0;
