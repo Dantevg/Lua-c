@@ -10,5 +10,6 @@ else ifeq ($(OS),Linux)
 	INCLUDE_SDL = -I$(INCLUDE_DIR)/SDL2 -lSDL2
 endif
 
-sdl2: sdl2.c
+sdl2: sdl2.c screen.c
 	cc sdl2.c -o ../bin/sdl2 $(INCLUDE_LUA) $(INCLUDE_SDL)
+	cc screen2.c -o ./screen2.so $(INCLUDE_LUA) $(INCLUDE_SDL) -shared -fPIC

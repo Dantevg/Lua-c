@@ -1,3 +1,5 @@
+local screen = require "screen2"
+
 frame = 0
 t = 0
 
@@ -30,7 +32,8 @@ function spiral()
 	end
 end
 
-screen.setScale(4)
+screen.init()
+screen.setScale(2)
 function draw(dt)
 	t = t+dt
 	frame = frame+1
@@ -39,4 +42,7 @@ function draw(dt)
 	end
 	
 	spiral()
+	screen.present()
 end
+
+addTimer(20, draw)
