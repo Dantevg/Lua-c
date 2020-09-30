@@ -49,6 +49,16 @@ int l_addTimer(lua_State *L){
 	return 0;
 }
 
+// Callback to quit program as soon as possible upon user request
+int quit_callback(void *userdata, SDL_Event *event){
+	if(event->type == SDL_QUIT){
+		SDL_Quit();
+		lua_close(L);
+		exit(0);
+	}
+	return 0;
+}
+
 int loop(unsigned int dt){
 	// Events
 	SDL_Event event;
@@ -75,6 +85,10 @@ int main(){
 		printf("Could not initialize SDL: %s\n", SDL_GetError());
 		return -1;
 	}
+	
+	// Make sure the program closes as soon as possible
+	// to prevent infinite loops or complex rendering from preventing closing
+	SDL_AddEventWatch(quit_callback, NULL);
 
 	// Init Lua
 	L = luaL_newstate();
@@ -82,8 +96,6 @@ int main(){
 	
 	lua_pushcfunction(L, l_addTimer);
 	lua_setglobal(L, "addTimer");
-
-	// screen_init(L);
 
 	if(luaL_loadfile(L, "sdl2.lua") == LUA_OK){
 		if(lua_pcall(L, 0, 0, 0) == LUA_OK){
