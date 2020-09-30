@@ -38,12 +38,15 @@ uint32_t timer_callback(uint32_t delay, void *param){
 }
 
 int l_addTimer(lua_State *L){
-	struct Timer *timer;
-	timer->id = luaL_ref(L, LUA_REGISTRYINDEX);
-	timer->delay = lua_tointeger(L, -1);
-	// timer->repeat = 1;
+	// I have to make this static (or put it on the heap),
+	// as it otherwise gets deallocated at the end of this function,
+	// and the callback wouldn't be able to use it anymore.
+	static struct Timer timer;
+	timer.id = luaL_ref(L, LUA_REGISTRYINDEX);
+	timer.delay = lua_tointeger(L, -1);
+	timer.repeat = 1;
 	
-	SDL_AddTimer(timer->delay, timer_callback, timer);
+	SDL_AddTimer(timer.delay, timer_callback, &timer);
 	return 0;
 }
 
