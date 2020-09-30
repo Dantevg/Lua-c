@@ -2,6 +2,7 @@
 	"C_Cpp.default.includePath": [
 		"${default}",
 		"/usr/include/lua5.3",
+		"/usr/include/SDL2",
 		"/usr/local/include/lua",
 		"/usr/local/include/SDL2"
 	]
