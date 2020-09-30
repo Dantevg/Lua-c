@@ -72,17 +72,18 @@ int screen_getScale(lua_State *L){
 
 // Sets the rendering scale
 int screen_setScale(lua_State *L){
-	window.scale = luaL_checkinteger(L, -1);
+	window.scale = luaL_checkinteger(L, 1);
 	
 	return 0;
 }
 
 // Sets drawing colour
 int screen_colour(lua_State *L){
-	int r = luaL_checkinteger(L, -4);
-	int g = luaL_checkinteger(L, -3);
-	int b = luaL_checkinteger(L, -2);
-	int a = luaL_checkinteger(L, -1);
+	int r = luaL_checkinteger(L, 1);
+	int g = luaL_checkinteger(L, 2);
+	int b = luaL_checkinteger(L, 3);
+	int a = luaL_checkinteger(L, 4);
+	
 	SDL_SetRenderDrawColor(window.renderer, r, g, b, a);
 	
 	return 0;
@@ -90,8 +91,8 @@ int screen_colour(lua_State *L){
 
 // Sets pixel
 int screen_pixel(lua_State *L){
-	int x = luaL_checkinteger(L, -2);
-	int y = luaL_checkinteger(L, -1);
+	int x = luaL_checkinteger(L, 1);
+	int y = luaL_checkinteger(L, 2);
 	
 	SDL_RenderDrawPoint(window.renderer, x, y);
 	

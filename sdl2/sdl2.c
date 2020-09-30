@@ -41,9 +41,12 @@ int l_addTimer(lua_State *L){
 	// as it otherwise gets deallocated at the end of this function,
 	// and the callback wouldn't be able to use it anymore.
 	static struct Timer timer;
+	timer.delay = luaL_checkinteger(L, 1);
+	lua_pushvalue(L, 2);
+	luaL_checktype(L, 2, LUA_TFUNCTION);
 	timer.id = luaL_ref(L, LUA_REGISTRYINDEX);
-	timer.delay = luaL_checkinteger(L, -1);
-	timer.repeat = 1;
+	// Set repeat to argument if argument present, otherwise set to true
+	timer.repeat = lua_isboolean(L, 3) ? lua_toboolean(L, 3) : 1;
 	
 	SDL_AddTimer(timer.delay, timer_callback, &timer);
 	return 0;
