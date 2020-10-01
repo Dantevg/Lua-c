@@ -108,7 +108,7 @@ int main(){
 			return -1;
 		}
 	}else{
-		printf("[C] Could not load Lua code\n");
+		printf("[C] Could not load Lua code: %s\n", lua_tostring(L, -1));
 		return -1;
 	}
 	
