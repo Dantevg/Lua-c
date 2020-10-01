@@ -35,6 +35,7 @@ end
 screen.init()
 screen.setScale(2)
 function draw(dt)
+	screen.clear()
 	t = t+dt
 	frame = frame+1
 	if frame % 50 == 0 then -- Print average FPS every 50 frames

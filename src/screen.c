@@ -80,9 +80,9 @@ int screen_setScale(lua_State *L){
 // Sets drawing colour
 int screen_colour(lua_State *L){
 	int r = luaL_checkinteger(L, 1);
-	int g = luaL_checkinteger(L, 2);
-	int b = luaL_checkinteger(L, 3);
-	int a = luaL_checkinteger(L, 4);
+	int g = luaL_optinteger(L, 2, r);
+	int b = luaL_optinteger(L, 3, r);
+	int a = luaL_optinteger(L, 4, 255);
 	
 	SDL_SetRenderDrawColor(window.renderer, r, g, b, a);
 	
@@ -99,16 +99,21 @@ int screen_pixel(lua_State *L){
 	return 0;
 }
 
+// Clears the screen using the current colour
+int screen_clear(lua_State *L){
+	SDL_RenderClear(window.renderer);
+	
+	return 0;
+}
+
 int screen_present(lua_State *L){
 	// Display
 	SDL_SetRenderTarget(window.renderer, NULL);
 	SDL_RenderCopy(window.renderer, window.texture, NULL, NULL);
 	SDL_RenderPresent(window.renderer);
 	
-	// Clear screen
+	// Reset render target and set scale
 	SDL_SetRenderTarget(window.renderer, window.texture);
-	SDL_SetRenderDrawColor(window.renderer, 0, 0, 0, 255);
-	SDL_RenderClear(window.renderer);
 	SDL_RenderSetScale(window.renderer, window.scale, window.scale);
 	
 	return 0;
@@ -147,6 +152,7 @@ static const struct luaL_Reg screen[] = {
 	{"setScale", screen_setScale},
 	{"colour", screen_colour},
 	{"pixel", screen_pixel},
+	{"clear", screen_clear},
 	{"present", screen_present},
 	{"init", screen_init},
 	{NULL, NULL}
