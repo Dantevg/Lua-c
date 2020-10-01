@@ -105,7 +105,7 @@ int main(int argc, char *argv[]){
 	luaL_dostring(L, "package.cpath = package.cpath..';./bin/?.so'");
 	
 	// Load main file
-	if(luaL_loadfile(L, "src/main.lua") == LUA_OK){
+	if(luaL_loadfile(L, "res/main.lua") == LUA_OK){
 		if(lua_pcall(L, 0, 0, 0) == LUA_OK){
 			printf("[C] Code executed successfully\n");
 		}else{
