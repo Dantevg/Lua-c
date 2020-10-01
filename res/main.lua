@@ -1,4 +1,5 @@
 local screen = require "screen"
+local event = require "event"
 
 frame = 0
 t = 0
@@ -46,4 +47,4 @@ function draw(dt)
 	screen.present()
 end
 
-addTimer(20, draw)
+event.addTimer(20, draw)

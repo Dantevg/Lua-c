@@ -15,43 +15,6 @@ struct Timer {
 lua_State *L;
 unsigned int t0;
 
-uint32_t timer_callback(uint32_t delay, void *param){
-	struct Timer *timer = param;
-	
-	SDL_Event event;
-	SDL_UserEvent userevent;
-	
-	userevent.type = SDL_USEREVENT;
-	userevent.code = 1;
-	userevent.data1 = timer;
-	
-	event.type = SDL_USEREVENT;
-	event.user = userevent;
-	
-	// Push timer event on the event stack,
-	// to call the lua function in the main thread
-	SDL_PushEvent(&event);
-	
-	// Return the delay to continue repeating, return 0 to stop
-	return (timer->repeat) ? delay : 0;
-}
-
-int l_addTimer(lua_State *L){
-	// I have to make this static (or put it on the heap),
-	// as it otherwise gets deallocated at the end of this function,
-	// and the callback wouldn't be able to use it anymore.
-	static struct Timer timer;
-	timer.delay = luaL_checkinteger(L, 1);
-	lua_pushvalue(L, 2);
-	luaL_checktype(L, 2, LUA_TFUNCTION);
-	timer.id = luaL_ref(L, LUA_REGISTRYINDEX);
-	// Set repeat to argument if argument present, otherwise set to true
-	timer.repeat = lua_isboolean(L, 3) ? lua_toboolean(L, 3) : 1;
-	
-	SDL_AddTimer(timer.delay, timer_callback, &timer);
-	return 0;
-}
-
 // Callback to quit program as soon as possible upon user request
 int quit_callback(void *userdata, SDL_Event *event){
 	if(event->type == SDL_QUIT){
@@ -96,10 +59,6 @@ int main(int argc, char *argv[]){
 	// Init Lua
 	L = luaL_newstate();
 	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
-	
-	// Set global functions
-	lua_pushcfunction(L, l_addTimer);
-	lua_setglobal(L, "addTimer");
 	
 	// Set cpath
 	luaL_dostring(L, "package.cpath = package.cpath..';./bin/?.so'");
