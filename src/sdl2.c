@@ -82,7 +82,7 @@ int loop(unsigned int dt){
 	return 0;
 }
 
-int main(){
+int main(int argc, char *argv[]){
 	// Init SDL
 	if(SDL_Init(SDL_INIT_VIDEO) < 0){
 		printf("Could not initialize SDL: %s\n", SDL_GetError());
@@ -92,15 +92,20 @@ int main(){
 	// Make sure the program closes as soon as possible
 	// to prevent infinite loops or complex rendering from preventing closing
 	SDL_AddEventWatch(quit_callback, NULL);
-
+	
 	// Init Lua
 	L = luaL_newstate();
-	luaL_openlibs(L);
+	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
 	
+	// Set global functions
 	lua_pushcfunction(L, l_addTimer);
 	lua_setglobal(L, "addTimer");
-
-	if(luaL_loadfile(L, "sdl2.lua") == LUA_OK){
+	
+	// Set cpath
+	luaL_dostring(L, "package.cpath = package.cpath..';./bin/?.so'");
+	
+	// Load main file
+	if(luaL_loadfile(L, "src/sdl2.lua") == LUA_OK){
 		if(lua_pcall(L, 0, 0, 0) == LUA_OK){
 			printf("[C] Code executed successfully\n");
 		}else{

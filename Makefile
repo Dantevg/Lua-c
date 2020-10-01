@@ -10,17 +10,6 @@ else ifeq ($(OS),Linux)
 	INCLUDE_SDL = -I$(INCLUDE_DIR)/SDL2 -lSDL2
 endif
 
-main: main.c
-	cc main.c -o bin/main $(INCLUDE_LUA)
-
-player: player.c
-	cc player.c -o bin/player $(INCLUDE_LUA)
-
-callbacks: callbacks.c
-	cc callbacks.c -o bin/callbacks $(INCLUDE_LUA)
-
-eventwait: eventwait.c
-	cc eventwait.c -o bin/eventwait $(INCLUDE_LUA)
-
-sdl2: sdl2/sdl2.c
-	cc sdl2/sdl2.c -o bin/sdl2 $(INCLUDE_LUA) $(INCLUDE_SDL)
+sdl2: src/sdl2.c src/screen.c
+	cc src/sdl2.c -o bin/sdl2 $(INCLUDE_LUA) $(INCLUDE_SDL)
+	cc src/screen.c -o bin/screen.so $(INCLUDE_LUA) $(INCLUDE_SDL) -shared -fPIC
