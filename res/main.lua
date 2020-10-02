@@ -47,4 +47,9 @@ function draw(dt)
 	screen.present()
 end
 
+function textinput(data)
+	print("textinput: "..type(data))
+end
+
 event.addTimer(20, draw)
+event.on("SDL_TEXTINPUT", textinput)
