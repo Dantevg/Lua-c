@@ -70,7 +70,7 @@ int event_on(lua_State *L){
 	// stack: {callback userdata, eventtable, callback, event}
 	callback->fn = id; // TODO: possibility to add extra data
 	int n = luaL_len(L, -2); // Size of eventtable
-	lua_rawseti(L, 2, n+1); // stack: {eventtable, callback, event}
+	lua_rawseti(L, 3, n+1); // stack: {eventtable, callback, event}
 	lua_pop(L, 3); // stack: {...}
 	return 0;
 }
