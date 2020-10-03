@@ -56,14 +56,14 @@ int loop(unsigned int dt){
 			int n = luaL_len(L, -1);
 			
 			// Loop through all registered callbacks
-			for(int i = 0; i < n-1; i++ ){
-				printf("SDL_TEXTINPUT\n");
+			for(int i = 1; i <= n; i++ ){
 				lua_rawgeti(L, -1, i); // stack: {SDL_TEXTINPUT[i], SDL_TEXTINPUT, ...}
 				void *ptr = lua_touserdata(L, -1);
 				struct Callback *callback = (struct Callback*)ptr;
 				lua_pop(L, 1); // stack: {SDL_TEXTINPUT, ...}
 				lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, SDL_TEXTINPUT, ...}
-				lua_rawgeti(L, LUA_REGISTRYINDEX, callback->data); // stack: {data, fn, SDL_TEXTINPUT, ...}
+				// lua_rawgeti(L, LUA_REGISTRYINDEX, callback->data); // stack: {data, fn, SDL_TEXTINPUT, ...}
+				lua_pushstring(L, event.text.text);
 				if(lua_pcall(L, 1, 0, 0) != LUA_OK){ // stack: {(err?), SDL_TEXTINPUT, ...}
 					printf("%s\n", lua_tostring(L, -1));
 					lua_pop(L, 1); // stack: {SDL_TEXTINPUT, ...}

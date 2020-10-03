@@ -48,7 +48,7 @@ function draw(dt)
 end
 
 function textinput(data)
-	print("textinput: "..type(data))
+	print("textinput: "..data)
 end
 
 event.addTimer(20, draw)
