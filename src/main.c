@@ -4,18 +4,8 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+#include "main.h"
 #include "util.c"
-
-struct Timer {
-	int id;     // The function id in the lua registry
-	int delay;  // The delay in ms
-	int repeat; // 1 = repeat, 0 = don't repeat
-};
-
-struct Callback {
-	int fn;
-	int data;
-};
 
 lua_State *L;
 unsigned int t0;
@@ -30,6 +20,27 @@ int quit_callback(void *userdata, SDL_Event *event){
 	return 0;
 }
 
+void dispatch_callbacks(char *eventname){
+	// stack: {eventdata, ...}
+	lua_getfield(L, LUA_REGISTRYINDEX, eventname); // stack: {callbacks, eventdata, ...}
+	int n = luaL_len(L, -1);
+	
+	// Loop through all registered callbacks
+	for(int i = 1; i <= n; i++ ){
+		lua_rawgeti(L, -1, i); // stack: {callbacks[i], callbacks, eventdata, ...}
+		void *ptr = lua_touserdata(L, -1);
+		Callback *callback = (Callback*)ptr;
+		lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
+		lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, callbacks, eventdata, ...}
+		lua_pushvalue(L, -3); // stack: {eventdata, fn, callbacks, eventdata, ...}
+		if(lua_pcall(L, 1, 0, 0) != LUA_OK){ // stack: {(err?), callbacks, eventdata, ...}
+			printf("%s\n", lua_tostring(L, -1));
+			lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
+		}
+	}
+	lua_pop(L, 2); // stack: {...}
+}
+
 int loop(unsigned int dt){
 	// Events
 	SDL_Event event;
@@ -38,38 +49,15 @@ int loop(unsigned int dt){
 			return 1;
 		}else if(event.type == SDL_USEREVENT && event.user.code == 1){
 			// Got callback event, call Lua callback
-			struct Timer *timer = (struct Timer*)event.user.data1;
-			lua_rawgeti(L, LUA_REGISTRYINDEX, timer->id);
+			Timer *timer = (Timer*)event.user.data1;
+			lua_rawgeti(L, LUA_REGISTRYINDEX, timer->fn);
 			lua_pushinteger(L, timer->delay);
 			if(lua_pcall(L, 1, 0, 0) != LUA_OK){
 				printf("%s\n", lua_tostring(L, -1));
 			}
-			
-			// struct Timer *timer = (struct Timer*)event.user.data1;
-			// lua_rawgeti(L, LUA_REGISTRYINDEX, timer->id);
-			// lua_pushinteger(L, timer->delay);
-			// if(lua_pcall(L, 1, 0, 0) != LUA_OK){
-			// 	printf("%s\n", lua_tostring(L, -1));
-			// }
 		}else if(event.type == SDL_TEXTINPUT){
-			lua_getfield(L, LUA_REGISTRYINDEX, "SDL_TEXTINPUT"); // stack: {SDL_TEXTINPUT, ...}
-			int n = luaL_len(L, -1);
-			
-			// Loop through all registered callbacks
-			for(int i = 1; i <= n; i++ ){
-				lua_rawgeti(L, -1, i); // stack: {SDL_TEXTINPUT[i], SDL_TEXTINPUT, ...}
-				void *ptr = lua_touserdata(L, -1);
-				struct Callback *callback = (struct Callback*)ptr;
-				lua_pop(L, 1); // stack: {SDL_TEXTINPUT, ...}
-				lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, SDL_TEXTINPUT, ...}
-				// lua_rawgeti(L, LUA_REGISTRYINDEX, callback->data); // stack: {data, fn, SDL_TEXTINPUT, ...}
-				lua_pushstring(L, event.text.text);
-				if(lua_pcall(L, 1, 0, 0) != LUA_OK){ // stack: {(err?), SDL_TEXTINPUT, ...}
-					printf("%s\n", lua_tostring(L, -1));
-					lua_pop(L, 1); // stack: {SDL_TEXTINPUT, ...}
-				}
-			}
-			lua_pop(L, 1); // stack: {...}
+			lua_pushstring(L, event.text.text);
+			dispatch_callbacks("textinput");
 		}
 	}
 	
@@ -96,7 +84,7 @@ int main(int argc, char *argv[]){
 	
 	// Register event
 	lua_newtable(L);
-	lua_setfield(L, LUA_REGISTRYINDEX, "SDL_TEXTINPUT");
+	lua_setfield(L, LUA_REGISTRYINDEX, "textinput");
 	
 	// Load main file
 	if(luaL_loadfile(L, "res/main.lua") == LUA_OK){

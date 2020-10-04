@@ -4,22 +4,13 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+#include "main.h"
+
 /* C library definitions */
-
-struct Timer {
-	int id;     // The function id in the lua registry
-	int delay;  // The delay in ms
-	int repeat; // 1 = repeat, 0 = don't repeat
-};
-
-struct Callback {
-	int fn;
-	int data;
-};
 
 // Callback function which gets called in different thread
 uint32_t timer_async_callback(uint32_t delay, void *param){
-	struct Timer *timer = param;
+	Timer *timer = param;
 	
 	SDL_Event event;
 	SDL_UserEvent userevent;
@@ -45,13 +36,11 @@ int event_addTimer(lua_State *L){
 	// I have to make this static (or put it on the heap),
 	// as it otherwise gets deallocated at the end of this function,
 	// and the callback wouldn't be able to use it anymore.
-	// static struct Callback callback;
-	
-	static struct Timer timer;
+	static Timer timer;
 	timer.delay = luaL_checkinteger(L, 1);
 	lua_pushvalue(L, 2);
 	luaL_checktype(L, 2, LUA_TFUNCTION);
-	timer.id = luaL_ref(L, LUA_REGISTRYINDEX);
+	timer.fn = luaL_ref(L, LUA_REGISTRYINDEX);
 	// Set repeat to argument if argument present, otherwise set to true
 	timer.repeat = lua_isboolean(L, 3) ? lua_toboolean(L, 3) : 1;
 	
@@ -66,7 +55,7 @@ int event_on(lua_State *L){
 	}
 	lua_pushvalue(L, 2); // stack: {callback, eventtable, callback, event}
 	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {eventtable, callback, event}
-	struct Callback *callback = lua_newuserdata(L, sizeof(struct Callback));
+	Callback *callback = lua_newuserdata(L, sizeof(Callback));
 	// stack: {callback userdata, eventtable, callback, event}
 	callback->fn = id; // TODO: possibility to add extra data
 	int n = luaL_len(L, -2); // Size of eventtable

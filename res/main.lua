@@ -52,4 +52,4 @@ function textinput(data)
 end
 
 event.addTimer(20, draw)
-event.on("SDL_TEXTINPUT", textinput)
+event.on("textinput", textinput)
