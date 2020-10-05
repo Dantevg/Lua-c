@@ -47,7 +47,7 @@ function draw(dt)
 	screen.present()
 end
 
-event.addTimer(20, draw)
+event.addTimer(20, draw, true)
 event.on("kb.input", print)
 -- event.on("kb.down", function(name) print(name.." down") end)
 -- event.on("kb.up", function(name) print(name.." up") end)

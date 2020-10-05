@@ -42,7 +42,7 @@ int event_addTimer(lua_State *L){
 	luaL_checktype(L, 2, LUA_TFUNCTION);
 	timer.fn = luaL_ref(L, LUA_REGISTRYINDEX);
 	// Set repeat to argument if argument present, otherwise set to true
-	timer.repeat = lua_isboolean(L, 3) ? lua_toboolean(L, 3) : 1;
+	timer.repeat = lua_toboolean(L, 3);
 	
 	SDL_AddTimer(timer.delay, timer_async_callback, &timer);
 	return 0;
