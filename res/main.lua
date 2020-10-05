@@ -52,4 +52,6 @@ function textinput(data)
 end
 
 event.addTimer(20, draw)
-event.on("textinput", textinput)
+event.on("kb.input", textinput)
+event.on("kb.down", function(name) print(name.." down") end)
+event.on("kb.up", function(name) print(name.." up") end)

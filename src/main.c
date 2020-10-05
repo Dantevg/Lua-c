@@ -55,9 +55,15 @@ int loop(unsigned int dt){
 			if(lua_pcall(L, 1, 0, 0) != LUA_OK){
 				printf("%s\n", lua_tostring(L, -1));
 			}
+		}else if(event.type == SDL_KEYDOWN){
+			lua_pushstring(L, SDL_GetKeyName(event.key.keysym.sym));
+			dispatch_callbacks("kb.down");
+		}else if(event.type == SDL_KEYUP){
+			lua_pushstring(L, SDL_GetKeyName(event.key.keysym.sym));
+			dispatch_callbacks("kb.up");
 		}else if(event.type == SDL_TEXTINPUT){
 			lua_pushstring(L, event.text.text);
-			dispatch_callbacks("textinput");
+			dispatch_callbacks("kb.input");
 		}
 	}
 	
@@ -82,9 +88,11 @@ int main(int argc, char *argv[]){
 	// Set cpath
 	luaL_dostring(L, "package.cpath = package.cpath..';./bin/?.so'");
 	
-	// Register event
-	lua_newtable(L);
-	lua_setfield(L, LUA_REGISTRYINDEX, "textinput");
+	// Register events
+	for(int i = 0; i < sizeof(events) / sizeof(events[0]); i++){
+		lua_newtable(L);
+		lua_setfield(L, LUA_REGISTRYINDEX, events[i].name);
+	}
 	
 	// Load main file
 	if(luaL_loadfile(L, "res/main.lua") == LUA_OK){
