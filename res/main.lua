@@ -47,11 +47,10 @@ function draw(dt)
 	screen.present()
 end
 
-function textinput(data)
-	print("textinput: "..data)
-end
-
 event.addTimer(20, draw)
-event.on("kb.input", textinput)
-event.on("kb.down", function(name) print(name.." down") end)
-event.on("kb.up", function(name) print(name.." up") end)
+event.on("kb.input", print)
+-- event.on("kb.down", function(name) print(name.." down") end)
+-- event.on("kb.up", function(name) print(name.." up") end)
+-- event.on("mouse.move", function(x,y) print(x, y) end)
+event.on("mouse.down", print)
+event.on("mouse.scroll", print)

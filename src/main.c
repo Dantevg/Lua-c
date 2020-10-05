@@ -20,7 +20,7 @@ int quit_callback(void *userdata, SDL_Event *event){
 	return 0;
 }
 
-void dispatch_callbacks(char *eventname){
+void dispatch_callbacks(char *eventname, int args){
 	// stack: {eventdata, ...}
 	lua_getfield(L, LUA_REGISTRYINDEX, eventname); // stack: {callbacks, eventdata, ...}
 	int n = luaL_len(L, -1);
@@ -32,8 +32,10 @@ void dispatch_callbacks(char *eventname){
 		Callback *callback = (Callback*)ptr;
 		lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
 		lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, callbacks, eventdata, ...}
-		lua_pushvalue(L, -3); // stack: {eventdata, fn, callbacks, eventdata, ...}
-		if(lua_pcall(L, 1, 0, 0) != LUA_OK){ // stack: {(err?), callbacks, eventdata, ...}
+		for(int i = 0; i < args; i++){ // Push all arguments on top of stack
+			lua_pushvalue(L, -2-args); // stack: {eventdata, fn, callbacks, eventdata, ...}
+		}
+		if(lua_pcall(L, args, 0, 0) != LUA_OK){ // stack: {(err?), callbacks, eventdata, ...}
 			printf("%s\n", lua_tostring(L, -1));
 			lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
 		}
@@ -57,13 +59,34 @@ int loop(unsigned int dt){
 			}
 		}else if(event.type == SDL_KEYDOWN){
 			lua_pushstring(L, SDL_GetKeyName(event.key.keysym.sym));
-			dispatch_callbacks("kb.down");
+			dispatch_callbacks("kb.down", 1);
 		}else if(event.type == SDL_KEYUP){
 			lua_pushstring(L, SDL_GetKeyName(event.key.keysym.sym));
-			dispatch_callbacks("kb.up");
+			dispatch_callbacks("kb.up", 1);
 		}else if(event.type == SDL_TEXTINPUT){
 			lua_pushstring(L, event.text.text);
-			dispatch_callbacks("kb.input");
+			dispatch_callbacks("kb.input", 1);
+		}else if(event.type == SDL_MOUSEMOTION){
+			lua_pushinteger(L, event.motion.x);
+			lua_pushinteger(L, event.motion.y);
+			dispatch_callbacks("mouse.move", 2);
+		}else if(event.type == SDL_MOUSEBUTTONDOWN){
+			lua_pushinteger(L, event.button.button);
+			lua_pushinteger(L, event.button.x);
+			lua_pushinteger(L, event.button.y);
+			lua_pushboolean(L, event.button.clicks-1);
+			dispatch_callbacks("mouse.down", 4);
+		}else if(event.type == SDL_MOUSEBUTTONUP){
+			lua_pushinteger(L, event.button.button);
+			lua_pushinteger(L, event.button.x);
+			lua_pushinteger(L, event.button.y);
+			lua_pushboolean(L, event.button.clicks-1);
+			dispatch_callbacks("mouse.up", 4);
+		}else if(event.type == SDL_MOUSEWHEEL){
+			lua_pushinteger(L, event.wheel.x);
+			lua_pushinteger(L, event.wheel.y);
+			lua_pushboolean(L, event.wheel.direction);
+			dispatch_callbacks("mouse.scroll", 3);
 		}
 	}
 	
