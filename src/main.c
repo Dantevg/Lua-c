@@ -32,10 +32,11 @@ void dispatch_callbacks(char *eventname, int args){
 		Callback *callback = (Callback*)ptr;
 		lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
 		lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, callbacks, eventdata, ...}
+		lua_pushstring(L, eventname);
 		for(int i = 0; i < args; i++){ // Push all arguments on top of stack
-			lua_pushvalue(L, -2-args); // stack: {eventdata, fn, callbacks, eventdata, ...}
+			lua_pushvalue(L, -3-args); // stack: {eventdata, fn, callbacks, eventdata, ...}
 		}
-		if(lua_pcall(L, args, 0, 0) != LUA_OK){ // stack: {(err?), callbacks, eventdata, ...}
+		if(lua_pcall(L, args+1, 0, 0) != LUA_OK){ // stack: {(err?), callbacks, eventdata, ...}
 			printf("%s\n", lua_tostring(L, -1));
 			lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
 		}
