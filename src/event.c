@@ -45,28 +45,61 @@ int event_addTimer(lua_State *L){
 	timer.repeat = lua_toboolean(L, 3);
 	
 	SDL_AddTimer(timer.delay, timer_async_callback, &timer);
-	return 0;
+	lua_pushinteger(L, timer.fn);
+	return 1;
 }
 
 int event_on(lua_State *L){
 	const char *event = luaL_checkstring(L, 1); // stack: {callback, event}
-	if(lua_getfield(L, LUA_REGISTRYINDEX, event) != LUA_TTABLE){ // stack: {eventtable, callback, event}
-		luaL_argerror(L, 1, "invalid event");
-	}
-	lua_pushvalue(L, 2); // stack: {callback, eventtable, callback, event}
-	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {eventtable, callback, event}
-	Callback *callback = lua_newuserdata(L, sizeof(Callback));
-	// stack: {callback userdata, eventtable, callback, event}
+	lua_getfield(L, LUA_REGISTRYINDEX, "events"); // stack: {callbacks, callback, event}
+	
+	/* Increment n */
+	lua_getfield(L, -1, "n"); // stack: {n, callbacks, callback, event}
+	int n = lua_tointeger(L, -1);
+	lua_pushinteger(L, ++n); // stack: {n+1, n, callbacks, callback, event}
+	lua_replace(L, -2); // stack: {n+1, callbacks, callback, event}
+	lua_setfield(L, -2, "n"); // stack: {callbacks, callback, event}
+	
+	/* Put callback in registry */
+	lua_pushvalue(L, 2); // stack: {callback, callbacks, callback, event}
+	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {callbacks, callback, event}
+	Callback *callback = lua_newuserdata(L, sizeof(Callback)); // stack: {callback userdata, callbacks, callback, event}
 	callback->fn = id; // TODO: possibility to add extra data
-	int n = luaL_len(L, -2); // Size of eventtable
-	lua_rawseti(L, 3, n+1); // stack: {eventtable, callback, event}
-	lua_pop(L, 3); // stack: {...}
-	return 0;
+	callback->event = event;
+	lua_rawseti(L, 3, n); // stack: {callbacks, callback, event}
+	lua_pop(L, 3); // stack: {}
+	lua_pushinteger(L, n);
+	return 1;
+}
+
+int event_off(lua_State *L){
+	int n = luaL_checkinteger(L, 1); // stack: {n}
+	lua_getfield(L, LUA_REGISTRYINDEX, "events"); // stack: {callbacks, n}
+	lua_rawgeti(L, -1, n); // stack: {callbacks[n], callbacks, n}
+	
+	/* Get callback struct */
+	void *ptr = lua_touserdata(L, -1);
+	if(ptr == NULL){ // No callback present, return false
+		lua_pushboolean(L, 0);
+		return 1;
+	}
+	Callback *callback = (Callback*)ptr;
+	
+	/* Remove callback struct from callback table */
+	lua_pushnil(L); // stack: {nil, callbacks[n], callbacks, n}
+	lua_rawseti(L, -3, n); // stack: {callbacks[n], callbacks, n}
+	
+	/* Unreference Lua callback function */
+	luaL_unref(L, LUA_REGISTRYINDEX, callback->fn);
+	
+	lua_pushboolean(L, 1); // Callback successfully removed, return true
+	return 1;
 }
 
 static const struct luaL_Reg event[] = {
 	{"addTimer", event_addTimer},
 	{"on", event_on},
+	{"off", event_off},
 	{NULL, NULL}
 };
 
