@@ -1,12 +1,12 @@
 typedef struct Timer {
-	int fn;     // The function id in the Lua registry
+	int id;     // The SDL timer ID
 	int delay;  // The delay in ms
 	int repeat; // 1 = repeat, 0 = don't repeat
 } Timer;
 
 typedef struct Callback {
 	int fn;            // The function id in the Lua registry
-	int data;          // Optional extra data in the Lua registry
+	void *data;        // Optional extra data
 	const char *event; // The event name
 } Callback;
 

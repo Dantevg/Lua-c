@@ -10,7 +10,8 @@
 
 // Callback function which gets called in different thread
 uint32_t timer_async_callback(uint32_t delay, void *param){
-	Timer *timer = param;
+	Callback *callback = param;
+	Timer *timer = callback->data;
 	
 	SDL_Event event;
 	SDL_UserEvent userevent;
@@ -36,16 +37,67 @@ int event_addTimer(lua_State *L){
 	// I have to make this static (or put it on the heap),
 	// as it otherwise gets deallocated at the end of this function,
 	// and the callback wouldn't be able to use it anymore.
+	luaL_checktype(L, 2, LUA_TFUNCTION); // stack: {(repeat?), callbackfn, delay}
+	
 	static Timer timer;
 	timer.delay = luaL_checkinteger(L, 1);
-	lua_pushvalue(L, 2);
-	luaL_checktype(L, 2, LUA_TFUNCTION);
-	timer.fn = luaL_ref(L, LUA_REGISTRYINDEX);
-	// Set repeat to argument if argument present, otherwise set to true
 	timer.repeat = lua_toboolean(L, 3);
 	
-	SDL_AddTimer(timer.delay, timer_async_callback, &timer);
-	lua_pushinteger(L, timer.fn);
+	// static Callback callback;
+	// callback.fn = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {(repeat?), callbackfn, delay}
+	// callback.event = "timer";
+	// callback.data = &timer;
+	
+	lua_getfield(L, LUA_REGISTRYINDEX, "events"); // stack: {callbacks, (repeat?), callbackfn, delay}
+	
+	/* Increment n */
+	lua_getfield(L, -1, "n"); // stack: {n, callbacks, (repeat?), callbackfn, delay}
+	int n = lua_tointeger(L, -1);
+	lua_pushinteger(L, ++n); // stack: {n+1, n, callbacks, (repeat?), callbackfn, delay}
+	lua_replace(L, -2); // stack: {n+1, callbacks, (repeat?), callbackfn, delay}
+	lua_setfield(L, -2, "n"); // stack: {callbacks, (repeat?), callbackfn, delay}
+	
+	/* Put callback in registry */
+	lua_pushvalue(L, 2); // stack: {callbackfn, callbacks, (repeat?), callbackfn, delay}
+	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {callbacks, (repeat?), callbackfn, delay}
+	Callback *callback = lua_newuserdata(L, sizeof(Callback)); // stack: {callback userdata, callbacks, (repeat?), callbackfn, delay}
+	callback->fn = id;
+	callback->event = "timer";
+	callback->data = &timer;
+	lua_rawseti(L, -2, n); // stack: {callbacks, (repeat?), callbackfn, delay}
+	lua_pushinteger(L, n);
+	
+	timer.id = SDL_AddTimer(timer.delay, timer_async_callback, callback);
+	
+	lua_pushinteger(L, id);
+	return 1;
+}
+
+int event_removeTimer(lua_State *L){
+	int n = luaL_checkinteger(L, 1); // stack: {n}
+	lua_getfield(L, LUA_REGISTRYINDEX, "events"); // stack: {callbacks, n}
+	lua_rawgeti(L, -1, n); // stack: {callbacks[n], callbacks, n}
+	
+	/* Get callback struct */
+	void *ptr = lua_touserdata(L, -1);
+	if(ptr == NULL){ // No callback present, return false
+		lua_pushboolean(L, 0);
+		return 1;
+	}
+	Callback *callback = (Callback*)ptr;
+	Timer *timer = callback->data;
+	
+	/* Remove SDL timer */
+	SDL_bool success = SDL_RemoveTimer(timer->id); // TODO: fix segfault
+	
+	/* Remove callback struct from callback table */
+	lua_pushnil(L); // stack: {nil, callbacks[n], callbacks, n}
+	lua_rawseti(L, -3, n); // stack: {callbacks[n], callbacks, n}
+	
+	/* Unreference Lua callback function */
+	luaL_unref(L, LUA_REGISTRYINDEX, callback->fn);
+	
+	lua_pushboolean(L, 1); // Callback successfully removed, return true
 	return 1;
 }
 
@@ -67,8 +119,7 @@ int event_on(lua_State *L){
 	callback->fn = id; // TODO: possibility to add extra data
 	callback->event = event;
 	lua_rawseti(L, 3, n); // stack: {callbacks, callback, event}
-	lua_pop(L, 3); // stack: {}
-	lua_pushinteger(L, n);
+	lua_pushinteger(L, n); // stack: {n, callbacks, callback, event}
 	return 1;
 }
 
@@ -98,6 +149,7 @@ int event_off(lua_State *L){
 
 static const struct luaL_Reg event[] = {
 	{"addTimer", event_addTimer},
+	{"removeTimer", event_removeTimer},
 	{"on", event_on},
 	{"off", event_off},
 	{NULL, NULL}

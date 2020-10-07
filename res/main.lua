@@ -35,7 +35,7 @@ end
 
 screen.init()
 screen.setScale(2)
-function draw(dt)
+function draw(_, dt)
 	screen.clear()
 	t = t+dt
 	frame = frame+1
@@ -45,12 +45,21 @@ function draw(dt)
 	
 	spiral()
 	screen.present()
+	if frame == 100 then
+		print( event.off(scrollID) )
+	end
+	if frame == 150 then
+		print("Removing timer")
+		print( event.removeTimer(timerID) )
+	end
 end
 
-print( event.addTimer(20, draw, true) )
+timerID = event.addTimer(20, draw, true)
+print(timerID)
 print( event.on("kb.input", print) )
 -- event.on("kb.down", function(name) print(name.." down") end)
 -- event.on("kb.up", function(name) print(name.." up") end)
 -- event.on("mouse.move", function(x,y) print(x, y) end)
 print( event.on("mouse.down", print) )
-print( event.on("mouse.scroll", print) )
+scrollID = event.on("mouse.scroll", print)
+print(scrollID)
