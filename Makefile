@@ -10,7 +10,19 @@ else ifeq ($(OS),Linux)
 	INCLUDE_SDL = -I$(INCLUDE_DIR)/SDL2 -lSDL2
 endif
 
-main: src/main.c src/screen.c src/event.c
+# Aliases
+.PHONY: all modules main screen event
+
+all: main modules
+modules: bin/screen.so bin/event.so
+main: bin/main
+screen: bin/screen.so
+event: bin/event.so
+
+# Main file
+bin/main: src/main.c
 	cc src/main.c -o bin/main $(INCLUDE_LUA) $(INCLUDE_SDL)
-	cc src/screen.c -o bin/screen.so $(INCLUDE_LUA) $(INCLUDE_SDL) -shared -fPIC
-	cc src/event.c -o bin/event.so $(INCLUDE_LUA) $(INCLUDE_SDL) -shared -fPIC
+
+# Modules: bin/screen.so -> cc src/screen.c -o bin/screen.so (...)
+bin/%.so: src/%.c
+	cc $< -o $@ $(INCLUDE_LUA) $(INCLUDE_SDL) -shared -fPIC
