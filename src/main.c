@@ -22,8 +22,8 @@ int quit_callback(void *userdata, SDL_Event *event){
 
 void dispatch_callbacks(char *eventname, int args){
 	// stack: {eventdata, ...}
-	/* Get events table */
-	lua_getfield(L, LUA_REGISTRYINDEX, "events"); // stack: {callbacks, eventdata, ...}
+	/* Get callbacks table */
+	lua_getfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {callbacks, eventdata, ...}
 	lua_getfield(L, -1, "n"); // stack: {n, callbacks, eventdata, ...}
 	int n = lua_tointeger(L, -1);
 	lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
@@ -65,12 +65,7 @@ int loop(unsigned int dt){
 		}else if(event.type == SDL_USEREVENT && event.user.code == 1){
 			/* Got callback event, call Lua callback */
 			Callback *callback = event.user.data1;
-			Timer *timer = callback->data;
-			// lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn);
-			lua_pushinteger(L, timer->delay);
-			// if(lua_pcall(L, 1, 0, 0) != LUA_OK){
-			// 	printf("%s\n", lua_tostring(L, -1));
-			// }
+			lua_pushinteger(L, ((Timer*)callback->data)->delay);
 			dispatch_callbacks("timer", 1);
 		}else if(event.type == SDL_KEYDOWN){
 			lua_pushstring(L, SDL_GetKeyName(event.key.keysym.sym));
@@ -126,11 +121,11 @@ int main(int argc, char *argv[]){
 	/* Set cpath */
 	luaL_dostring(L, "package.cpath = package.cpath..';./bin/?.so'");
 	
-	/* Register events table */
+	/* Register callbacks table */
 	lua_newtable(L); // stack: {tbl}
 	lua_pushinteger(L, 0); // stack: {0, tbl}
 	lua_setfield(L, -2, "n"); // stack: {tbl}
-	lua_setfield(L, LUA_REGISTRYINDEX, "events"); // stack: {}
+	lua_setfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {}
 	
 	/* Load main file */
 	if(luaL_loadfile(L, "res/main.lua") == LUA_OK){
