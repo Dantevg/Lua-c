@@ -9,6 +9,7 @@
 /* C library definitions */
 
 // Callback function which gets called in different thread
+// Receives the callback struct, puts it in an event and pushes that into the event queue
 uint32_t timer_async_callback(uint32_t delay, void *param){
 	Callback *callback = param;
 	Timer *timer = callback->data;
@@ -31,6 +32,9 @@ uint32_t timer_async_callback(uint32_t delay, void *param){
 	return (timer->repeat) ? delay : 0;
 }
 
+// Creates a callback for the function in the given registry id, for the given event,
+// with the given data, and places it into the callback table
+// Returns the callback struct, and places the callback id on the stack
 Callback *event_add_callback(lua_State *L, const char *event, int callbackid, void *data){
 	lua_getfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {callbacks, ...}
 	
@@ -58,6 +62,9 @@ Callback *event_add_callback(lua_State *L, const char *event, int callbackid, vo
 
 /* Lua API definitions */
 
+// Registers an event callback
+// Expects an event name, and a callback function
+// Returns the callback id
 int event_on(lua_State *L){
 	const char *event = luaL_checkstring(L, 1); // stack: {callback, event}
 	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {event}
@@ -65,6 +72,9 @@ int event_on(lua_State *L){
 	return 1;
 }
 
+// Deregisters an event callback
+// Expects a callback id, as returned by event_on
+// Returns whether the callback was successfully removed
 int event_off(lua_State *L){
 	int n = luaL_checkinteger(L, 1); // stack: {n}
 	lua_getfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {callbacks, n}
@@ -89,6 +99,9 @@ int event_off(lua_State *L){
 	return 1;
 }
 
+// Adds a timer callback
+// Expects a delay in milliseconds, a callback function, and optionally a boolean repeat
+// Returns the callback id
 int event_addTimer(lua_State *L){
 	// I have to make this static (or put it on the heap),
 	// as it otherwise gets deallocated at the end of this function,
@@ -111,6 +124,9 @@ int event_addTimer(lua_State *L){
 	return 1;
 }
 
+// Deregisters a timer callback
+// Expects a callback id
+// Returns whether the timer was successfully removed
 int event_removeTimer(lua_State *L){
 	/* Remove callback */
 	event_off(L); // stack: {status, callbacks[n], callbacks, n}
