@@ -55,11 +55,9 @@ function draw(_, dt)
 end
 
 timerID = event.addTimer(20, draw, true)
-print(timerID)
-print( event.on("kb.input", print) )
+event.on("kb.input", print)
 -- event.on("kb.down", function(name) print(name.." down") end)
 -- event.on("kb.up", function(name) print(name.." up") end)
 -- event.on("mouse.move", function(x,y) print(x, y) end)
-print( event.on("mouse.down", print) )
+event.on("mouse.down", print)
 scrollID = event.on("mouse.scroll", print)
-print(scrollID)
