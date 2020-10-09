@@ -44,6 +44,8 @@ void screen_resize(){
 	SDL_SetRenderTarget(window.renderer, NULL);
 	SDL_DestroyTexture(window.texture);
 	window.texture = newtexture;
+	
+	window.rect = rect;
 }
 
 /* Lua API definitions */
@@ -108,7 +110,7 @@ int screen_clear(lua_State *L){
 int screen_present(lua_State *L){
 	// Display
 	SDL_SetRenderTarget(window.renderer, NULL);
-	SDL_RenderCopy(window.renderer, window.texture, NULL, NULL);
+	SDL_RenderCopy(window.renderer, window.texture, &window.rect, &window.rect);
 	SDL_RenderPresent(window.renderer);
 	
 	// Reset render target and set scale
