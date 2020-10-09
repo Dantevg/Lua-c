@@ -12,8 +12,7 @@ struct Window {
 	SDL_Window *window;
 	SDL_Texture *texture;
 	SDL_Renderer *renderer;
-	int width;
-	int height;
+	SDL_Rect rect;
 	int scale;
 } window;
 
@@ -28,7 +27,7 @@ void screen_resize(){
 	SDL_Texture *newtexture = SDL_CreateTexture(window.renderer,
 		SDL_PIXELFORMAT_RGBA8888,
 		SDL_TEXTUREACCESS_TARGET,
-		window.width, window.height);
+		window.rect.w, window.rect.h);
 	checkSDL(window.texture, "Could not initialize texture: %s\n");
 	
 	// Set the source and destination rect
@@ -36,8 +35,8 @@ void screen_resize(){
 	rect.x = 0;
 	rect.y = 0;
 	SDL_QueryTexture(window.texture, NULL, NULL, &rect.w, &rect.h);
-	rect.w = (window.width < rect.w) ? window.width : rect.w;
-	rect.h = (window.height < rect.h) ? window.height : rect.h;
+	rect.w = (window.rect.w < rect.w) ? window.rect.w : rect.w;
+	rect.h = (window.rect.h < rect.h) ? window.rect.h : rect.h;
 	
 	// Copy over texture data
 	SDL_SetRenderTarget(window.renderer, newtexture);
@@ -51,14 +50,14 @@ void screen_resize(){
 
 // Returns the window width
 int screen_getWidth(lua_State *L){
-	lua_pushinteger(L, window.width / window.scale);
+	lua_pushinteger(L, window.rect.w / window.scale);
 	
 	return 1;
 }
 
 // Returns the window height
 int screen_getHeight(lua_State *L){
-	lua_pushinteger(L, window.height / window.scale);
+	lua_pushinteger(L, window.rect.h / window.scale);
 	
 	return 1;
 }
@@ -120,13 +119,15 @@ int screen_present(lua_State *L){
 }
 
 int screen_init(lua_State *L){
-	window.width = 600;
-	window.height = 400;
+	window.rect.x = 0;
+	window.rect.y = 0;
+	window.rect.w = 600;
+	window.rect.h = 400;
 	window.scale = 2;
 	// Create window
 	window.window = SDL_CreateWindow("SDL2 Window",
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		window.width, window.height,
+		window.rect.w, window.rect.h,
 		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	checkSDL(window.window, "Could not initialize window: %s\n");
 	
@@ -139,7 +140,7 @@ int screen_init(lua_State *L){
 	window.texture = SDL_CreateTexture(window.renderer,
 		SDL_PIXELFORMAT_RGBA8888,
 		SDL_TEXTUREACCESS_TARGET,
-		window.width, window.height);
+		window.rect.w, window.rect.h);
 	checkSDL(window.texture, "Could not initialize texture: %s\n");
 	
 	return 0;
