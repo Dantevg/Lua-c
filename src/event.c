@@ -58,6 +58,37 @@ Callback *event_add_callback(lua_State *L, const char *event, int callbackid, vo
 
 /* Lua API definitions */
 
+int event_on(lua_State *L){
+	const char *event = luaL_checkstring(L, 1); // stack: {callback, event}
+	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {event}
+	event_add_callback(L, event, id, NULL); // stack: {n, event}
+	return 1;
+}
+
+int event_off(lua_State *L){
+	int n = luaL_checkinteger(L, 1); // stack: {n}
+	lua_getfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {callbacks, n}
+	lua_rawgeti(L, -1, n); // stack: {callbacks[n], callbacks, n}
+	
+	/* Get callback struct */
+	void *ptr = lua_touserdata(L, -1);
+	if(ptr == NULL){ // No callback present, return false
+		lua_pushboolean(L, 0);
+		return 1;
+	}
+	Callback *callback = (Callback*)ptr;
+	
+	/* Remove callback struct from callback table */
+	lua_pushnil(L); // stack: {nil, callbacks[n], callbacks, n}
+	lua_rawseti(L, -3, n); // stack: {callbacks[n], callbacks, n}
+	
+	/* Unreference Lua callback function */
+	luaL_unref(L, LUA_REGISTRYINDEX, callback->fn);
+	
+	lua_pushboolean(L, 1); // Callback successfully removed, return true
+	return 1;
+}
+
 int event_addTimer(lua_State *L){
 	// I have to make this static (or put it on the heap),
 	// as it otherwise gets deallocated at the end of this function,
@@ -94,42 +125,11 @@ int event_removeTimer(lua_State *L){
 	return 1;
 }
 
-int event_on(lua_State *L){
-	const char *event = luaL_checkstring(L, 1); // stack: {callback, event}
-	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {event}
-	event_add_callback(L, event, id, NULL); // stack: {n, event}
-	return 1;
-}
-
-int event_off(lua_State *L){
-	int n = luaL_checkinteger(L, 1); // stack: {n}
-	lua_getfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {callbacks, n}
-	lua_rawgeti(L, -1, n); // stack: {callbacks[n], callbacks, n}
-	
-	/* Get callback struct */
-	void *ptr = lua_touserdata(L, -1);
-	if(ptr == NULL){ // No callback present, return false
-		lua_pushboolean(L, 0);
-		return 1;
-	}
-	Callback *callback = (Callback*)ptr;
-	
-	/* Remove callback struct from callback table */
-	lua_pushnil(L); // stack: {nil, callbacks[n], callbacks, n}
-	lua_rawseti(L, -3, n); // stack: {callbacks[n], callbacks, n}
-	
-	/* Unreference Lua callback function */
-	luaL_unref(L, LUA_REGISTRYINDEX, callback->fn);
-	
-	lua_pushboolean(L, 1); // Callback successfully removed, return true
-	return 1;
-}
-
 static const struct luaL_Reg event[] = {
-	{"addTimer", event_addTimer},
-	{"removeTimer", event_removeTimer},
 	{"on", event_on},
 	{"off", event_off},
+	{"addTimer", event_addTimer},
+	{"removeTimer", event_removeTimer},
 	{NULL, NULL}
 };
 
