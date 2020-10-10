@@ -22,32 +22,6 @@ int get_scale(){
 	return scale;
 }
 
-void screen_resize(){
-	// Create a new texture
-	SDL_Texture *newtexture = SDL_CreateTexture(window.renderer,
-		SDL_PIXELFORMAT_RGBA8888,
-		SDL_TEXTUREACCESS_TARGET,
-		window.rect.w, window.rect.h);
-	checkSDL(window.texture, "Could not initialize texture: %s\n");
-	
-	// Set the source and destination rect
-	SDL_Rect rect;
-	rect.x = 0;
-	rect.y = 0;
-	SDL_QueryTexture(window.texture, NULL, NULL, &rect.w, &rect.h);
-	rect.w = (window.rect.w < rect.w) ? window.rect.w : rect.w;
-	rect.h = (window.rect.h < rect.h) ? window.rect.h : rect.h;
-	
-	// Copy over texture data
-	SDL_SetRenderTarget(window.renderer, newtexture);
-	SDL_RenderCopy(window.renderer, window.texture, &rect, &rect);
-	SDL_SetRenderTarget(window.renderer, NULL);
-	SDL_DestroyTexture(window.texture);
-	window.texture = newtexture;
-	
-	window.rect = rect;
-}
-
 /* Lua API definitions */
 
 // Returns the window width
@@ -107,13 +81,44 @@ int screen_clear(lua_State *L){
 	return 0;
 }
 
+// Resizes the canvas
+// Intended to be used as callback
+int screen_resize(lua_State *L){
+	window.rect.w = luaL_checkinteger(L, 2);
+	window.rect.h = luaL_checkinteger(L, 3);
+	
+	/* Create a new texture */
+	SDL_Texture *newtexture = SDL_CreateTexture(window.renderer,
+		SDL_PIXELFORMAT_RGBA8888,
+		SDL_TEXTUREACCESS_TARGET,
+		window.rect.w, window.rect.h);
+	checkSDL(window.texture, "Could not initialize texture: %s\n");
+	
+	/* Set the source and destination rect */
+	SDL_Rect rect;
+	rect.x = 0;
+	rect.y = 0;
+	SDL_QueryTexture(window.texture, NULL, NULL, &rect.w, &rect.h);
+	rect.w = (window.rect.w < rect.w) ? window.rect.w : rect.w;
+	rect.h = (window.rect.h < rect.h) ? window.rect.h : rect.h;
+	
+	/* Copy over texture data */
+	SDL_SetRenderTarget(window.renderer, newtexture);
+	SDL_RenderCopy(window.renderer, window.texture, &rect, &rect);
+	SDL_SetRenderTarget(window.renderer, NULL);
+	SDL_DestroyTexture(window.texture);
+	window.texture = newtexture;
+	
+	return 0;
+}
+
 int screen_present(lua_State *L){
-	// Display
+	/* Display */
 	SDL_SetRenderTarget(window.renderer, NULL);
 	SDL_RenderCopy(window.renderer, window.texture, &window.rect, &window.rect);
 	SDL_RenderPresent(window.renderer);
 	
-	// Reset render target and set scale
+	/* Reset render target and set scale */
 	SDL_SetRenderTarget(window.renderer, window.texture);
 	SDL_RenderSetScale(window.renderer, window.scale, window.scale);
 	
@@ -126,19 +131,20 @@ int screen_init(lua_State *L){
 	window.rect.w = 600;
 	window.rect.h = 400;
 	window.scale = 2;
-	// Create window
+	
+	/* Create window */
 	window.window = SDL_CreateWindow("SDL2 Window",
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		window.rect.w, window.rect.h,
 		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	checkSDL(window.window, "Could not initialize window: %s\n");
 	
-	// Create window.renderer
+	/* Create renderer */
 	window.renderer = SDL_CreateRenderer(window.window, -1,
 		SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
 	checkSDL(window.renderer, "Could not initialize renderer: %s\n");
 	
-	// Create texture
+	/* Create texture */
 	window.texture = SDL_CreateTexture(window.renderer,
 		SDL_PIXELFORMAT_RGBA8888,
 		SDL_TEXTUREACCESS_TARGET,
@@ -156,6 +162,7 @@ static const struct luaL_Reg screen[] = {
 	{"colour", screen_colour},
 	{"pixel", screen_pixel},
 	{"clear", screen_clear},
+	{"resize", screen_resize},
 	{"present", screen_present},
 	{"init", screen_init},
 	{NULL, NULL}

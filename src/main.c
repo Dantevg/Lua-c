@@ -97,6 +97,10 @@ int loop(unsigned int dt){
 			lua_pushinteger(L, event.wheel.y);
 			lua_pushboolean(L, event.wheel.direction);
 			dispatch_callbacks("mouse.scroll", 3);
+		}else if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED){
+			lua_pushinteger(L, event.window.data1);
+			lua_pushinteger(L, event.window.data2);
+			dispatch_callbacks("screen.resize", 2);
 		}
 	}
 	
