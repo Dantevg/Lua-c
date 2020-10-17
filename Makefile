@@ -14,8 +14,9 @@ endif
 .PHONY: all modules main screen event
 
 all: main modules
-modules: bin/screen.so bin/event.so
+modules: bin/font.so bin/screen.so bin/event.so
 main: bin/main
+font: bin/font.so
 screen: bin/screen.so
 event: bin/event.so
 

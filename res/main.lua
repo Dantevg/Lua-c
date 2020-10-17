@@ -44,15 +44,18 @@ function draw(_, dt)
 	end
 	
 	spiral()
+	screen.char("A", 0, 0)
 	screen.present()
 end
 
 event.addTimer(20, draw, true)
-event.addTimer(1500, print, true)
-event.on("kb.input", print)
--- event.on("kb.down", function(name) print(name.." down") end)
--- event.on("kb.up", function(name) print(name.." up") end)
--- event.on("mouse.move", function(x,y) print(x, y) end)
-event.on("mouse.down", print)
-event.on("mouse.scroll", print)
+-- event.addTimer(1500, print, true)
+-- event.on("kb.input", print)
+-- event.on("kb.down", print)
+-- event.on("kb.up", print)
+-- event.on("mouse.move", print)
+-- event.on("mouse.down", print)
+-- event.on("mouse.scroll", print)
 event.on("screen.resize", screen.resize)
+
+screen.loadFont("res/poly4x3-r.bmp")

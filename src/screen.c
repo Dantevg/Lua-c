@@ -5,6 +5,7 @@
 #include <lauxlib.h>
 
 #include "util.c"
+#include "font.c"
 
 /* C library definitions */
 
@@ -14,6 +15,7 @@ struct Window {
 	SDL_Renderer *renderer;
 	SDL_Rect rect;
 	int scale;
+	Font font;
 } window;
 
 int get_scale(){
@@ -81,8 +83,22 @@ int screen_clear(lua_State *L){
 	return 0;
 }
 
+int screen_char(lua_State *L){
+	const char *str = luaL_checkstring(L, 1);
+	SDL_Rect rect;
+	rect.x = luaL_checkinteger(L, 2);
+	rect.y = luaL_checkinteger(L, 3);
+	font_char(window.renderer, &window.font, &rect, str[0]);
+}
+
+int screen_loadFont(lua_State *L){
+	const char *file = luaL_checkstring(L, 1);
+	window.font = font_load(window.renderer, file);
+	return 0;
+}
+
 // Resizes the canvas
-// Intended to be used as callback
+// Intended to be used as callback (ignores first argument, event name)
 int screen_resize(lua_State *L){
 	window.rect.w = luaL_checkinteger(L, 2);
 	window.rect.h = luaL_checkinteger(L, 3);
@@ -112,6 +128,11 @@ int screen_resize(lua_State *L){
 	return 0;
 }
 
+// Presents the buffer on screen
+// Can block if vsync enabled
+// FIXME: results in segfault / realloc invalid next size / malloc assertion failed
+// when this function doesn't get called often enough (less than 10 times per second)
+// and there is mouse movement (?)
 int screen_present(lua_State *L){
 	/* Display */
 	SDL_SetRenderTarget(window.renderer, NULL);
@@ -162,6 +183,8 @@ static const struct luaL_Reg screen[] = {
 	{"colour", screen_colour},
 	{"pixel", screen_pixel},
 	{"clear", screen_clear},
+	{"char", screen_char},
+	{"loadFont", screen_loadFont},
 	{"resize", screen_resize},
 	{"present", screen_present},
 	{"init", screen_init},
