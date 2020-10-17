@@ -48,6 +48,7 @@ function draw(_, dt)
 end
 
 event.addTimer(20, draw, true)
+event.addTimer(1500, print, true)
 event.on("kb.input", print)
 -- event.on("kb.down", function(name) print(name.." down") end)
 -- event.on("kb.up", function(name) print(name.." up") end)
