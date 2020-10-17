@@ -51,6 +51,8 @@ void dispatch_callbacks(char *eventname, int args){
 				printf("%s\n", lua_tostring(L, -1));
 				lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
 			}
+			// TODO: let callback return false to disable it,
+			// or pass callback ID (ideally, both)
 		}
 	}
 	lua_pop(L, 2); // stack: {...}
@@ -128,8 +130,9 @@ int main(int argc, char *argv[]){
 	L = luaL_newstate();
 	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
 	
-	/* Set cpath */
+	/* Set cpath and path */
 	luaL_dostring(L, "package.cpath = package.cpath..';./bin/?.so'");
+	luaL_dostring(L, "package.path = package.path..';res/?.lua'");
 	
 	/* Register callbacks table */
 	lua_newtable(L); // stack: {tbl}
