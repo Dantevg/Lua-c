@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stddef.h>
 
 void checkSDL(void *data, char *errstr){
