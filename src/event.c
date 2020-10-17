@@ -103,23 +103,20 @@ int event_off(lua_State *L){
 // Expects a delay in milliseconds, a callback function, and optionally a boolean repeat
 // Returns the callback id
 int event_addTimer(lua_State *L){
-	// I have to make this static (or put it on the heap),
-	// as it otherwise gets deallocated at the end of this function,
-	// and the callback wouldn't be able to use it anymore.
 	luaL_checktype(L, 2, LUA_TFUNCTION); // stack: {(repeat?), callback, delay}
 	
 	/* Create timer */
-	static Timer timer;
-	timer.delay = luaL_checkinteger(L, 1);
-	timer.repeat = lua_toboolean(L, 3);
+	Timer *timer = malloc(sizeof(Timer)); // free'd by event_removeTimer
+	timer->delay = luaL_checkinteger(L, 1);
+	timer->repeat = lua_toboolean(L, 3);
 	
 	/* Register timer callback event */
 	lua_pushvalue(L, 2); // stack: {callback, (repeat?), callback, delay}
 	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {(repeat?), callback, delay}
-	Callback *callback = event_add_callback(L, "timer", id, &timer); // stack: {n, (repeat?), callback, delay}
+	Callback *callback = event_add_callback(L, "timer", id, timer); // stack: {n, (repeat?), callback, delay}
 	
 	/* Set timer callback id */
-	timer.id = SDL_AddTimer(timer.delay, timer_async_callback, callback);
+	timer->id = SDL_AddTimer(timer->delay, timer_async_callback, callback);
 	
 	return 1;
 }
@@ -136,6 +133,7 @@ int event_removeTimer(lua_State *L){
 		Timer *timer = callback->data;
 		printf("[C] Removing timer %lld (%s), fn %d\n", lua_tointeger(L, 1), callback->event, callback->fn);
 		SDL_RemoveTimer(timer->id);
+		free(timer); // malloc'd by event_addTimer
 	}
 	
 	return 1;
