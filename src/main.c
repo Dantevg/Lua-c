@@ -65,8 +65,14 @@ int loop(unsigned int dt){
 		}else if(event.type == SDL_USEREVENT && event.user.code == 1){
 			/* Got callback event, call Lua callback */
 			Callback *callback = event.user.data1;
-			lua_pushinteger(L, ((Timer*)callback->data)->delay);
-			dispatch_callbacks("timer", 1);
+			lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, ...}
+			lua_pushstring(L, "timer"); // stack: {"timer", fn, ...}
+			lua_pushinteger(L, ((Timer*)callback->data)->delay); // stack: {delay, "timer", fn, ...}
+			
+			if(lua_pcall(L, 2, 0, 0) != LUA_OK){ // stack: {(err?), ...}
+				printf("%s\n", lua_tostring(L, -1));
+				lua_pop(L, 1); // stack: {...}
+			}
 		}else if(event.type == SDL_KEYDOWN){
 			lua_pushstring(L, SDL_GetKeyName(event.key.keysym.sym));
 			dispatch_callbacks("kb.down", 1);
