@@ -44,7 +44,7 @@ function draw(_, dt)
 	end
 	
 	spiral()
-	screen.write("The quick brown fox jumps over the lazy dog.", 0, 0)
+	screen.write(("The quick brown fox jumps over the lazy dog."):sub(1, frame), 0, 0)
 	screen.present()
 end
 
