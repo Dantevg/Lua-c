@@ -91,9 +91,30 @@ int screen_char(lua_State *L){
 	font_char(window.renderer, &window.font, &rect, str[0]);
 }
 
+int screen_write(lua_State *L){
+	const char *str = luaL_checkstring(L, 1);
+	
+	/* Get string length */
+	lua_len(L, 1);
+	int n = lua_tointeger(L, -1);
+	lua_pop(L, 1);
+	
+	/* Set initial position rect */
+	int x = luaL_checkinteger(L, 2);
+	int y = luaL_checkinteger(L, 3);
+	SDL_Rect rect;
+	
+	/* Draw characters */
+	for(int i = 0; i < n; i++){
+		rect.x = x;
+		rect.y = y;
+		x += font_char(window.renderer, &window.font, &rect, str[i]);
+	}
+	return 0;
+}
+
 int screen_loadFont(lua_State *L){
-	const char *file = luaL_checkstring(L, 1);
-	window.font = font_load(window.renderer, file);
+	window.font = font_load(L, window.renderer);
 	return 0;
 }
 
@@ -184,6 +205,7 @@ static const struct luaL_Reg screen[] = {
 	{"pixel", screen_pixel},
 	{"clear", screen_clear},
 	{"char", screen_char},
+	{"write", screen_write},
 	{"loadFont", screen_loadFont},
 	{"resize", screen_resize},
 	{"present", screen_present},

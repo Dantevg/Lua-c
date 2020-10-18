@@ -44,7 +44,7 @@ function draw(_, dt)
 	end
 	
 	spiral()
-	screen.char("A", 0, 0)
+	screen.write("The quick brown fox jumps over the lazy dog.", 0, 0)
 	screen.present()
 end
 
@@ -58,4 +58,4 @@ event.addTimer(20, draw, true)
 -- event.on("mouse.scroll", print)
 event.on("screen.resize", screen.resize)
 
-screen.loadFont("res/poly4x3-r.bmp")
+screen.loadFont("res/poly4x3-r_meta.lua")
