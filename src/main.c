@@ -130,8 +130,12 @@ int main(int argc, char *argv[]){
 	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
 	
 	/* Set cpath and path */
-	luaL_dostring(L, "package.cpath = package.cpath..';./bin/?.so'");
-	luaL_dostring(L, "package.path = package.path..';res/?.lua'");
+	if(luaL_dostring(L, "package.cpath = package.cpath..';./bin/?.so'")){
+		printf("Could not set package.cpath: %s\n", lua_tostring(L, -1));
+	}
+	if(luaL_dostring(L, "package.path = package.path..';res/?.lua'")){
+		printf("Could not set package.path: %s\n", lua_tostring(L, -1));
+	}
 	
 	/* Register callbacks table */
 	lua_newtable(L); // stack: {tbl}
