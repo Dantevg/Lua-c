@@ -1,10 +1,11 @@
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 
 #include "main.h"
+#include "event.h"
 
 /* C library definitions */
 
@@ -138,14 +139,6 @@ int event_removeTimer(lua_State *L){
 	
 	return 1;
 }
-
-static const struct luaL_Reg event[] = {
-	{"on", event_on},
-	{"off", event_off},
-	{"addTimer", event_addTimer},
-	{"removeTimer", event_removeTimer},
-	{NULL, NULL}
-};
 
 int luaopen_event(lua_State *L){
 	lua_newtable(L);

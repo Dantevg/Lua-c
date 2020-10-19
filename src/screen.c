@@ -1,22 +1,14 @@
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "util.c"
-#include "font.c"
+#include "util.h"
+#include "screen.h"
+#include "font.h"
 
 /* C library definitions */
-
-struct Window {
-	SDL_Window *window;
-	SDL_Texture *texture;
-	SDL_Renderer *renderer;
-	SDL_Rect rect;
-	int scale;
-	Font font;
-} window;
 
 int get_scale(){
 	float scale;
@@ -89,6 +81,8 @@ int screen_char(lua_State *L){
 	rect.x = luaL_checkinteger(L, 2);
 	rect.y = luaL_checkinteger(L, 3);
 	font_char(window.renderer, &window.font, &rect, str[0]);
+	
+	return 0;
 }
 
 int screen_write(lua_State *L){
@@ -195,23 +189,6 @@ int screen_init(lua_State *L){
 	
 	return 0;
 }
-
-static const struct luaL_Reg screen[] = {
-	{"getWidth", screen_getWidth},
-	{"getHeight", screen_getHeight},
-	{"getScale", screen_getScale},
-	{"setScale", screen_setScale},
-	{"colour", screen_colour},
-	{"pixel", screen_pixel},
-	{"clear", screen_clear},
-	{"char", screen_char},
-	{"write", screen_write},
-	{"loadFont", screen_loadFont},
-	{"resize", screen_resize},
-	{"present", screen_present},
-	{"init", screen_init},
-	{NULL, NULL}
-};
 
 int luaopen_screen(lua_State *L){
 	lua_newtable(L);

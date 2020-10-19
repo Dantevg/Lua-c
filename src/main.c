@@ -1,11 +1,10 @@
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 
 #include "main.h"
-#include "util.c"
 
 lua_State *L;
 unsigned int t0;

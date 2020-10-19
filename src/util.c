@@ -1,6 +1,4 @@
-#pragma once
-
-#include <stddef.h>
+#include <SDL2/SDL.h>
 
 void checkSDL(void *data, char *errstr){
 	if(data == NULL){

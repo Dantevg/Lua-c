@@ -1,28 +1,46 @@
-# Set compiler flags per OS
-OS = $(shell uname)
-ifeq ($(OS),Darwin) # MacOS
-	INCLUDE_DIR = /usr/local/include
-	INCLUDE_LUA = -I$(INCLUDE_DIR)/lua -llua5.3
-	INCLUDE_SDL = -I$(INCLUDE_DIR)/sdl2 -lsdl2
-else ifeq ($(OS),Linux)
-	INCLUDE_DIR = /usr/include
-	INCLUDE_LUA = -I$(INCLUDE_DIR)/lua5.3 -llua5.3
-	INCLUDE_SDL = -I$(INCLUDE_DIR)/SDL2 -lSDL2
+CFLAGS = -Wall
+INCLUDE = -I/usr/include/lua5.3
+LIBS = -lSDL2 -llua5.3
+
+ifeq ($(shell uname),Darwin) # MacOS
+	# Maybe instead use pkg-config, not sure (https://stackoverflow.com/a/52954005/3688140)
+	INCLUDE = -I/usr/local/include/lua5.3
 endif
 
-# Aliases
-.PHONY: all modules main screen event
+.PHONY: all clean
 
-all: main modules
-modules: bin/screen.so bin/event.so
-main: bin/main
-screen: bin/screen.so
-event: bin/event.so
+all: bin/main bin/event.so bin/screen.so
 
-# Main file
-bin/main: src/main.c
-	cc src/main.c -o bin/main $(INCLUDE_LUA) $(INCLUDE_SDL)
+# Normal files
+bin/main: build/main.o build/util.o
+build/main.o: src/main.c src/main.h
 
-# Modules: bin/screen.so -> cc src/screen.c -o bin/screen.so (...)
-bin/%.so: src/%.c
-	cc $< -o $@ $(INCLUDE_LUA) $(INCLUDE_SDL) -shared -fPIC
+# Libraries
+bin/event.so: build/event.o
+	cc build/event.o -o bin/event.so $(CFLAGS) $(LIBS) -shared
+
+build/event.o: src/event.c src/event.h
+	cc -c src/event.c -o build/event.o $(CFLAGS) $(INCLUDE) -fPIC
+
+bin/screen.so: build/screen.o build/font.o build/util.o
+	cc build/screen.o build/font.o build/util.o -o bin/screen.so $(CFLAGS) $(LIBS) -shared
+
+build/screen.o: src/screen.c src/screen.h
+	cc -c src/screen.c -o build/screen.o $(CFLAGS) $(INCLUDE) -fPIC
+
+build/font.o: src/font.c src/font.h
+	cc -c src/font.c -o build/font.o $(CFLAGS) $(INCLUDE) -fPIC
+
+# Automatic (fallback) rules
+bin/%: build/%.o
+	cc $< -o $@ $(CFLAGS) $(LIBS)
+
+bin/%.so: build/%.o
+	cc $< -o $@ $(CFLAGS) $(LIBS) -shared
+
+build/%.o: src/%.c
+	cc -c $< -o $@ $(CFLAGS) $(INCLUDE)
+
+clean:
+	rm build/*
+	rm bin/*

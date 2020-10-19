@@ -1,24 +1,11 @@
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "util.c"
-
-typedef struct Char {
-	char c;
-	SDL_Rect rect;
-	int ox;
-	int oy;
-	int advance;
-} Char;
-
-typedef struct Font {
-	SDL_Texture *image;
-	int height;
-	Char chars[256];
-} Font;
+#include "util.h"
+#include "font.h"
 
 void font_transfer_int_field(lua_State *L, int i, const char *name, int *dst){
 	lua_getfield(L, -1, name);
