@@ -80,17 +80,17 @@ Font font_load(lua_State *L, SDL_Renderer *renderer){
 			luaL_error(L, "Char number %d doesn't contain string field 'char'", i);
 		}
 		char c = lua_tostring(L, -1)[0];
-		f.chars[c].c = c;
+		f.chars[(int)c].c = c;
 		lua_pop(L, 1);
 		
 		/* Other integer character metrics */
-		font_transfer_int_field(L, c, "x", &f.chars[c].rect.x);
-		font_transfer_int_field(L, c, "y", &f.chars[c].rect.y);
-		font_transfer_int_field(L, c, "ox", &f.chars[c].ox);
-		font_transfer_int_field(L, c, "oy", &f.chars[c].oy);
-		font_transfer_int_field(L, c, "width", &f.chars[c].rect.w);
-		font_transfer_int_field(L, c, "height", &f.chars[c].rect.h);
-		font_transfer_int_field(L, c, "advance", &f.chars[c].advance);
+		font_transfer_int_field(L, c, "x", &f.chars[(int)c].rect.x);
+		font_transfer_int_field(L, c, "y", &f.chars[(int)c].rect.y);
+		font_transfer_int_field(L, c, "ox", &f.chars[(int)c].ox);
+		font_transfer_int_field(L, c, "oy", &f.chars[(int)c].oy);
+		font_transfer_int_field(L, c, "width", &f.chars[(int)c].rect.w);
+		font_transfer_int_field(L, c, "height", &f.chars[(int)c].rect.h);
+		font_transfer_int_field(L, c, "advance", &f.chars[(int)c].advance);
 		
 		lua_pop(L, 1); // stack: {charstable, fonttable, metafile}
 	}
@@ -99,11 +99,11 @@ Font font_load(lua_State *L, SDL_Renderer *renderer){
 }
 
 int font_char(SDL_Renderer *renderer, Font *font, SDL_Rect *dest, char c){
-	SDL_Rect *src = &font->chars[c].rect;
-	dest->x += font->chars[c].ox;
-	dest->y += font->height - font->chars[c].rect.h - font->chars[c].oy;
+	SDL_Rect *src = &font->chars[(int)c].rect;
+	dest->x += font->chars[(int)c].ox;
+	dest->y += font->height - font->chars[(int)c].rect.h - font->chars[(int)c].oy;
 	dest->w = src->w;
 	dest->h = src->h;
 	SDL_RenderCopy(renderer, font->image, src, dest);
-	return font->chars[c].advance;
+	return font->chars[(int)c].advance;
 }
