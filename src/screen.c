@@ -80,7 +80,7 @@ int screen_char(lua_State *L){
 	SDL_Rect rect;
 	rect.x = luaL_checkinteger(L, 2);
 	rect.y = luaL_checkinteger(L, 3);
-	font_char(window.renderer, &window.font, &rect, str[0]);
+	font_char(&window.font, window.renderer, &rect, str[0]);
 	
 	return 0;
 }
@@ -102,7 +102,7 @@ int screen_write(lua_State *L){
 	for(int i = 0; i < n; i++){
 		rect.x = x;
 		rect.y = y;
-		x += font_char(window.renderer, &window.font, &rect, str[i]);
+		x += font_char(&window.font, window.renderer, &rect, str[i]);
 	}
 	return 0;
 }
@@ -161,7 +161,11 @@ int screen_present(lua_State *L){
 	return 0;
 }
 
-int screen_init(lua_State *L){
+int luaopen_screen(lua_State *L){
+	lua_newtable(L);
+	luaL_setfuncs(L, screen, 0);
+	
+	/* Init */
 	window.rect.x = 0;
 	window.rect.y = 0;
 	window.rect.w = 600;
@@ -187,11 +191,5 @@ int screen_init(lua_State *L){
 		window.rect.w, window.rect.h);
 	checkSDL(window.texture, "Could not initialize texture: %s\n");
 	
-	return 0;
-}
-
-int luaopen_screen(lua_State *L){
-	lua_newtable(L);
-	luaL_setfuncs(L, screen, 0);
 	return 1;
 }

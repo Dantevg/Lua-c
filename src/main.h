@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SDL2/SDL.h>
+
 typedef struct Timer {
 	int id;     // The SDL timer ID
 	int delay;  // The delay in ms

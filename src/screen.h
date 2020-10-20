@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL.h>
 
+#include <lua.h>
 #include <lauxlib.h>
 
 #include "font.h"
@@ -42,10 +43,13 @@ int screen_pixel(lua_State *L);
 // Clears the screen using the current colour
 int screen_clear(lua_State *L);
 
+// Draws a character on screen
 int screen_char(lua_State *L);
 
+// Draws a string of characters on screen
 int screen_write(lua_State *L);
 
+// Loads a font
 int screen_loadFont(lua_State *L);
 
 // Resizes the canvas
@@ -58,8 +62,6 @@ int screen_resize(lua_State *L);
 // when this function doesn't get called often enough (less than 10 times per second)
 // and there is mouse movement (?)
 int screen_present(lua_State *L);
-
-int screen_init(lua_State *L);
 
 static const struct luaL_Reg screen[] = {
 	{"getWidth", screen_getWidth},
@@ -74,7 +76,6 @@ static const struct luaL_Reg screen[] = {
 	{"loadFont", screen_loadFont},
 	{"resize", screen_resize},
 	{"present", screen_present},
-	{"init", screen_init},
 	{NULL, NULL}
 };
 

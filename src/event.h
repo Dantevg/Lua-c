@@ -1,5 +1,8 @@
 #pragma once
 
+#include <lua.h>
+#include <lauxlib.h>
+
 /* C library definitions */
 
 // Callback function which gets called in different thread

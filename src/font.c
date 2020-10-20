@@ -16,6 +16,7 @@ void font_transfer_int_field(lua_State *L, int i, const char *name, int *dst){
 	lua_pop(L, 1);
 }
 
+// Loads a font from a fontname_meta.lua with accompanying fontname.bmp
 Font font_load(lua_State *L, SDL_Renderer *renderer){
 	/* Load meta file */
 	const char *metafile = luaL_checkstring(L, 1);
@@ -98,7 +99,8 @@ Font font_load(lua_State *L, SDL_Renderer *renderer){
 	return f;
 }
 
-int font_char(SDL_Renderer *renderer, Font *font, SDL_Rect *dest, char c){
+// Renders a character on the given coordinates
+int font_char(Font *font, SDL_Renderer *renderer, SDL_Rect *dest, char c){
 	SDL_Rect *src = &font->chars[(int)c].rect;
 	dest->x += font->chars[(int)c].ox;
 	dest->y += font->height - font->chars[(int)c].rect.h - font->chars[(int)c].oy;

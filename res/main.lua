@@ -33,7 +33,6 @@ function spiral()
 	end
 end
 
-screen.init()
 screen.setScale(2)
 function draw(_, dt)
 	screen.clear()
