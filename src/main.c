@@ -57,6 +57,12 @@ void dispatch_callbacks(char *eventname, int args){
 	lua_pop(L, 2); // stack: {...}
 }
 
+void lower(const char *str, char *out, int length){
+	for(int i = 0; i < length; i++){
+		out[i] = tolower(str[i]);
+	}
+}
+
 int loop(unsigned int dt){
 	/* Events */
 	SDL_Event event;
@@ -75,10 +81,18 @@ int loop(unsigned int dt){
 				lua_pop(L, 1); // stack: {...}
 			}
 		}else if(event.type == SDL_KEYDOWN){
-			lua_pushstring(L, SDL_GetKeyName(event.key.keysym.sym));
+			const char *key = SDL_GetKeyName(event.key.keysym.sym);
+			int length = strlen(key)+1;
+			char keyLower[length];
+			lower(key, keyLower, length);
+			lua_pushstring(L, keyLower);
 			dispatch_callbacks("kb.down", 1);
 		}else if(event.type == SDL_KEYUP){
-			lua_pushstring(L, SDL_GetKeyName(event.key.keysym.sym));
+			const char *key = SDL_GetKeyName(event.key.keysym.sym);
+			int length = strlen(key)+1;
+			char keyLower[length];
+			lower(key, keyLower, length);
+			lua_pushstring(L, keyLower);
 			dispatch_callbacks("kb.up", 1);
 		}else if(event.type == SDL_TEXTINPUT){
 			lua_pushstring(L, event.text.text);
