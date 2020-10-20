@@ -18,8 +18,6 @@ struct Window {
 	Font font;
 } window;
 
-int get_scale();
-
 /* Lua API definitions */
 
 // Returns the window width
@@ -39,6 +37,9 @@ int screen_colour(lua_State *L);
 
 // Sets pixel
 int screen_pixel(lua_State *L);
+
+// Draws a rectangle
+int screen_rect(lua_State *L);
 
 // Clears the screen using the current colour
 int screen_clear(lua_State *L);
@@ -70,6 +71,7 @@ static const struct luaL_Reg screen[] = {
 	{"setScale", screen_setScale},
 	{"colour", screen_colour},
 	{"pixel", screen_pixel},
+	{"rect", screen_rect},
 	{"clear", screen_clear},
 	{"char", screen_char},
 	{"write", screen_write},

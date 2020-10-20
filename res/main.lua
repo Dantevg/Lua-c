@@ -35,6 +35,7 @@ end
 
 screen.setScale(2)
 function draw(_, dt)
+	screen.colour(0)
 	screen.clear()
 	t = t+dt
 	frame = frame+1
@@ -43,6 +44,7 @@ function draw(_, dt)
 	end
 	
 	spiral()
+	screen.colour(255)
 	screen.write(("The quick brown fox jumps over the lazy dog."):sub(1, frame), 0, 0)
 	screen.present()
 end

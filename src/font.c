@@ -101,11 +101,21 @@ Font font_load(lua_State *L, SDL_Renderer *renderer){
 
 // Renders a character on the given coordinates
 int font_char(Font *font, SDL_Renderer *renderer, SDL_Rect *dest, char c){
+	/* Set rect */
 	SDL_Rect *src = &font->chars[(int)c].rect;
 	dest->x += font->chars[(int)c].ox;
 	dest->y += font->height - font->chars[(int)c].rect.h - font->chars[(int)c].oy;
 	dest->w = src->w;
 	dest->h = src->h;
+	
+	/* Set colour */
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+	SDL_GetRenderDrawColor(renderer, &r, &g, &b, NULL);
+	SDL_SetTextureColorMod(font->image, r, g, b);
+	
+	/* Render */
 	SDL_RenderCopy(renderer, font->image, src, dest);
 	return font->chars[(int)c].advance;
 }

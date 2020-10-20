@@ -10,12 +10,6 @@
 
 /* C library definitions */
 
-int get_scale(){
-	float scale;
-	SDL_RenderGetScale(window.renderer, &scale, NULL);
-	return scale;
-}
-
 /* Lua API definitions */
 
 // Returns the window width
@@ -64,6 +58,24 @@ int screen_pixel(lua_State *L){
 	int y = luaL_checkinteger(L, 2);
 	
 	SDL_RenderDrawPoint(window.renderer, x, y);
+	
+	return 0;
+}
+
+// Draws a rectangle
+int screen_rect(lua_State *L){
+	SDL_Rect rect;
+	rect.x = luaL_checkinteger(L, 1);
+	rect.y = luaL_checkinteger(L, 2);
+	rect.w = luaL_checkinteger(L, 3);
+	rect.h = luaL_checkinteger(L, 4);
+	int fill = lua_toboolean(L, 5);
+	
+	if(fill){
+		SDL_RenderFillRect(window.renderer, &rect);
+	}else{
+		SDL_RenderDrawRect(window.renderer, &rect);
+	}
 	
 	return 0;
 }
@@ -190,6 +202,9 @@ int luaopen_screen(lua_State *L){
 		SDL_TEXTUREACCESS_TARGET,
 		window.rect.w, window.rect.h);
 	checkSDL(window.texture, "Could not initialize texture: %s\n");
+	
+	/* Set default colour to white */
+	SDL_SetRenderDrawColor(window.renderer, 255, 255, 255, 255);
 	
 	return 1;
 }
