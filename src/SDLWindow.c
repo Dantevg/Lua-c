@@ -137,7 +137,8 @@ int SDLWindow_write(lua_State *L){
 }
 
 int SDLWindow_loadFont(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = SDLWindow_get(L); // stack: {filename, SDLWindow}
+	lua_replace(L, 1); // stack: {filename}
 	window->font = font_load(L, window->renderer);
 	return 0;
 }

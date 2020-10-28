@@ -64,8 +64,6 @@ int SDLWindow_resize(lua_State *L);
 // and there is mouse movement (?)
 int SDLWindow_present(lua_State *L);
 
-int SDLWindow__index(lua_State *L);
-
 int SDLWindow_new(lua_State *L);
 
 static const struct luaL_Reg SDLWindow_f[] = {

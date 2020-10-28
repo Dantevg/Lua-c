@@ -1,7 +1,16 @@
 local window = require "SDLWindow"
+local image = require "SDLImage"
 local event = require "event"
 
 local screen = window.new()
+local img = image.new(32, 32)
+
+img:loadFont("res/poly4x3-r_meta.lua")
+-- img:colour(0)
+-- img:clear()
+img:colour(255)
+img:write("Hello", 0, 0)
+img:save("res/img.bmp")
 
 frame = 0
 t = 0
@@ -35,7 +44,6 @@ function spiral()
 	end
 end
 
-screen:setScale(2)
 function draw(_, dt)
 	screen:colour(0)
 	screen:clear()
@@ -46,8 +54,8 @@ function draw(_, dt)
 	end
 	
 	spiral()
-	-- screen:colour(255)
-	-- screen:write(("The quick brown fox jumps over the lazy dog."):sub(1, frame), 0, 0)
+	screen:colour(255)
+	screen:write(("The quick brown fox jumps over the lazy dog."):sub(1, frame), 0, 0)
 	screen:present()
 end
 
@@ -61,4 +69,4 @@ event.addTimer(20, draw, true)
 -- event.on("mouse.scroll", print)
 event.on("screen.resize", function(...) return screen:resize(...) end)
 
--- screen:loadFont("res/poly4x3-r_meta.lua")
+screen:loadFont("res/poly4x3-r_meta.lua")
