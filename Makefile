@@ -9,7 +9,7 @@ endif
 
 .PHONY: all clean
 
-all: bin/main bin/event.so bin/screen.so
+all: bin/main bin/event.so bin/SDLWindow.so
 
 # Normal files
 bin/main: build/main.o build/util.o
@@ -22,11 +22,11 @@ bin/event.so: build/event.o
 build/event.o: src/event.c src/event.h
 	cc -c src/event.c -o build/event.o $(CFLAGS) $(INCLUDE) -fPIC
 
-bin/screen.so: build/screen.o build/font.o build/util.o
-	cc build/screen.o build/font.o build/util.o -o bin/screen.so $(CFLAGS) $(LIBS) -shared
+bin/SDLWindow.so: build/SDLWindow.o build/font.o build/util.o
+	cc build/SDLWindow.o build/font.o build/util.o -o bin/SDLWindow.so $(CFLAGS) $(LIBS) -shared
 
-build/screen.o: src/screen.c src/screen.h
-	cc -c src/screen.c -o build/screen.o $(CFLAGS) $(INCLUDE) -fPIC
+build/SDLWindow.o: src/SDLWindow.c src/SDLWindow.h
+	cc -c src/SDLWindow.c -o build/SDLWindow.o $(CFLAGS) $(INCLUDE) -fPIC
 
 build/font.o: src/font.c src/font.h
 	cc -c src/font.c -o build/font.o $(CFLAGS) $(INCLUDE) -fPIC
