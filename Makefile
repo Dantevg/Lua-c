@@ -1,4 +1,4 @@
-CFLAGS = -Wall
+CFLAGS = -Wall -Wextra -Wno-unused-parameter
 INCLUDE = -I/usr/include/lua5.3
 LIBS = -lSDL2 -llua5.3
 

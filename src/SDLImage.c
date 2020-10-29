@@ -277,7 +277,7 @@ int SDLImage_new(lua_State *L){
 		SDLImage_create(image, w, h);
 		
 	}else{
-		luaL_error(L, "Expected string or number, number");
+		return luaL_error(L, "Expected string or number, number");
 	}
 	
 	image->scale = 1;

@@ -16,7 +16,7 @@ typedef struct Callback {
 } Callback;
 
 // Store the event names corresponding to the SDL2 event enum
-const static struct {
+static const struct {
 	SDL_EventType event;
 	const char *name;
 } events[] = {

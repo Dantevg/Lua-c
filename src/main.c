@@ -19,7 +19,7 @@ int quit_callback(void *userdata, SDL_Event *event){
 	return 0;
 }
 
-int loop(lua_State *L, unsigned int dt){
+int loop(lua_State *L){
 	/* Events */
 	SDL_Event event;
 	while(SDL_PollEvent(&event)){
@@ -89,12 +89,9 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Main loop */
-	unsigned int t_prev = SDL_GetTicks();
 	int quit = 0;
 	while(!quit){
-		unsigned int t_new = SDL_GetTicks();
-		quit = loop(L, t_new - t_prev);
-		t_prev = t_new;
+		quit = loop(L);
 	}
 	
 	/* Exit */
