@@ -19,10 +19,10 @@ typedef struct SDLImage {
 
 /* Lua API definitions */
 
-// Returns the window width
+// Returns the image width
 int SDLImage_getWidth(lua_State *L);
 
-// Returns the window height
+// Returns the image height
 int SDLImage_getHeight(lua_State *L);
 
 // Returns the rendering scale
@@ -40,27 +40,27 @@ int SDLImage_pixel(lua_State *L);
 // Draws a rectangle
 int SDLImage_rect(lua_State *L);
 
-// Clears the SDLImage using the current colour
+// Clears the image using the current colour
 int SDLImage_clear(lua_State *L);
 
-// Draws a character on SDLImage
+// Draws a character on the image
 int SDLImage_char(lua_State *L);
 
-// Draws a string of characters on SDLImage
+// Draws a string of characters on the image
 int SDLImage_write(lua_State *L);
+
+// Gets the pixel colour on the given coordinates
+int SDLImage_getPixel(lua_State *L);
 
 // Loads a font
 int SDLImage_loadFont(lua_State *L);
 
-// Resizes the canvas
-// Intended to be used as callback (ignores first argument, event name)
+// Resizes the image
+// Intended to be used as callback for screen interface compatibility
+// (ignores first argument, event name)
 int SDLImage_resize(lua_State *L);
 
-// Presents the buffer on SDLImage
-// Can block if vsync enabled
-// FIXME: results in segfault / realloc invalid next size / malloc assertion failed
-// when this function doesn't get called often enough (less than 10 times per second)
-// and there is mouse movement (?)
+// For screen interface compatibility
 int SDLImage_present(lua_State *L);
 
 // Saves the image to a file
@@ -79,6 +79,7 @@ static const struct luaL_Reg SDLImage_f[] = {
 	{"clear", SDLImage_clear},
 	{"char", SDLImage_char},
 	{"write", SDLImage_write},
+	{"getPixel", SDLImage_getPixel},
 	{"loadFont", SDLImage_loadFont},
 	{"resize", SDLImage_resize},
 	{"present", SDLImage_present},

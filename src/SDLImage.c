@@ -38,6 +38,9 @@ void SDLImage_load(SDLImage *image, const char *filename){
 	/* Load surface */
 	image->surface = SDL_LoadBMP(filename);
 	checkSDL(image->surface, "Could not load image: %s\n");
+	
+	image->rect.w = image->surface->w;
+	image->rect.h = image->surface->h;
 }
 
 /* Lua API definitions */
@@ -118,7 +121,7 @@ int SDLImage_rect(lua_State *L){
 	return 0;
 }
 
-// Clears the SDLImage canvas using the current colour
+// Clears the image using the current colour
 int SDLImage_clear(lua_State *L){
 	SDLImage *image = SDLImage_get(L);
 	SDL_RenderClear(image->renderer);
@@ -126,6 +129,7 @@ int SDLImage_clear(lua_State *L){
 	return 0;
 }
 
+// Draws a character on the image
 int SDLImage_char(lua_State *L){
 	SDLImage *image = SDLImage_get(L);
 	const char *str = luaL_checkstring(L, 2);
@@ -137,6 +141,7 @@ int SDLImage_char(lua_State *L){
 	return 0;
 }
 
+// Draws a string of characters on the image
 int SDLImage_write(lua_State *L){
 	SDLImage *image = SDLImage_get(L);
 	const char *str = luaL_checkstring(L, 2);
@@ -160,6 +165,34 @@ int SDLImage_write(lua_State *L){
 	return 0;
 }
 
+// Gets the pixel colour on the given coordinates
+int SDLImage_getPixel(lua_State *L){
+	SDLImage *image = SDLImage_get(L); // stack: {y, x, SDLImage}
+	int x = luaL_checkinteger(L, 2);
+	int y = luaL_checkinteger(L, 3);
+	
+	/* Check coordinates */
+	if(x < 0 || y < 0 || x >= image->rect.w || y >= image->rect.h){
+		luaL_error(L, "Coordinates out of range");
+	}
+	
+	/* Get pixel */
+	int pitch = image->surface->pitch;
+	uint8_t bpp = image->surface->format->BytesPerPixel;
+	uint8_t *p = (uint8_t*)image->surface->pixels + y * pitch + x * bpp;
+	
+	/* Get colour */
+	uint8_t r, g, b;
+	SDL_GetRGB(*(uint32_t*)p, image->surface->format, &r, &g, &b);
+	
+	/* Return colour */
+	lua_pushinteger(L, r);
+	lua_pushinteger(L, g);
+	lua_pushinteger(L, b);
+	return 3;
+}
+
+// Loads a font
 int SDLImage_loadFont(lua_State *L){
 	SDLImage *image = SDLImage_get(L); // stack: {filename, SDLImage}
 	lua_replace(L, 1); // stack: {filename}
@@ -167,8 +200,9 @@ int SDLImage_loadFont(lua_State *L){
 	return 0;
 }
 
-// Resizes the SDLImage canvas
-// Intended to be used as callback (ignores first argument, event name)
+// Resizes the image
+// Intended to be used as callback for screen interface compatibility
+// (ignores first argument, event name)
 int SDLImage_resize(lua_State *L){
 	SDLImage *image = SDLImage_get(L);
 	
