@@ -39,6 +39,10 @@ void SDLImage_load(SDLImage *image, const char *filename){
 	image->surface = SDL_LoadBMP(filename);
 	checkSDL(image->surface, "Could not load image: %s\n");
 	
+	/* Convert surface format to be able to draw on it (by default loads as BGR24) */
+	image->surface = SDL_ConvertSurfaceFormat(image->surface, SDLImage_PIXELFORMAT, 0);
+	checkSDL(image->surface, "Could not convert image format: %s\n");
+	
 	image->rect.w = image->surface->w;
 	image->rect.h = image->surface->h;
 }
