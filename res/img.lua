@@ -9,3 +9,5 @@ img:loadFont("poly4x3-r_meta.lua")
 img:colour(255)
 img:write("Hello", 0, 0)
 img:save("img.bmp")
+
+return false

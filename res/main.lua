@@ -1,2 +1,1 @@
-dofile("img.lua")
-return false
+return dofile("img.lua")
