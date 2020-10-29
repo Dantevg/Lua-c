@@ -8,6 +8,8 @@
 
 #include "main.h"
 
+#define VERSION "0.1.0"
+
 // Callback to quit program as soon as possible upon user request
 int quit_callback(void *userdata, SDL_Event *event){
 	if(event->type == SDL_QUIT){
@@ -42,6 +44,24 @@ int loop(lua_State *L){
 }
 
 int main(int argc, char *argv[]){
+	char *file = "res/main.lua";
+	
+	/* Parse command-line arguments */
+	for(int i = 1; i < argc; i++){
+		if(strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0){
+			/* Print version and return */
+			printf("%s\n", VERSION);
+			return 0;
+		}else if(strcmp(argv[i], "-") == 0){
+			/* Execute stdin */
+			file = NULL;
+			break;
+		}else{
+			/* Execute file */
+			file = argv[i];
+		}
+	}
+	
 	/* Init SDL */
 	if(SDL_Init(0) < 0){
 		printf("Could not initialize SDL: %s\n", SDL_GetError());
@@ -57,7 +77,6 @@ int main(int argc, char *argv[]){
 	SDL_AddEventWatch(quit_callback, L);
 	
 	/* Set cpath and path */
-	chdir("res");
 	if(luaL_dostring(L, "package.cpath = package.cpath..';../bin/?.so'")){
 		printf("Could not set package.cpath: %s\n", lua_tostring(L, -1));
 	}
@@ -72,7 +91,8 @@ int main(int argc, char *argv[]){
 	lua_setfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {}
 	
 	/* Load main file */
-	if(luaL_loadfile(L, "main.lua") == LUA_OK){
+	if(luaL_loadfile(L, file) == LUA_OK){
+		chdir("res");
 		if(lua_pcall(L, 0, 1, 0) == LUA_OK){
 			printf("[C] Code executed successfully\n");
 			// Immediately stop execution when main chunk returns false
