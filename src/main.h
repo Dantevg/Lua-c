@@ -28,3 +28,5 @@ const static struct {
 	{SDL_MOUSEBUTTONUP,   "mouse.up"},
 	{SDL_MOUSEWHEEL,      "mouse.scroll"}
 };
+
+void (*event_dispatch_ptr)(lua_State*, SDL_Event*);

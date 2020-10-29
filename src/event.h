@@ -14,6 +14,12 @@ uint32_t timer_async_callback(uint32_t delay, void *param);
 // Returns the callback struct, and places the callback id on the stack
 Callback *event_add_callback(lua_State *L, const char *event, int callbackid, void *data);
 
+// Dispatches event to Lua callbacks
+void event_dispatch_callbacks(lua_State *L, char *eventname, int args);
+
+// Dispatches event to Lua
+void event_dispatch(lua_State *L, SDL_Event *event);
+
 /* Lua API definitions */
 
 // Registers an event callback

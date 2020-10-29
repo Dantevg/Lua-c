@@ -6,3 +6,9 @@ void checkSDL(void *data, char *errstr){
 		exit(-1);
 	}
 }
+
+void lower(const char *str, char *out, int length){
+	for(int i = 0; i < length; i++){
+		out[i] = tolower(str[i]);
+	}
+}

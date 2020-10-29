@@ -14,10 +14,11 @@ all: bin/main bin/event.so bin/SDLWindow.so bin/SDLImage.so
 # Normal files
 bin/main: build/main.o build/util.o
 build/main.o: src/main.c src/main.h
+build/util.o: src/util.c src/util.h
 
 # Libraries
-bin/event.so: build/event.o
-	cc build/event.o -o bin/event.so $(CFLAGS) $(LIBS) -shared
+bin/event.so: build/event.o build/util.o
+	cc build/event.o build/util.o -o bin/event.so $(CFLAGS) $(LIBS) -shared
 
 build/event.o: src/event.c src/event.h
 	cc -c src/event.c -o build/event.o $(CFLAGS) $(INCLUDE) -fPIC
