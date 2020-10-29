@@ -73,6 +73,7 @@ int SDLImage_getScale(lua_State *L){
 int SDLImage_setScale(lua_State *L){
 	SDLImage *image = SDLImage_get(L);
 	image->scale = luaL_checkinteger(L, 2);
+	SDL_RenderSetScale(image->renderer, image->scale, image->scale);
 	
 	return 0;
 }
@@ -263,25 +264,23 @@ int SDLImage_new(lua_State *L){
 	if(lua_type(L, 1) == LUA_TSTRING){ // stack: {filename}
 		/* Load image from file */
 		const char *filename = luaL_checkstring(L, 1);
-		int scale = luaL_optinteger(L, 2, 1); // Optional scale, default 1
 		
 		image = lua_newuserdata(L, sizeof(SDLImage)); // stack: {SDLImage, filename}
-		image->scale = scale;
 		SDLImage_load(image, filename);
 		
-	}else if(lua_type(L, 1) == LUA_TNUMBER){ // stack: {scale?, h, w}
+	}else if(lua_type(L, 1) == LUA_TNUMBER){ // stack: {h, w}
 		/* Create new image */
 		int w = luaL_checkinteger(L, 1);
 		int h = luaL_checkinteger(L, 2);
-		int scale = luaL_optinteger(L, 3, 1); // Optional scale, default 1
 		
-		image = lua_newuserdata(L, sizeof(SDLImage)); // stack: {SDLImage, scale?, w, h}
-		image->scale = scale;
+		image = lua_newuserdata(L, sizeof(SDLImage)); // stack: {SDLImage, w, h}
 		SDLImage_create(image, w, h);
 		
 	}else{
-		luaL_error(L, "Expected string [, number] or number, number [, number]");
+		luaL_error(L, "Expected string or number, number");
 	}
+	
+	image->scale = 1;
 	
 	/* Create renderer */
 	image->renderer = SDL_CreateSoftwareRenderer(image->surface);
