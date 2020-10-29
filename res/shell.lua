@@ -1,7 +1,7 @@
 local event = require "event"
 local screen = require "screen"
 
-screen.loadFont("res/poly4x3-r_meta.lua")
+screen.loadFont("poly4x3-r_meta.lua")
 
 local input = ""
 local x, y = 0, 0
