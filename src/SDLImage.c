@@ -19,6 +19,27 @@ SDLImage *SDLImage_get(lua_State *L){
 	return (SDLImage*)p;
 }
 
+void SDLImage_create(SDLImage *image, int w, int h){
+	image->rect.x = 0;
+	image->rect.y = 0;
+	image->rect.w = w;
+	image->rect.h = h;
+	
+	/* Create surface */
+	image->surface = SDL_CreateRGBSurfaceWithFormat(0, image->rect.w, image->rect.h,
+		SDLImage_BITDEPTH, SDLImage_PIXELFORMAT);
+	checkSDL(image->surface, "Could not initialize surface: %s\n");
+}
+
+void SDLImage_load(SDLImage *image, const char *filename){
+	image->rect.x = 0;
+	image->rect.y = 0;
+	
+	/* Load surface */
+	image->surface = SDL_LoadBMP(filename);
+	checkSDL(image->surface, "Could not load image: %s\n");
+}
+
 /* Lua API definitions */
 
 // Returns the image width
@@ -180,23 +201,8 @@ int SDLImage_resize(lua_State *L){
 	return 0;
 }
 
-// Presents the buffer on SDLImage
-// Can block if vsync enabled
-// FIXME: results in segfault / realloc invalid next size / malloc assertion failed
-// when this function doesn't get called often enough (less than 10 times per second)
-// and there is mouse movement (?)
+// For screen interface compatibility
 int SDLImage_present(lua_State *L){
-	// SDLImage *image = SDLImage_get(L);
-	
-	// /* Display */
-	// SDL_SetRenderTarget(image->renderer, NULL);
-	// SDL_RenderCopy(image->renderer, image->texture, &image->rect, &image->rect);
-	// SDL_RenderPresent(image->renderer);
-	
-	// /* Reset render target and set scale */
-	// SDL_SetRenderTarget(image->renderer, image->texture);
-	// SDL_RenderSetScale(image->renderer, image->scale, image->scale);
-	
 	return 0;
 }
 
@@ -218,22 +224,30 @@ int SDLImage_save(lua_State *L){
 }
 
 int SDLImage_new(lua_State *L){
-	int w = luaL_checkinteger(L, 1);
-	int h = luaL_checkinteger(L, 2);
-	int scale = luaL_optinteger(L, 3, 1); // Optional scale, default 1
+	SDLImage *image;
 	
-	/* Create SDLImage */
-	SDLImage *image = lua_newuserdata(L, sizeof(SDLImage)); // stack: {SDLImage}
-	image->rect.x = 0;
-	image->rect.y = 0;
-	image->rect.w = w;
-	image->rect.h = h;
-	image->scale = scale;
-	
-	/* Create surface */
-	image->surface = SDL_CreateRGBSurfaceWithFormat(0, image->rect.w, image->rect.h,
-		SDLImage_BITDEPTH, SDLImage_PIXELFORMAT);
-	checkSDL(image->surface, "Could not initialize surface: %s\n");
+	if(lua_type(L, 1) == LUA_TSTRING){ // stack: {filename}
+		/* Load image from file */
+		const char *filename = luaL_checkstring(L, 1);
+		int scale = luaL_optinteger(L, 2, 1); // Optional scale, default 1
+		
+		image = lua_newuserdata(L, sizeof(SDLImage)); // stack: {SDLImage, filename}
+		image->scale = scale;
+		SDLImage_load(image, filename);
+		
+	}else if(lua_type(L, 1) == LUA_TNUMBER){ // stack: {scale?, h, w}
+		/* Create new image */
+		int w = luaL_checkinteger(L, 1);
+		int h = luaL_checkinteger(L, 2);
+		int scale = luaL_optinteger(L, 3, 1); // Optional scale, default 1
+		
+		image = lua_newuserdata(L, sizeof(SDLImage)); // stack: {SDLImage, scale?, w, h}
+		image->scale = scale;
+		SDLImage_create(image, w, h);
+		
+	}else{
+		luaL_error(L, "Expected string [, number] or number, number [, number]");
+	}
 	
 	/* Create renderer */
 	image->renderer = SDL_CreateSoftwareRenderer(image->surface);
