@@ -9,6 +9,7 @@ typedef struct Timer {
 } Timer;
 
 typedef struct Callback {
+	int id;            // The callback id in the callback table
 	int fn;            // The function id in the Lua registry
 	void *data;        // Optional extra data
 	const char *event; // The event name

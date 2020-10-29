@@ -52,6 +52,7 @@ Callback *event_add_callback(lua_State *L, const char *event, int callbackid, vo
 	callback->fn = callbackid;
 	callback->event = event;
 	callback->data = data;
+	callback->id = n;
 	
 	/* Add callback userdata to callback table */
 	lua_rawseti(L, -2, n); // stack: {callbacks, ...}
@@ -90,12 +91,16 @@ void event_dispatch_callbacks(lua_State *L, char *eventname, int args){
 			for(int i = 0; i < args; i++){ // Push all arguments on top of stack
 				lua_pushvalue(L, -3-args); // stack: {eventdata, fn, callbacks, eventdata, ...}
 			}
-			if(lua_pcall(L, args+1, 0, 0) != LUA_OK){ // stack: {(err?), callbacks, eventdata, ...}
+			// TODO: maybe pass callback ID
+			if(lua_pcall(L, args+1, 1, 0) != LUA_OK){ // stack: {error / continue, callbacks, eventdata, ...}
 				printf("%s\n", lua_tostring(L, -1));
-				lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
+			}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+				/* Callback function returned false, remove callback */
+				lua_pushcfunction(L, event_off);
+				lua_pushinteger(L, i);
+				lua_call(L, 1, 0);
 			}
-			// TODO: let callback return false to disable it,
-			// or pass callback ID (ideally, both)
+			lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
 		}
 	}
 	lua_pop(L, 2); // stack: {...}
@@ -110,10 +115,15 @@ void event_dispatch(lua_State *L, SDL_Event *event){
 		lua_pushstring(L, "timer"); // stack: {"timer", fn, ...}
 		lua_pushinteger(L, ((Timer*)callback->data)->delay); // stack: {delay, "timer", fn, ...}
 		
-		if(lua_pcall(L, 2, 0, 0) != LUA_OK){ // stack: {(err?), ...}
+		if(lua_pcall(L, 2, 1, 0) != LUA_OK){ // stack: {error / continue, ...}
 			printf("%s\n", lua_tostring(L, -1));
-			lua_pop(L, 1); // stack: {...}
+		}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+			/* Callback function returned false, remove timer callback */
+			lua_pushcfunction(L, event_removeTimer);
+			lua_pushinteger(L, callback->id);
+			lua_call(L, 1, 0);
 		}
+		lua_pop(L, 1); // stack: {...}
 	}else if(event->type == SDL_KEYDOWN){
 		const char *key = SDL_GetKeyName(event->key.keysym.sym);
 		int length = strlen(key)+1;
