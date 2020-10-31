@@ -1,1 +1,3 @@
-return dofile("img.lua")
+print "Hello, World!"
+
+return false
