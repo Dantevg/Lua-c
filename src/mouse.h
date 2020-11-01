@@ -1,7 +1,5 @@
 #pragma once
 
-#include <SDL2/SDL.h>
-
 #include <lua.h>
 #include <lauxlib.h>
 
