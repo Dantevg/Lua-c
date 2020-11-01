@@ -14,5 +14,6 @@ test("SDLImage.load.read.lua")
 test("luasocket.lua")
 test("thread.lua")
 test("sys.lua")
+test("mouse.lua")
 
 return false

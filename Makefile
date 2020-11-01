@@ -11,7 +11,7 @@ endif
 
 all: main libraries
 main: bin/main
-libraries: bin/event.so bin/SDLWindow.so bin/SDLImage.so bin/thread.so bin/sys.so
+libraries: bin/event.so bin/SDLWindow.so bin/SDLImage.so bin/thread.so bin/sys.so bin/mouse.so
 
 
 
@@ -38,6 +38,9 @@ build/thread.o: src/thread.c src/thread.h
 
 bin/sys.so: build/sys.o
 build/sys.o: src/sys.c
+
+bin/mouse.so: build/mouse.o
+build/mouse.o: src/mouse.c src/mouse.h
 
 
 

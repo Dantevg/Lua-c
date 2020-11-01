@@ -144,7 +144,9 @@ void event_dispatch(lua_State *L, SDL_Event *event){
 	}else if(event->type == SDL_MOUSEMOTION){
 		lua_pushinteger(L, event->motion.x);
 		lua_pushinteger(L, event->motion.y);
-		event_dispatch_callbacks(L, "mouse.move", 2);
+		lua_pushinteger(L, event->motion.xrel);
+		lua_pushinteger(L, event->motion.yrel);
+		event_dispatch_callbacks(L, "mouse.move", 4);
 	}else if(event->type == SDL_MOUSEBUTTONDOWN){
 		lua_pushinteger(L, event->button.button);
 		lua_pushinteger(L, event->button.x);
