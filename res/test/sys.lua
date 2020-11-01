@@ -1,5 +1,3 @@
 local sys = require "sys"
 
-print(sys.cores.." cores")
-print(sys.ram.." MB RAM")
-print(sys.os)
+print("CPU: "..sys.cores.." core", "RAM: "..sys.ram.." MB", "OS: "..sys.os)

@@ -5,17 +5,16 @@ local a = 1
 local function threadfunction(n)
 	print("in thread "..n..", a = "..a.."!")
 	a = a+1
-	
-	return 10, 20
+	return n
 end
 
 local threads = {}
 
-for i = 1, 5 do
-	table.insert( threads, thread.new("Threadfunction"..i, threadfunction, i) )
+for i = 1, 4 do
+	table.insert( threads, thread.new(threadfunction, i) )
 end
 
-for i = 1, 5 do
+for i = 1, #threads do
 	print(thread.wait(threads[i]))
 end
 

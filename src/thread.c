@@ -25,25 +25,24 @@ int thread_run(void *data){
 
 // Creates a new thread
 int thread_new(lua_State *L){
-	const char *name = luaL_checkstring(L, 1); // stack: {(args?), fn, name}
-	if(!lua_isfunction(L, 2)){
-		luaL_argerror(L, 2, "expected function");
+	if(!lua_isfunction(L, 1)){
+		luaL_argerror(L, 1, "expected function");
 	}
 	
 	/* Create new Lua thread */
-	lua_State *Lthread = lua_newthread(L); // stack: {Lthread, (args?), fn, name}
+	lua_State *Lthread = lua_newthread(L); // stack: {Lthread, (args?), fn}
 	
 	/* Push its starting function */
-	lua_pushvalue(L, 2); // stack: {fn, Lthread, (args?), fn, name}
+	lua_pushvalue(L, 1); // stack: {fn, Lthread, (args?), fn}
 	lua_xmove(L, Lthread, 1); // Transfer function to new Lua state
 	
 	/* Push its arguments */
-	lua_rotate(L, 3, 1); // stack: {(args?), Lthread, fn, name}
-	lua_xmove(L, Lthread, lua_gettop(L) - 3); // Transfer arguments to new Lua state
-	// stack: {Lthread, fn, name}
+	lua_rotate(L, 2, 1); // stack: {(args?), Lthread, fn}
+	lua_xmove(L, Lthread, lua_gettop(L) - 2); // Transfer arguments to new Lua state
+	// stack: {Lthread, fn}
 	
 	/* Create new hardware / SDL thread */
-	SDL_Thread *t = SDL_CreateThread(thread_run, name, Lthread);
+	SDL_Thread *t = SDL_CreateThread(thread_run, NULL, Lthread);
 	checkSDL(t, "Could not create thread: %s");
 	
 	/* Put hardware / SDL thread into Thread registry */
