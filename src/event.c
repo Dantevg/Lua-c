@@ -59,7 +59,7 @@ Callback *event_add_callback(lua_State *L, const char *event, int callbackid, vo
 	
 	lua_pop(L, 1); // stack: {...}
 	lua_pushinteger(L, n); // stack: {n, ...}
-	printf("[C] Registered callback %d for %s, fn %d\n", n, callback->event, callback->fn);
+	fprintf(stderr, "[C] Registered callback %d for %s, fn %d\n", n, callback->event, callback->fn);
 	return callback;
 }
 
@@ -93,7 +93,7 @@ void event_dispatch_callbacks(lua_State *L, char *eventname, int args){
 			}
 			// TODO: maybe pass callback ID
 			if(lua_pcall(L, args+1, 1, 0) != LUA_OK){ // stack: {error / continue, callbacks, eventdata, ...}
-				printf("%s\n", lua_tostring(L, -1));
+				fprintf(stderr, "%s\n", lua_tostring(L, -1));
 			}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
 				/* Callback function returned false, remove callback */
 				lua_pushcfunction(L, event_off);
@@ -116,7 +116,7 @@ void event_dispatch(lua_State *L, SDL_Event *event){
 		lua_pushinteger(L, ((Timer*)callback->data)->delay); // stack: {delay, "timer", fn, ...}
 		
 		if(lua_pcall(L, 2, 1, 0) != LUA_OK){ // stack: {error / continue, ...}
-			printf("%s\n", lua_tostring(L, -1));
+			fprintf(stderr, "%s\n", lua_tostring(L, -1));
 		}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
 			/* Callback function returned false, remove timer callback */
 			lua_pushcfunction(L, event_removeTimer);
@@ -240,7 +240,7 @@ int event_removeTimer(lua_State *L){
 		/* Remove SDL timer */
 		Callback *callback = (Callback*)lua_touserdata(L, -2);
 		Timer *timer = callback->data;
-		printf("[C] Removing timer %lld (%s), fn %d\n", lua_tointeger(L, 1), callback->event, callback->fn);
+		fprintf(stderr, "[C] Removing timer %lld (%s), fn %d\n", lua_tointeger(L, 1), callback->event, callback->fn);
 		SDL_RemoveTimer(timer->id);
 		free(timer); // malloc'd by event_addTimer
 	}

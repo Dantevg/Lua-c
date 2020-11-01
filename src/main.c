@@ -64,7 +64,7 @@ int main(int argc, char *argv[]){
 	
 	/* Init SDL */
 	if(SDL_Init(0) < 0){
-		printf("Could not initialize SDL: %s\n", SDL_GetError());
+		fprintf(stderr, "[C] Could not initialize SDL: %s\n", SDL_GetError());
 		return -1;
 	}
 	
@@ -78,10 +78,10 @@ int main(int argc, char *argv[]){
 	
 	/* Set cpath and path */
 	if(luaL_dostring(L, "package.cpath = package.cpath..';../bin/?.so'")){
-		printf("Could not set package.cpath: %s\n", lua_tostring(L, -1));
+		fprintf(stderr, "[C] Could not set package.cpath: %s\n", lua_tostring(L, -1));
 	}
 	// if(luaL_dostring(L, "package.path = package.path..';../res/?.lua'")){
-	// 	printf("Could not set package.path: %s\n", lua_tostring(L, -1));
+	// 	fprintf(stderr, "[C] Could not set package.path: %s\n", lua_tostring(L, -1));
 	// }
 	
 	/* Register callbacks table */
@@ -94,17 +94,16 @@ int main(int argc, char *argv[]){
 	if(luaL_loadfile(L, file) == LUA_OK){
 		chdir("res");
 		if(lua_pcall(L, 0, 1, 0) == LUA_OK){
-			printf("[C] Code executed successfully\n");
 			// Immediately stop execution when main chunk returns false
 			if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
 				return 0;
 			}
 		}else{
-			printf("[C] Error in Lua code: %s\n", lua_tostring(L, -1));
+			fprintf(stderr, "%s\n", lua_tostring(L, -1));
 			return -1;
 		}
 	}else{
-		printf("[C] Could not load Lua code: %s\n", lua_tostring(L, -1));
+		fprintf(stderr, "[C] Could not load Lua code: %s\n", lua_tostring(L, -1));
 		return -1;
 	}
 	

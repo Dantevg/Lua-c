@@ -14,7 +14,7 @@ int thread_run(void *data){
 	lua_State *Lthread = (lua_State*)data;
 	
 	if(lua_pcall(Lthread, lua_gettop(Lthread)-1, LUA_MULTRET, 0) != LUA_OK){
-		printf("[C] Error in Lua thread %p: %s\n", Lthread, lua_tostring(Lthread, -1));
+		fprintf(stderr, "[Thread %p] %s\n", Lthread, lua_tostring(Lthread, -1));
 		return 0;
 	}
 	
