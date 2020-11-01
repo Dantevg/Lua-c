@@ -7,53 +7,53 @@ ifeq ($(shell uname),Darwin) # MacOS
 	INCLUDE = -I/usr/local/include/lua5.3
 endif
 
-.PHONY: all clean
+.PHONY: all main libraries clean
 
-all: bin/main bin/event.so bin/SDLWindow.so bin/SDLImage.so bin/thread.so
+all: main libraries
+main: bin/main
+libraries: bin/event.so bin/SDLWindow.so bin/SDLImage.so bin/thread.so bin/sys.so
 
-# Normal files
+
+
+# Dependency list
+
 bin/main: build/main.o build/util.o
 build/main.o: src/main.c src/main.h
+
 build/util.o: src/util.c src/util.h
 
-# Libraries
-bin/event.so: build/event.o build/util.o
-	cc build/event.o build/util.o -o bin/event.so $(CFLAGS) $(LIBS) -shared
+build/font.o: src/font.c src/font.h
 
+bin/event.so: build/event.o build/util.o
 build/event.o: src/event.c src/event.h
-	cc -c src/event.c -o build/event.o $(CFLAGS) $(INCLUDE) -fPIC
 
 bin/SDLWindow.so: build/SDLWindow.o build/font.o build/util.o
-	cc build/SDLWindow.o build/font.o build/util.o -o bin/SDLWindow.so $(CFLAGS) $(LIBS) -shared
-
 build/SDLWindow.o: src/SDLWindow.c src/SDLWindow.h
-	cc -c src/SDLWindow.c -o build/SDLWindow.o $(CFLAGS) $(INCLUDE) -fPIC
 
 bin/SDLImage.so: build/SDLImage.o build/font.o build/util.o
-	cc build/SDLImage.o build/font.o build/util.o -o bin/SDLImage.so $(CFLAGS) $(LIBS) -shared
-
 build/SDLImage.o: src/SDLImage.c src/SDLImage.h
-	cc -c src/SDLImage.c -o build/SDLImage.o $(CFLAGS) $(INCLUDE) -fPIC
-
-build/font.o: src/font.c src/font.h
-	cc -c src/font.c -o build/font.o $(CFLAGS) $(INCLUDE) -fPIC
 
 bin/thread.so: build/thread.o build/util.o
-	cc build/thread.o build/util.o -o bin/thread.so $(CFLAGS) $(LIBS) -shared
-
 build/thread.o: src/thread.c src/thread.h
-	cc -c src/thread.c -o build/thread.o $(CFLAGS) $(INCLUDE) -fPIC
+
+bin/sys.so: build/sys.o
+build/sys.o: src/sys.c
 
 
-# Automatic (fallback) rules
+
+# Automatic rules
+
+# For main file
 bin/%: build/%.o
-	cc $< -o $@ $(CFLAGS) $(LIBS)
+	cc $^ -o $@ $(CFLAGS) $(LIBS)
 
+# For libraries (.so files)
 bin/%.so: build/%.o
-	cc $< -o $@ $(CFLAGS) $(LIBS) -shared
+	cc $^ -o $@ $(CFLAGS) $(LIBS) -shared
 
+# For intermediate files (.o files)
 build/%.o: src/%.c
-	cc -c $< -o $@ $(CFLAGS) $(INCLUDE)
+	cc -c $< -o $@ $(CFLAGS) $(INCLUDE) -fPIC
 
 clean:
 	rm build/*
