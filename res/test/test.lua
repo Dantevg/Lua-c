@@ -13,5 +13,6 @@ test("SDLImage.load.write.lua")
 test("SDLImage.load.read.lua")
 test("luasocket.lua")
 test("thread.lua")
+test("sys.lua")
 
 return false
