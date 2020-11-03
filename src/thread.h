@@ -24,4 +24,4 @@ static const struct luaL_Reg thread_f[] = {
 	{NULL, NULL}
 };
 
-int luaopen_thread(lua_State *L);
+LUAMOD_API int luaopen_thread(lua_State *L);

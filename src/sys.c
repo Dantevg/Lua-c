@@ -8,7 +8,7 @@
 
 /* Lua API definitions */
 
-int luaopen_sys(lua_State *L){
+LUAMOD_API int luaopen_sys(lua_State *L){
 	lua_newtable(L); // stack: {table}
 	
 	lua_pushinteger(L, SDL_GetCPUCount());

@@ -10,6 +10,12 @@
 
 #define VERSION "0.1.0"
 
+#if defined(_WIN32)
+	#define SO_EXT "dll"
+#else
+	#define SO_EXT "so"
+#endif
+
 // Callback to quit program as soon as possible upon user request
 int quit_callback(void *userdata, SDL_Event *event){
 	if(event->type == SDL_QUIT){
@@ -77,7 +83,7 @@ int main(int argc, char *argv[]){
 	SDL_AddEventWatch(quit_callback, L);
 	
 	/* Set cpath and path */
-	if(luaL_dostring(L, "package.cpath = package.cpath..';../bin/?.so'")){
+	if(luaL_dostring(L, "package.cpath = package.cpath..';../bin/?." SO_EXT "'")){
 		fprintf(stderr, "[C] Could not set package.cpath: %s\n", lua_tostring(L, -1));
 	}
 	// if(luaL_dostring(L, "package.path = package.path..';../res/?.lua'")){

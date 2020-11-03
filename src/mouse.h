@@ -19,4 +19,4 @@ static const struct luaL_Reg mouse_f[] = {
 	{NULL, NULL}
 };
 
-int luaopen_mouse(lua_State *L);
+LUAMOD_API int luaopen_mouse(lua_State *L);

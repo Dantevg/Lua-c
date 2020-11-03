@@ -77,7 +77,7 @@ int thread_wait(lua_State *L){
 	return n_return_values;
 }
 
-int luaopen_thread(lua_State *L){
+LUAMOD_API int luaopen_thread(lua_State *L){
 	lua_newtable(L); // stack: {table}
 	luaL_setfuncs(L, thread_f, 0);
 	

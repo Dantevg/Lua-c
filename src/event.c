@@ -242,7 +242,7 @@ int event_removeTimer(lua_State *L){
 		/* Remove SDL timer */
 		Callback *callback = (Callback*)lua_touserdata(L, -2);
 		Timer *timer = callback->data;
-		fprintf(stderr, "[C] Removing timer %lld (%s), fn %d\n", lua_tointeger(L, 1), callback->event, callback->fn);
+		fprintf(stderr, "[C] Removing timer %d (%s), fn %d\n", (int)lua_tointeger(L, 1), callback->event, callback->fn);
 		SDL_RemoveTimer(timer->id);
 		free(timer); // malloc'd by event_addTimer
 	}
@@ -250,7 +250,7 @@ int event_removeTimer(lua_State *L){
 	return 1;
 }
 
-int luaopen_event(lua_State *L){
+LUAMOD_API int luaopen_event(lua_State *L){
 	lua_newtable(L);
 	luaL_setfuncs(L, event, 0);
 	

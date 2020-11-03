@@ -50,4 +50,4 @@ static const struct luaL_Reg event[] = {
 	{NULL, NULL}
 };
 
-int luaopen_event(lua_State *L);
+LUAMOD_API int luaopen_event(lua_State *L);

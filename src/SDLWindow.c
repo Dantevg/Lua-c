@@ -232,7 +232,7 @@ int SDLWindow_new(lua_State *L){
 	return 1;
 }
 
-int luaopen_SDLWindow(lua_State *L){
+LUAMOD_API int luaopen_SDLWindow(lua_State *L){
 	lua_newtable(L); // stack: {table, ...}
 	luaL_setfuncs(L, SDLWindow_f, 0);
 	

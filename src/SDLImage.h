@@ -88,4 +88,4 @@ static const struct luaL_Reg SDLImage_f[] = {
 	{NULL, NULL}
 };
 
-int luaopen_SDLImage(lua_State *L);
+LUAMOD_API int luaopen_SDLImage(lua_State *L);

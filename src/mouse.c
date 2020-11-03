@@ -30,7 +30,7 @@ int mouse_down(lua_State *L){
 	return 1;
 }
 
-int luaopen_mouse(lua_State *L){
+LUAMOD_API int luaopen_mouse(lua_State *L){
 	lua_newtable(L);
 	luaL_setfuncs(L, mouse_f, 0);
 	return 1;

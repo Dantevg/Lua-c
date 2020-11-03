@@ -84,4 +84,4 @@ static const struct luaL_Reg SDLWindow_f[] = {
 	{NULL, NULL}
 };
 
-int luaopen_SDLWindow(lua_State *L);
+LUAMOD_API int luaopen_SDLWindow(lua_State *L);

@@ -31,7 +31,7 @@ int kb_scancodeDown(lua_State *L){
 	return 1;
 }
 
-int luaopen_kb(lua_State *L){
+LUAMOD_API int luaopen_kb(lua_State *L){
 	lua_newtable(L);
 	luaL_setfuncs(L, kb_f, 0);
 	return 1;

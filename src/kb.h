@@ -19,4 +19,4 @@ static const struct luaL_Reg kb_f[] = {
 	{NULL, NULL}
 };
 
-int luaopen_kb(lua_State *L);
+LUAMOD_API int luaopen_kb(lua_State *L);
