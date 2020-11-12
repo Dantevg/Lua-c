@@ -1,3 +1,15 @@
+/***
+ * @script moonbox
+ * @usage
+ * Usage: moonbox [options] [file [args]]
+ * Execute FILE, or the default boot file
+ * 
+ * Options:
+ *   -v, --version  print version
+ *   -h, --help     print this help message
+ *   -              stop handling options and execute stdin
+ */
+
 #include <unistd.h> // For chdir
 
 #include <SDL2/SDL.h>
@@ -8,7 +20,7 @@
 
 #include "main.h"
 
-#define VERSION "0.1.0"
+#define VERSION "0.2.0"
 
 #if defined(_WIN32)
 	#define SO_EXT "dll"
@@ -17,7 +29,7 @@
 #endif
 
 void print_usage(){
-	printf("Usage: Lua-C project [options] [file [args]]\n");
+	printf("Usage: moonbox [options] [file [args]]\n");
 	printf("Execute FILE, or the default boot file\n\n");
 	printf("Options:\n" );
 	printf("  -v, --version\tprint version\n");
@@ -66,7 +78,7 @@ int main(int argc, char *argv[]){
 	for(int i = 1; i < argc; i++){
 		if(strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0){
 			/* Print version and return */
-			printf("Lua-C project " VERSION "\n");
+			printf("MoonBox " VERSION "\n");
 			return 0;
 		}else if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0){
 			/* Print usage and return */
