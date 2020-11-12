@@ -5,7 +5,7 @@
 #include <lua.h>
 #include <lauxlib.h>
 
-#include "font.h"
+#include "../font.h"
 
 /* C library definitions */
 
@@ -88,4 +88,4 @@ static const struct luaL_Reg SDLImage_f[] = {
 	{NULL, NULL}
 };
 
-LUAMOD_API int luaopen_SDLImage(lua_State *L);
+LUAMOD_API int luaopen_image_SDLImage(lua_State *L);

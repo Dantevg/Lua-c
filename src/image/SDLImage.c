@@ -4,9 +4,9 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "util.h"
+#include "../util.h"
+#include "../font.h"
 #include "SDLImage.h"
-#include "font.h"
 
 #define SDLImage_BITDEPTH    32
 #define SDLImage_PIXELFORMAT SDL_PIXELFORMAT_RGB888
