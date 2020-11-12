@@ -1,3 +1,8 @@
+/***
+ * The `SDLImage` module provides bitmap image loading, drawing and saving
+ * @module image.SDLImage
+ */
+
 #include <SDL2/SDL.h>
 
 #include <lua.h>
@@ -298,7 +303,7 @@ int SDLImage_new(lua_State *L){
 	return 1;
 }
 
-LUAMOD_API int luaopen_SDLImage(lua_State *L){
+LUAMOD_API int luaopen_image_SDLImage(lua_State *L){
 	lua_newtable(L); // stack: {table, ...}
 	luaL_setfuncs(L, SDLImage_f, 0);
 	

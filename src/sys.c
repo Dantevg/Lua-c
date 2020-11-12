@@ -1,3 +1,9 @@
+/***
+ * The `sys` module gives access to system information.
+ * @module sys
+ * @set no_return_or_parms=true
+ */
+
 #include <SDL2/SDL.h>
 
 #include <lua.h>
@@ -7,6 +13,21 @@
 /* C library definitions */
 
 /* Lua API definitions */
+
+/*** 
+ * The number of CPU cores
+ * @tfield number cores
+ */
+
+/***
+ * The amount of RAM, in MB
+ * @tfield number ram
+ */
+
+/***
+ * The name of the OS
+ * @tfield string os
+ */
 
 LUAMOD_API int luaopen_sys(lua_State *L){
 	lua_newtable(L); // stack: {table}

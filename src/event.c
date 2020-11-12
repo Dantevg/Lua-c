@@ -1,3 +1,21 @@
+/***
+The `event` module provides methods for event handling.
+
+The available events are:
+
+- `kb.down`
+- `kb.up`
+- `kb.input`
+- `mouse.move`
+- `mouse.down`
+- `mouse.up`
+- `mouse.scroll`
+- `screen.resize`
+
+@module event
+@see kb, mouse
+*/
+
 #include <SDL2/SDL.h>
 
 #include <lua.h>
@@ -173,9 +191,13 @@ void event_dispatch(lua_State *L, SDL_Event *e){
 
 /* Lua API definitions */
 
-// Registers an event callback
-// Expects an event name, and a callback function
-// Returns the callback id
+/***
+ * Register event callback.
+ * @function on
+ * @tparam string eventname the event name
+ * @tparam function callback the callback function
+ * @treturn number the callback id
+ */
 int event_on(lua_State *L){
 	const char *e = luaL_checkstring(L, 1); // stack: {callback, event}
 	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {event}
@@ -183,9 +205,12 @@ int event_on(lua_State *L){
 	return 1;
 }
 
-// Deregisters an event callback
-// Expects a callback id, as returned by event_on
-// Returns whether the callback was successfully removed
+/***
+ * Deregister event callback.
+ * @function off
+ * @tparam number id the callback id, as returned by @{event.on}
+ * @treturn boolean whether the callback was successfully removed
+ */
 int event_off(lua_State *L){
 	int n = luaL_checkinteger(L, 1); // stack: {n}
 	lua_getfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {callbacks, n}
@@ -210,9 +235,15 @@ int event_off(lua_State *L){
 	return 1;
 }
 
-// Adds a timer callback
-// Expects a delay in milliseconds, a callback function, and optionally a boolean repeat
-// Returns the callback id
+/***
+ * Register timer callback.
+ * @function addTimer
+ * @tparam number delay the delay in milliseconds
+ * @tparam function callback the callback function
+ * @tparam[opt=false] boolean repeat when `true`, registers a repeating interval.
+ * When `false`, triggers only once.
+ * @treturn number callback id
+ */
 int event_addTimer(lua_State *L){
 	luaL_checktype(L, 2, LUA_TFUNCTION); // stack: {(repeat?), callback, delay}
 	
@@ -232,9 +263,12 @@ int event_addTimer(lua_State *L){
 	return 1;
 }
 
-// Deregisters a timer callback
-// Expects a callback id
-// Returns whether the timer was successfully removed
+/***
+ * Deregister timer callback.
+ * @function removeTimer
+ * @tparam number id the callback id, as returned by @{event.addTimer}
+ * @treturn boolean whether the timer was successfully removed
+ */
 int event_removeTimer(lua_State *L){
 	/* Remove callback */
 	event_off(L); // stack: {status, callbacks[n], callbacks, n}

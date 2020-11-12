@@ -31,12 +31,12 @@ Font font_load(lua_State *L, SDL_Renderer *renderer){
 	}
 	
 	/* Get image file path */
-	// lua_pushstring(L, "res/"); // stack: {"res/", fonttable, metafile}
-	lua_getfield(L, -1, "file"); // stack: {fonttable.file, "res/", fonttable, metafile}
+	lua_pushstring(L, "res/"); // stack: {"res/", fonttable, metafile}
+	lua_getfield(L, -2, "file"); // stack: {fonttable.file, "res/", fonttable, metafile}
 	if(!lua_isstring(L, -1)){
 		luaL_error(L, "Font file doesn't contain string field 'file'");
 	}
-	// lua_concat(L, 2); // stack: {"res/"..fonttable.file, fonttable, metafile}
+	lua_concat(L, 2); // stack: {"res/"..fonttable.file, fonttable, metafile}
 	const char *imagefile = lua_tostring(L, -1);
 	lua_pop(L, 1); // stack: {fonttable, metafile}
 	
