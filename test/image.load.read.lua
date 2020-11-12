@@ -1,4 +1,4 @@
-local image = require "SDLImage"
+local image = require "image"
 
 local function checkPixel(img, x, y, r, g, b)
 	local r1, g1, b1 = img:getPixel(x,y)
@@ -8,7 +8,7 @@ local function checkPixel(img, x, y, r, g, b)
 	end
 end
 
-local img = image.new("test/SDLImage.create.bmp")
+local img = image.new("test/image.create.bmp")
 
 assert(img:getWidth() == 16)
 assert(img:getHeight() == 16)
@@ -22,4 +22,4 @@ checkPixel(img, 0, 11, 255, 255, 255)
 checkPixel(img, 1, 10, 0, 0, 0)
 checkPixel(img, 1, 11, 0, 0, 0)
 
-os.remove("test/SDLImage.create.bmp")
+os.remove("test/image.create.bmp")
