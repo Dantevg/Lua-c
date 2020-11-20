@@ -13,10 +13,4 @@ int kb_down(lua_State *L);
 // Returns whether a physical key is down
 int kb_scancodeDown(lua_State *L);
 
-static const struct luaL_Reg kb_f[] = {
-	{"down", kb_down},
-	{"scancodeDown", kb_scancodeDown},
-	{NULL, NULL}
-};
-
 LUAMOD_API int luaopen_kb(lua_State *L);

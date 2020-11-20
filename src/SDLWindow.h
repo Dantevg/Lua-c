@@ -66,22 +66,4 @@ int SDLWindow_present(lua_State *L);
 
 int SDLWindow_new(lua_State *L);
 
-static const struct luaL_Reg SDLWindow_f[] = {
-	{"getWidth", SDLWindow_getWidth},
-	{"getHeight", SDLWindow_getHeight},
-	{"getScale", SDLWindow_getScale},
-	{"setScale", SDLWindow_setScale},
-	{"colour", SDLWindow_colour},
-	{"pixel", SDLWindow_pixel},
-	{"rect", SDLWindow_rect},
-	{"clear", SDLWindow_clear},
-	{"char", SDLWindow_char},
-	{"write", SDLWindow_write},
-	{"loadFont", SDLWindow_loadFont},
-	{"resize", SDLWindow_resize},
-	{"present", SDLWindow_present},
-	{"new", SDLWindow_new},
-	{NULL, NULL}
-};
-
 LUAMOD_API int luaopen_SDLWindow(lua_State *L);

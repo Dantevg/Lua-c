@@ -290,9 +290,17 @@ int event_removeTimer(lua_State *L){
 	return 1;
 }
 
+static const struct luaL_Reg event_f[] = {
+	{"on", event_on},
+	{"off", event_off},
+	{"addTimer", event_addTimer},
+	{"removeTimer", event_removeTimer},
+	{NULL, NULL}
+};
+
 LUAMOD_API int luaopen_event(lua_State *L){
 	lua_newtable(L);
-	luaL_setfuncs(L, event, 0);
+	luaL_setfuncs(L, event_f, 0);
 	
 	/* Put pointer to event_loop in registry, for main.c to call */
 	lua_pushlightuserdata(L, &event_loop);

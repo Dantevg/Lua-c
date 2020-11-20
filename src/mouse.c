@@ -45,6 +45,12 @@ int mouse_down(lua_State *L){
 	return 1;
 }
 
+static const struct luaL_Reg mouse_f[] = {
+	{"pos", mouse_pos},
+	{"down", mouse_down},
+	{NULL, NULL}
+};
+
 LUAMOD_API int luaopen_mouse(lua_State *L){
 	lua_newtable(L);
 	luaL_setfuncs(L, mouse_f, 0);

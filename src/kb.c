@@ -46,6 +46,12 @@ int kb_scancodeDown(lua_State *L){
 	return 1;
 }
 
+static const struct luaL_Reg kb_f[] = {
+	{"down", kb_down},
+	{"scancodeDown", kb_scancodeDown},
+	{NULL, NULL}
+};
+
 LUAMOD_API int luaopen_kb(lua_State *L){
 	lua_newtable(L);
 	luaL_setfuncs(L, kb_f, 0);

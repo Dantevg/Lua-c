@@ -68,24 +68,4 @@ int SDLImage_save(lua_State *L);
 
 int SDLImage_new(lua_State *L);
 
-static const struct luaL_Reg SDLImage_f[] = {
-	{"getWidth", SDLImage_getWidth},
-	{"getHeight", SDLImage_getHeight},
-	{"getScale", SDLImage_getScale},
-	{"setScale", SDLImage_setScale},
-	{"colour", SDLImage_colour},
-	{"pixel", SDLImage_pixel},
-	{"rect", SDLImage_rect},
-	{"clear", SDLImage_clear},
-	{"char", SDLImage_char},
-	{"write", SDLImage_write},
-	{"getPixel", SDLImage_getPixel},
-	{"loadFont", SDLImage_loadFont},
-	{"resize", SDLImage_resize},
-	{"present", SDLImage_present},
-	{"save", SDLImage_save},
-	{"new", SDLImage_new},
-	{NULL, NULL}
-};
-
 LUAMOD_API int luaopen_image_SDLImage(lua_State *L);

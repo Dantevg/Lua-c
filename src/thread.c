@@ -77,6 +77,12 @@ int thread_wait(lua_State *L){
 	return n_return_values;
 }
 
+static const struct luaL_Reg thread_f[] = {
+	{"new", thread_new},
+	{"wait", thread_wait},
+	{NULL, NULL}
+};
+
 LUAMOD_API int luaopen_thread(lua_State *L){
 	lua_newtable(L); // stack: {table}
 	luaL_setfuncs(L, thread_f, 0);

@@ -18,21 +18,6 @@ typedef struct Callback {
 	const char *event; // The event name
 } Callback;
 
-// Store the event names corresponding to the SDL2 event enum
-static const struct {
-	SDL_EventType event;
-	const char *name;
-} events[] = {
-	{SDL_QUIT,            "quit"},
-	{SDL_KEYDOWN,         "kb.down"},
-	{SDL_KEYUP,           "kb.up"},
-	{SDL_TEXTINPUT,       "kb.input"},
-	{SDL_MOUSEMOTION,     "mouse.move"},
-	{SDL_MOUSEBUTTONDOWN, "mouse.down"},
-	{SDL_MOUSEBUTTONUP,   "mouse.up"},
-	{SDL_MOUSEWHEEL,      "mouse.scroll"}
-};
-
 // Callback function which gets called in different thread
 // Receives the callback struct, puts it in an event and pushes that into the event queue
 uint32_t timer_async_callback(uint32_t delay, void *param);
@@ -69,13 +54,5 @@ int event_addTimer(lua_State *L);
 // Expects a callback id
 // Returns whether the timer was successfully removed
 int event_removeTimer(lua_State *L);
-
-static const struct luaL_Reg event[] = {
-	{"on", event_on},
-	{"off", event_off},
-	{"addTimer", event_addTimer},
-	{"removeTimer", event_removeTimer},
-	{NULL, NULL}
-};
 
 LUAMOD_API int luaopen_event(lua_State *L);
