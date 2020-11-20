@@ -23,7 +23,6 @@ The available events are:
 #include <lauxlib.h>
 
 #include "util.h"
-#include "main.h"
 #include "event.h"
 
 /* C library definitions */
@@ -124,69 +123,76 @@ void event_dispatch_callbacks(lua_State *L, char *eventname, int args){
 	lua_pop(L, 2); // stack: {...}
 }
 
-// Dispatches event to Lua
-void event_dispatch(lua_State *L, SDL_Event *e){
-	if(e->type == SDL_USEREVENT && e->user.code == 1){
-		/* Got callback event, call Lua callback */
-		Callback *callback = e->user.data1;
-		lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, ...}
-		lua_pushstring(L, "timer"); // stack: {"timer", fn, ...}
-		lua_pushinteger(L, ((Timer*)callback->data)->delay); // stack: {delay, "timer", fn, ...}
-		
-		if(lua_pcall(L, 2, 1, 0) != LUA_OK){ // stack: {error / continue, ...}
-			fprintf(stderr, "%s\n", lua_tostring(L, -1));
-		}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
-			/* Callback function returned false, remove timer callback */
-			lua_pushcfunction(L, event_removeTimer);
-			lua_pushinteger(L, callback->id);
-			lua_call(L, 1, 0);
+// Handle events and dispatch them to Lua
+int event_loop(lua_State *L){
+	SDL_Event e;
+	while(SDL_PollEvent(&e)){
+		if(e.type == SDL_QUIT){
+			return 1;
+		}else if(e.type == SDL_USEREVENT && e.user.code == 1){
+			/* Got callback event, call Lua callback */
+			Callback *callback = e.user.data1;
+			lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, ...}
+			lua_pushstring(L, "timer"); // stack: {"timer", fn, ...}
+			lua_pushinteger(L, ((Timer*)callback->data)->delay); // stack: {delay, "timer", fn, ...}
+			
+			if(lua_pcall(L, 2, 1, 0) != LUA_OK){ // stack: {error / continue, ...}
+				fprintf(stderr, "%s\n", lua_tostring(L, -1));
+			}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+				/* Callback function returned false, remove timer callback */
+				lua_pushcfunction(L, event_removeTimer);
+				lua_pushinteger(L, callback->id);
+				lua_call(L, 1, 0);
+			}
+			lua_pop(L, 1); // stack: {...}
+		}else if(e.type == SDL_KEYDOWN){
+			const char *key = SDL_GetKeyName(e.key.keysym.sym);
+			int length = strlen(key)+1;
+			char keyLower[length];
+			lower(key, keyLower, length);
+			lua_pushstring(L, keyLower);
+			event_dispatch_callbacks(L, "kb.down", 1);
+		}else if(e.type == SDL_KEYUP){
+			const char *key = SDL_GetKeyName(e.key.keysym.sym);
+			int length = strlen(key)+1;
+			char keyLower[length];
+			lower(key, keyLower, length);
+			lua_pushstring(L, keyLower);
+			event_dispatch_callbacks(L, "kb.up", 1);
+		}else if(e.type == SDL_TEXTINPUT){
+			lua_pushstring(L, e.text.text);
+			event_dispatch_callbacks(L, "kb.input", 1);
+		}else if(e.type == SDL_MOUSEMOTION){
+			lua_pushinteger(L, e.motion.x);
+			lua_pushinteger(L, e.motion.y);
+			lua_pushinteger(L, e.motion.xrel);
+			lua_pushinteger(L, e.motion.yrel);
+			event_dispatch_callbacks(L, "mouse.move", 4);
+		}else if(e.type == SDL_MOUSEBUTTONDOWN){
+			lua_pushinteger(L, e.button.button);
+			lua_pushinteger(L, e.button.x);
+			lua_pushinteger(L, e.button.y);
+			lua_pushboolean(L, e.button.clicks-1);
+			event_dispatch_callbacks(L, "mouse.down", 4);
+		}else if(e.type == SDL_MOUSEBUTTONUP){
+			lua_pushinteger(L, e.button.button);
+			lua_pushinteger(L, e.button.x);
+			lua_pushinteger(L, e.button.y);
+			lua_pushboolean(L, e.button.clicks-1);
+			event_dispatch_callbacks(L, "mouse.up", 4);
+		}else if(e.type == SDL_MOUSEWHEEL){
+			lua_pushinteger(L, e.wheel.x);
+			lua_pushinteger(L, e.wheel.y);
+			lua_pushboolean(L, e.wheel.direction);
+			event_dispatch_callbacks(L, "mouse.scroll", 3);
+		}else if(e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED){
+			lua_pushinteger(L, e.window.data1);
+			lua_pushinteger(L, e.window.data2);
+			event_dispatch_callbacks(L, "screen.resize", 2);
 		}
-		lua_pop(L, 1); // stack: {...}
-	}else if(e->type == SDL_KEYDOWN){
-		const char *key = SDL_GetKeyName(e->key.keysym.sym);
-		int length = strlen(key)+1;
-		char keyLower[length];
-		lower(key, keyLower, length);
-		lua_pushstring(L, keyLower);
-		event_dispatch_callbacks(L, "kb.down", 1);
-	}else if(e->type == SDL_KEYUP){
-		const char *key = SDL_GetKeyName(e->key.keysym.sym);
-		int length = strlen(key)+1;
-		char keyLower[length];
-		lower(key, keyLower, length);
-		lua_pushstring(L, keyLower);
-		event_dispatch_callbacks(L, "kb.up", 1);
-	}else if(e->type == SDL_TEXTINPUT){
-		lua_pushstring(L, e->text.text);
-		event_dispatch_callbacks(L, "kb.input", 1);
-	}else if(e->type == SDL_MOUSEMOTION){
-		lua_pushinteger(L, e->motion.x);
-		lua_pushinteger(L, e->motion.y);
-		lua_pushinteger(L, e->motion.xrel);
-		lua_pushinteger(L, e->motion.yrel);
-		event_dispatch_callbacks(L, "mouse.move", 4);
-	}else if(e->type == SDL_MOUSEBUTTONDOWN){
-		lua_pushinteger(L, e->button.button);
-		lua_pushinteger(L, e->button.x);
-		lua_pushinteger(L, e->button.y);
-		lua_pushboolean(L, e->button.clicks-1);
-		event_dispatch_callbacks(L, "mouse.down", 4);
-	}else if(e->type == SDL_MOUSEBUTTONUP){
-		lua_pushinteger(L, e->button.button);
-		lua_pushinteger(L, e->button.x);
-		lua_pushinteger(L, e->button.y);
-		lua_pushboolean(L, e->button.clicks-1);
-		event_dispatch_callbacks(L, "mouse.up", 4);
-	}else if(e->type == SDL_MOUSEWHEEL){
-		lua_pushinteger(L, e->wheel.x);
-		lua_pushinteger(L, e->wheel.y);
-		lua_pushboolean(L, e->wheel.direction);
-		event_dispatch_callbacks(L, "mouse.scroll", 3);
-	}else if(e->type == SDL_WINDOWEVENT && e->window.event == SDL_WINDOWEVENT_RESIZED){
-		lua_pushinteger(L, e->window.data1);
-		lua_pushinteger(L, e->window.data2);
-		event_dispatch_callbacks(L, "screen.resize", 2);
 	}
+	
+	return 0;
 }
 
 /* Lua API definitions */
@@ -288,9 +294,9 @@ LUAMOD_API int luaopen_event(lua_State *L){
 	lua_newtable(L);
 	luaL_setfuncs(L, event, 0);
 	
-	/* Put pointer to event_dispatch in registry, for main.c to call */
-	lua_pushlightuserdata(L, &event_dispatch);
-	lua_setfield(L, LUA_REGISTRYINDEX, "event_dispatch");
+	/* Put pointer to event_loop in registry, for main.c to call */
+	lua_pushlightuserdata(L, &event_loop);
+	lua_setfield(L, LUA_REGISTRYINDEX, "event_loop");
 	
 	return 1;
 }

@@ -11,14 +11,11 @@
  */
 
 #include <unistd.h> // For chdir
-
-#include <SDL2/SDL.h>
+#include <string.h> // for strcmp
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-
-#include "main.h"
 
 #define VERSION "0.2.0"
 
@@ -35,39 +32,6 @@ void print_usage(){
 	printf("  -v, --version\tprint version\n");
 	printf("  -h, --help\tprint this help message\n");
 	printf("  -\t\tstop handling options and execute stdin\n");
-}
-
-// Callback to quit program as soon as possible upon user request
-int quit_callback(void *userdata, SDL_Event *event){
-	if(event->type == SDL_QUIT){
-		lua_State *L = (lua_State *)userdata;
-		SDL_Quit();
-		lua_close(L);
-		exit(0);
-	}
-	return 0;
-}
-
-int loop(lua_State *L){
-	/* Events */
-	SDL_Event event;
-	while(SDL_PollEvent(&event)){
-		if(event.type == SDL_QUIT){
-			return 1;
-		}
-		if(event_dispatch_ptr == NULL){
-			lua_getfield(L, LUA_REGISTRYINDEX, "event_dispatch");
-			if(lua_islightuserdata(L, -1)){
-				event_dispatch_ptr = lua_touserdata(L, -1);
-			}
-			lua_pop(L, 1);
-		}
-		if(event_dispatch_ptr != NULL){
-			(*event_dispatch_ptr)(L, &event);
-		}
-	}
-	
-	return 0;
 }
 
 int main(int argc, char *argv[]){
@@ -101,19 +65,9 @@ int main(int argc, char *argv[]){
 		}
 	}
 	
-	/* Init SDL */
-	if(SDL_Init(0) < 0){
-		fprintf(stderr, "[C] Could not initialize SDL: %s\n", SDL_GetError());
-		return -1;
-	}
-	
 	/* Init Lua */
 	lua_State *L = luaL_newstate();
 	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
-	
-	// Make sure the program closes as soon as possible
-	// to prevent infinite loops or complex rendering from preventing closing
-	SDL_AddEventWatch(quit_callback, L);
 	
 	/* Set cpath and path */
 	if(luaL_dostring(L, "package.cpath = package.cpath..';./bin/?." SO_EXT "'")){
@@ -151,13 +105,19 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Main loop */
-	int quit = 0;
-	while(!quit){
-		quit = loop(L);
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_dispatch");
+	if(lua_islightuserdata(L, -1)){
+		int (*event_loop_ptr)(lua_State*) = lua_touserdata(L, -1);
+		lua_pop(L, 1);
+		if(event_loop_ptr != NULL){
+			int quit = 0;
+			while(!quit){
+				quit = event_loop_ptr(L);
+			}
+		}
 	}
 	
 	/* Exit */
-	SDL_Quit();
 	lua_close(L);
 	
 	return 0;
