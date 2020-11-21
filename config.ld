@@ -1,3 +1,4 @@
+-- LDoc configuration file
 file = {"src/", "res/lib/image.lua"}
 dir = "/mnt/c/Users/dante/Documents/ldoc/"
 project = "MoonBox"

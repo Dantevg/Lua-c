@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h> // for uint32_t
+
 #include <lua.h>
 #include <lauxlib.h>
 

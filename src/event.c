@@ -55,7 +55,7 @@ uint32_t timer_async_callback(uint32_t delay, void *param){
 // with the given data, and places it into the callback table
 // Returns the callback struct, and places the callback id on the stack
 Callback *event_add_callback(lua_State *L, const char *eventname, int callbackid, void *data){
-	lua_getfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {callbacks, ...}
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, ...}
 	
 	/* Increment n */
 	lua_getfield(L, -1, "n"); // stack: {n, callbacks, ...}
@@ -84,7 +84,7 @@ Callback *event_add_callback(lua_State *L, const char *eventname, int callbackid
 void event_dispatch_callbacks(lua_State *L, char *eventname, int args){
 	// stack: {eventdata, ...}
 	/* Get callbacks table */
-	lua_getfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {callbacks, eventdata, ...}
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, eventdata, ...}
 	lua_getfield(L, -1, "n"); // stack: {n, callbacks, eventdata, ...}
 	int n = lua_tointeger(L, -1);
 	lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
@@ -219,7 +219,7 @@ int event_on(lua_State *L){
  */
 int event_off(lua_State *L){
 	int n = luaL_checkinteger(L, 1); // stack: {n}
-	lua_getfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {callbacks, n}
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, n}
 	lua_rawgeti(L, -1, n); // stack: {callbacks[n], callbacks, n}
 	
 	/* Get callback struct */
@@ -305,6 +305,12 @@ LUAMOD_API int luaopen_event(lua_State *L){
 	/* Put pointer to event_loop in registry, for main.c to call */
 	lua_pushlightuserdata(L, &event_loop);
 	lua_setfield(L, LUA_REGISTRYINDEX, "event_loop");
+	
+	/* Register callbacks table */
+	lua_newtable(L); // stack: {tbl}
+	lua_pushinteger(L, 0); // stack: {0, tbl}
+	lua_setfield(L, -2, "n"); // stack: {tbl}
+	lua_setfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {}
 	
 	return 1;
 }

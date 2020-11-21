@@ -77,12 +77,6 @@ int main(int argc, char *argv[]){
 		fprintf(stderr, "[C] Could not set package.path: %s\n", lua_tostring(L, -1));
 	}
 	
-	/* Register callbacks table */
-	lua_newtable(L); // stack: {tbl}
-	lua_pushinteger(L, 0); // stack: {0, tbl}
-	lua_setfield(L, -2, "n"); // stack: {tbl}
-	lua_setfield(L, LUA_REGISTRYINDEX, "callbacks"); // stack: {}
-	
 	/* Load main file */
 	if(luaL_loadfile(L, file) == LUA_OK){
 		// chdir("res");
