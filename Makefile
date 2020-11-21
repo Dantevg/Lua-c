@@ -30,7 +30,8 @@ libraries: bin/event.$(SO)\
 	bin/thread.$(SO)\
 	bin/sys.$(SO)\
 	bin/mouse.$(SO)\
-	bin/kb.$(SO)
+	bin/kb.$(SO)\
+	bin/data.$(SO)
 
 
 
@@ -63,6 +64,9 @@ build/mouse.o: src/mouse.c src/mouse.h
 
 bin/kb.$(SO): build/kb.o
 build/kb.o: src/kb.c src/kb.h
+
+bin/data.$(SO): build/data.o
+build/data.o: src/data.c src/data.h
 
 
 
