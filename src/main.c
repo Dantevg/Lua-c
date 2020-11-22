@@ -99,7 +99,7 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Main loop */
-	lua_getfield(L, LUA_REGISTRYINDEX, "event_dispatch");
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_loop");
 	if(lua_islightuserdata(L, -1)){
 		int (*event_loop_ptr)(lua_State*) = lua_touserdata(L, -1);
 		lua_pop(L, 1);
