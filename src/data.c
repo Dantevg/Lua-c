@@ -153,25 +153,19 @@ int data_new(lua_State *L){
  */
 int data_index(lua_State *L){
 	// stack: {k, t}
-	switch(lua_type(L, 2)){
-		case LUA_TNUMBER:
-			/* Get element at position k */
-			lua_pushcfunction(L, data_get); // stack: {data_get, k, t}
-			lua_insert(L, 1); // stack: {k, t, data_get}
-			lua_call(L, 2, 1); // stack: {v}
-			return 1;
-		case LUA_TSTRING: ; // semicolon here because declaration after case is not allowed in C
-			/* Get function with name k */
-			const char *k = lua_tostring(L, 2);
-			const luaL_Reg *fn = data_f;
-			for(; fn->name != NULL; fn++){
-				if(strcmp(fn->name, k) == 0){
-					lua_pushcfunction(L, fn->func);
-					return 1;
-				}
-			}
+	if(lua_type(L, 2) == LUA_TNUMBER){
+		/* Get element at position k */
+		lua_pushcfunction(L, data_get); // stack: {data_get, k, t}
+		lua_insert(L, 1); // stack: {k, t, data_get}
+		lua_call(L, 2, 1); // stack: {v}
+		return 1;
+	}else{
+		/* Get function with name k */
+		// This function is put into the metatable with the Data table
+		// as first upvalue.
+		lua_gettable(L, lua_upvalueindex(1));
+		return 1;
 	}
-	return 0;
 }
 
 /***
@@ -218,13 +212,15 @@ LUAMOD_API int luaopen_data(lua_State *L){
 	luaL_setfuncs(L, data_f, 0);
 	
 	/* Create Data metatable */
-	if(!luaL_newmetatable(L, "Data")){ // stack: {metatable, table}
+	if(!luaL_newmetatable(L, "Data")){ // stack: {metatable, table, ...}
 		luaL_error(L, "Couldn't create Data metatable");
 	}
 	
 	/* Set metatable */
-	luaL_setfuncs(L, data_mt, 0);
-	lua_pop(L, 1); // stack: {table}
+	lua_pushvalue(L, -2); // duplicate Data table for metamethod upvalue
+	luaL_setfuncs(L, data_mt, 1); // put data_mt functions into metatable,
+	// add Data table as upvalue
+	lua_pop(L, 1); // stack: {table, ...}
 	
 	return 1;
 }
