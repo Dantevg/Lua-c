@@ -53,7 +53,7 @@ int data_set(lua_State *L){
 			memcpy(&data->data[position], str, len);
 			break;
 		default:
-			luaL_argerror(L, 2, "Only number or string elements supported");
+			luaL_argerror(L, 3, "Only number or string elements supported");
 	}
 	
 	return 0;
@@ -148,6 +148,7 @@ int data_new(lua_State *L){
  * acts as if it were a table reference to `Data`. That is, returns the function
  * `Data[k]` if it exists.
  * @function __index
+ * @tparam table table
  * @tparam number|string key
  * @treturn number|function
  */
@@ -166,6 +167,25 @@ int data_index(lua_State *L){
 		lua_gettable(L, lua_upvalueindex(1));
 		return 1;
 	}
+}
+
+/***
+ * __newindex metamethod, sets the value at the given index.
+ * @function __newindex
+ * @tparam table table
+ * @tparam number|string key
+ * @param value
+ * @treturn number|function
+ */
+int data_newindex(lua_State *L){
+	// stack: {v, k, t}
+	if(lua_type(L, 2) == LUA_TNUMBER){
+		/* Set element at position k */
+		lua_pushcfunction(L, data_set); // stack: {data_set, v, k, t}
+		lua_insert(L, 1); // stack: {v, k, t, data_set}
+		lua_call(L, 3, 0); // stack: {v}
+	}
+	return 0;
 }
 
 /***
@@ -202,6 +222,7 @@ static const struct luaL_Reg data_f[] = {
 
 static const struct luaL_Reg data_mt[] = {
 	{"__index", data_index},
+	{"__newindex", data_newindex},
 	{"__tostring", data_tostring},
 	{"__len", data_length},
 	{NULL, NULL}
