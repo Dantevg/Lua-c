@@ -1,17 +1,25 @@
 local data = require "data"
 
-function data:rot(n)
+function data:map(fn)
 	for i = 0, #self-1 do
-		if self[i] >= string.byte("A") and self[i] <= string.byte("Z") then
-			self:set(i, (self[i]-string.byte("A")+n) % 26 + string.byte("A") )
-		elseif self[i] >= string.byte("a") and self[i] <= string.byte("z") then
-			self:set(i, (self[i]-string.byte("a")+n) % 26 + string.byte("a") )
-		end
+		self[i] = fn(self, self[i])
 	end
 	return self
+end
+
+function rot(n)
+	return function(self, c)
+		if c >= string.byte("A") and c <= string.byte("Z") then
+			return (c-string.byte("A")+n) % 26 + string.byte("A")
+		elseif c >= string.byte("a") and c <= string.byte("z") then
+			return (c-string.byte("a")+n) % 26 + string.byte("a")
+		else
+			return c
+		end
+	end
 end
 
 local d = data.of("Hello, World!")
 d:set(3, "abc")
 print(d, #d)
-print(d:rot(13))
+print(d:map(rot(13)))
