@@ -9,9 +9,9 @@ SO = so
 MAKEFLAGS += -j
 
 ifeq ($(OS),Windows_NT)
-	CFLAGS += -Dmain=SDL_main -DLUA_LIB -DLUA_BUILD_AS_DLL
+	CFLAGS += -DLUA_LIB -DLUA_BUILD_AS_DLL
 	# TODO: use $HOME or other more generic env var?
-	INCLUDE = -I "C:\Users\dante\Documents\mingw\include\lua" -Dmain=SDL_main
+	INCLUDE = -I "C:\Users\dante\Documents\mingw\include\lua"
 	LIBS_MAIN = -llua
 	LIBS_SO = -lmingw32 -lSDL2main -lSDL2 -llua
 	SO = dll
