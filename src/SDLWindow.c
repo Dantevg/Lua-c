@@ -10,17 +10,11 @@
 
 /* C library definitions */
 
-SDLWindow *SDLWindow_get(lua_State *L){
-	void *p = lua_touserdata(L, 1);
-	if(p == NULL) luaL_argerror(L, 1, "expected SDLWindow userdata");
-	return (SDLWindow*)p;
-}
-
 /* Lua API definitions */
 
 // Returns the window width
 int SDLWindow_getWidth(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	lua_pushinteger(L, window->rect.w / window->scale);
 	
 	return 1;
@@ -28,7 +22,7 @@ int SDLWindow_getWidth(lua_State *L){
 
 // Returns the window height
 int SDLWindow_getHeight(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	lua_pushinteger(L, window->rect.h / window->scale);
 	
 	return 1;
@@ -36,7 +30,7 @@ int SDLWindow_getHeight(lua_State *L){
 
 // Returns the rendering scale
 int SDLWindow_getScale(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	lua_pushinteger(L, window->scale);
 	
 	return 1;
@@ -44,7 +38,7 @@ int SDLWindow_getScale(lua_State *L){
 
 // Sets the rendering scale
 int SDLWindow_setScale(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	window->scale = luaL_checkinteger(L, 2);
 	
 	return 0;
@@ -52,7 +46,7 @@ int SDLWindow_setScale(lua_State *L){
 
 // Sets drawing colour
 int SDLWindow_colour(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	int r = luaL_checkinteger(L, 2);
 	int g = luaL_optinteger(L, 3, r);
 	int b = luaL_optinteger(L, 4, r);
@@ -65,7 +59,7 @@ int SDLWindow_colour(lua_State *L){
 
 // Sets pixel
 int SDLWindow_pixel(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	int x = luaL_checkinteger(L, 2);
 	int y = luaL_checkinteger(L, 3);
 	
@@ -76,7 +70,7 @@ int SDLWindow_pixel(lua_State *L){
 
 // Draws a rectangle
 int SDLWindow_rect(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	
 	SDL_Rect rect;
 	rect.x = luaL_checkinteger(L, 2);
@@ -96,14 +90,14 @@ int SDLWindow_rect(lua_State *L){
 
 // Clears the SDLWindow canvas using the current colour
 int SDLWindow_clear(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	SDL_RenderClear(window->renderer);
 	
 	return 0;
 }
 
 int SDLWindow_char(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	const char *str = luaL_checkstring(L, 2);
 	SDL_Rect rect;
 	rect.x = luaL_checkinteger(L, 3);
@@ -114,7 +108,7 @@ int SDLWindow_char(lua_State *L){
 }
 
 int SDLWindow_write(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	const char *str = luaL_checkstring(L, 2);
 	
 	/* Get string length */
@@ -137,7 +131,7 @@ int SDLWindow_write(lua_State *L){
 }
 
 int SDLWindow_loadFont(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L); // stack: {filename, SDLWindow}
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow"); // stack: {filename, SDLWindow}
 	lua_replace(L, 1); // stack: {filename}
 	window->font = font_load(L, window->renderer);
 	return 0;
@@ -146,7 +140,7 @@ int SDLWindow_loadFont(lua_State *L){
 // Resizes the SDLWindow canvas
 // Intended to be used as callback (ignores first argument, event name)
 int SDLWindow_resize(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	
 	window->rect.w = luaL_checkinteger(L, 3);
 	window->rect.h = luaL_checkinteger(L, 4);
@@ -156,7 +150,7 @@ int SDLWindow_resize(lua_State *L){
 		SDL_PIXELFORMAT_RGBA8888,
 		SDL_TEXTUREACCESS_TARGET,
 		window->rect.w, window->rect.h);
-	checkSDL(window->texture, "Could not initialize texture: %s\n");
+	checkSDL(window->texture, "could not initialize texture: %s\n");
 	
 	/* Set the source and destination rect */
 	SDL_Rect rect;
@@ -182,7 +176,7 @@ int SDLWindow_resize(lua_State *L){
 // when this function doesn't get called often enough (less than 10 times per second)
 // and there is mouse movement (?)
 int SDLWindow_present(lua_State *L){
-	SDLWindow *window = SDLWindow_get(L);
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	
 	/* Display */
 	SDL_SetRenderTarget(window->renderer, NULL);
@@ -210,19 +204,19 @@ int SDLWindow_new(lua_State *L){
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		window->rect.w, window->rect.h,
 		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-	checkSDL(window->window, "Could not initialize window: %s\n");
+	checkSDL(window->window, "could not initialize window: %s\n");
 	
 	/* Create renderer */
 	window->renderer = SDL_CreateRenderer(window->window, -1,
 		SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
-	checkSDL(window->renderer, "Could not initialize renderer: %s\n");
+	checkSDL(window->renderer, "could not initialize renderer: %s\n");
 	
 	/* Create texture */
 	window->texture = SDL_CreateTexture(window->renderer,
 		SDL_PIXELFORMAT_RGBA8888,
 		SDL_TEXTUREACCESS_TARGET,
 		window->rect.w, window->rect.h);
-	checkSDL(window->texture, "Could not initialize texture: %s\n");
+	checkSDL(window->texture, "could not initialize texture: %s\n");
 	
 	/* Set default colour to white */
 	SDL_SetRenderDrawColor(window->renderer, 255, 255, 255, 255);
@@ -256,7 +250,7 @@ LUAMOD_API int luaopen_SDLWindow(lua_State *L){
 	
 	/* Create SDLWindow metatable */
 	if(!luaL_newmetatable(L, "SDLWindow")){ // stack: {metatable, table, ...}
-		luaL_error(L, "Couldn't create SDLWindow metatable");
+		luaL_error(L, "couldn't create SDLWindow metatable");
 	}
 	
 	/* Set __index to SDLWindow, for OO */

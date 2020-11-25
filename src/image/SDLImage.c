@@ -18,12 +18,6 @@
 
 /* C library definitions */
 
-SDLImage *SDLImage_get(lua_State *L){
-	void *p = lua_touserdata(L, 1);
-	if(p == NULL) luaL_argerror(L, 1, "expected SDLImage userdata");
-	return (SDLImage*)p;
-}
-
 void SDLImage_create(SDLImage *image, int w, int h){
 	image->rect.x = 0;
 	image->rect.y = 0;
@@ -33,7 +27,7 @@ void SDLImage_create(SDLImage *image, int w, int h){
 	/* Create surface */
 	image->surface = SDL_CreateRGBSurfaceWithFormat(0, image->rect.w, image->rect.h,
 		SDLImage_BITDEPTH, SDLImage_PIXELFORMAT);
-	checkSDL(image->surface, "Could not initialize surface: %s\n");
+	checkSDL(image->surface, "could not initialize surface: %s\n");
 }
 
 void SDLImage_load(SDLImage *image, const char *filename){
@@ -42,11 +36,11 @@ void SDLImage_load(SDLImage *image, const char *filename){
 	
 	/* Load surface */
 	image->surface = SDL_LoadBMP(filename);
-	checkSDL(image->surface, "Could not load image: %s\n");
+	checkSDL(image->surface, "could not load image: %s\n");
 	
 	/* Convert surface format to be able to draw on it (by default loads as BGR24) */
 	image->surface = SDL_ConvertSurfaceFormat(image->surface, SDLImage_PIXELFORMAT, 0);
-	checkSDL(image->surface, "Could not convert image format: %s\n");
+	checkSDL(image->surface, "could not convert image format: %s\n");
 	
 	image->rect.w = image->surface->w;
 	image->rect.h = image->surface->h;
@@ -56,7 +50,7 @@ void SDLImage_load(SDLImage *image, const char *filename){
 
 // Returns the image width
 int SDLImage_getWidth(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	lua_pushinteger(L, image->rect.w / image->scale);
 	
 	return 1;
@@ -64,7 +58,7 @@ int SDLImage_getWidth(lua_State *L){
 
 // Returns the image height
 int SDLImage_getHeight(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	lua_pushinteger(L, image->rect.h / image->scale);
 	
 	return 1;
@@ -72,7 +66,7 @@ int SDLImage_getHeight(lua_State *L){
 
 // Returns the rendering scale
 int SDLImage_getScale(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	lua_pushinteger(L, image->scale);
 	
 	return 1;
@@ -80,7 +74,7 @@ int SDLImage_getScale(lua_State *L){
 
 // Sets the rendering scale
 int SDLImage_setScale(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	image->scale = luaL_checkinteger(L, 2);
 	SDL_RenderSetScale(image->renderer, image->scale, image->scale);
 	
@@ -89,7 +83,7 @@ int SDLImage_setScale(lua_State *L){
 
 // Sets drawing colour
 int SDLImage_colour(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	int r = luaL_checkinteger(L, 2);
 	int g = luaL_optinteger(L, 3, r);
 	int b = luaL_optinteger(L, 4, r);
@@ -102,7 +96,7 @@ int SDLImage_colour(lua_State *L){
 
 // Sets pixel
 int SDLImage_pixel(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	int x = luaL_checkinteger(L, 2);
 	int y = luaL_checkinteger(L, 3);
 	
@@ -113,7 +107,7 @@ int SDLImage_pixel(lua_State *L){
 
 // Draws a rectangle
 int SDLImage_rect(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	
 	SDL_Rect rect;
 	rect.x = luaL_checkinteger(L, 2);
@@ -133,7 +127,7 @@ int SDLImage_rect(lua_State *L){
 
 // Clears the image using the current colour
 int SDLImage_clear(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	SDL_RenderClear(image->renderer);
 	
 	return 0;
@@ -141,7 +135,7 @@ int SDLImage_clear(lua_State *L){
 
 // Draws a character on the image
 int SDLImage_char(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	const char *str = luaL_checkstring(L, 2);
 	SDL_Rect rect;
 	rect.x = luaL_checkinteger(L, 3);
@@ -153,7 +147,7 @@ int SDLImage_char(lua_State *L){
 
 // Draws a string of characters on the image
 int SDLImage_write(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	const char *str = luaL_checkstring(L, 2);
 	
 	/* Get string length */
@@ -177,13 +171,13 @@ int SDLImage_write(lua_State *L){
 
 // Gets the pixel colour on the given coordinates
 int SDLImage_getPixel(lua_State *L){
-	SDLImage *image = SDLImage_get(L); // stack: {y, x, SDLImage}
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage"); // stack: {y, x, SDLImage}
 	int x = luaL_checkinteger(L, 2);
 	int y = luaL_checkinteger(L, 3);
 	
 	/* Check coordinates */
 	if(x < 0 || y < 0 || x >= image->rect.w || y >= image->rect.h){
-		luaL_error(L, "Coordinates out of range");
+		luaL_error(L, "coordinates out of range");
 	}
 	
 	/* Get pixel */
@@ -204,7 +198,7 @@ int SDLImage_getPixel(lua_State *L){
 
 // Loads a font
 int SDLImage_loadFont(lua_State *L){
-	SDLImage *image = SDLImage_get(L); // stack: {filename, SDLImage}
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage"); // stack: {filename, SDLImage}
 	lua_replace(L, 1); // stack: {filename}
 	image->font = font_load(L, image->renderer);
 	return 0;
@@ -214,7 +208,7 @@ int SDLImage_loadFont(lua_State *L){
 // Intended to be used as callback for screen interface compatibility
 // (ignores first argument, event name)
 int SDLImage_resize(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	
 	image->rect.w = luaL_checkinteger(L, 3);
 	image->rect.h = luaL_checkinteger(L, 4);
@@ -222,7 +216,7 @@ int SDLImage_resize(lua_State *L){
 	/* Create new surface */
 	SDL_Surface *newsurface = SDL_CreateRGBSurfaceWithFormat(0, image->rect.w, image->rect.h,
 		SDLImage_BITDEPTH, SDLImage_PIXELFORMAT);
-	checkSDL(newsurface, "Could not initialize surface: %s\n");
+	checkSDL(newsurface, "could not initialize surface: %s\n");
 	
 	/* Set the source and destination rect */
 	SDL_Rect rect;
@@ -239,7 +233,7 @@ int SDLImage_resize(lua_State *L){
 	
 	/* Create new renderer */
 	image->renderer = SDL_CreateSoftwareRenderer(image->surface);
-	checkSDL(image->renderer, "Could not initialize renderer: %s\n");
+	checkSDL(image->renderer, "could not initialize renderer: %s\n");
 	SDL_RenderSetScale(image->renderer, image->scale, image->scale);
 	
 	return 0;
@@ -252,7 +246,7 @@ int SDLImage_present(lua_State *L){
 
 // Saves the image to a file
 int SDLImage_save(lua_State *L){
-	SDLImage *image = SDLImage_get(L);
+	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	const char *filename = luaL_checkstring(L, 2);
 	
 	if(SDL_SaveBMP(image->surface, filename) != 0){
@@ -286,14 +280,14 @@ int SDLImage_new(lua_State *L){
 		SDLImage_create(image, w, h);
 		
 	}else{
-		return luaL_error(L, "Expected string or number, number");
+		return luaL_error(L, "expected string or number, number");
 	}
 	
 	image->scale = 1;
 	
 	/* Create renderer */
 	image->renderer = SDL_CreateSoftwareRenderer(image->surface);
-	checkSDL(image->renderer, "Could not initialize renderer: %s\n");
+	checkSDL(image->renderer, "could not initialize renderer: %s\n");
 	
 	/* Set default colour to white */
 	SDL_SetRenderDrawColor(image->renderer, 255, 255, 255, 255);
@@ -329,7 +323,7 @@ LUAMOD_API int luaopen_image_SDLImage(lua_State *L){
 	
 	/* Create SDLImage metatable */
 	if(!luaL_newmetatable(L, "SDLImage")){ // stack: {metatable, table, ...}
-		luaL_error(L, "Couldn't create SDLImage metatable");
+		luaL_error(L, "couldn't create SDLImage metatable");
 	}
 	
 	/* Set __index to SDLImage, for OO */

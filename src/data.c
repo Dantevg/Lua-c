@@ -21,6 +21,10 @@ Data *data_newdata(lua_State *L, int size){
 	return data;
 }
 
+int data_within(Data *data, int position){
+	return position >= 0 && (size_t)position < data->size;
+}
+
 /* Lua API definitions */
 
 /// @type Data
@@ -37,10 +41,7 @@ Data *data_newdata(lua_State *L, int size){
 int data_set(lua_State *L){
 	Data *data = luaL_checkudata(L, 1, "Data");
 	int position = luaL_checkinteger(L, 2);
-	
-	if(position < 0 || (size_t)position >= data->size){
-		luaL_argerror(L, 2, "Position out of bounds");
-	}
+	luaL_argcheck(L, data_within(data, position), 2, "position out of bounds");
 	
 	switch(lua_type(L, 3)){
 		case LUA_TNUMBER:
@@ -53,7 +54,7 @@ int data_set(lua_State *L){
 			memcpy(&data->data[position], str, len);
 			break;
 		default:
-			luaL_argerror(L, 3, "Only number or string elements supported");
+			luaL_argerror(L, 3, "only number or string elements supported");
 	}
 	
 	return 0;
@@ -68,10 +69,7 @@ int data_set(lua_State *L){
 int data_get(lua_State *L){
 	Data *data = luaL_checkudata(L, 1, "Data");
 	int position = luaL_checkinteger(L, 2);
-	
-	if(position < 0 || (size_t)position >= data->size){
-		luaL_argerror(L, 2, "Position out of bounds");
-	}
+	luaL_argcheck(L, data_within(data, position), 2, "position out of bounds");
 	
 	lua_pushinteger(L, data->data[position]);
 	return 1;
@@ -115,7 +113,7 @@ int data_of(lua_State *L){
 				}
 				break;
 			default:
-				luaL_error(L, "Only numbers, strings or a table containing them supported");
+				luaL_error(L, "only numbers, strings or a table containing them supported");
 		}
 	}
 	
@@ -234,7 +232,7 @@ LUAMOD_API int luaopen_data(lua_State *L){
 	
 	/* Create Data metatable */
 	if(!luaL_newmetatable(L, "Data")){ // stack: {metatable, table, ...}
-		luaL_error(L, "Couldn't create Data metatable");
+		luaL_error(L, "couldn't create Data metatable");
 	}
 	
 	/* Set metatable */

@@ -25,9 +25,7 @@ int thread_run(void *data){
 
 // Creates a new thread
 int thread_new(lua_State *L){
-	if(!lua_isfunction(L, 1)){
-		luaL_argerror(L, 1, "expected function");
-	}
+	luaL_argcheck(L, lua_isfunction(L, 1), 1, "expected function");
 	
 	/* Create new Lua thread */
 	lua_State *Lthread = lua_newthread(L); // stack: {Lthread, (args?), fn}
@@ -43,7 +41,7 @@ int thread_new(lua_State *L){
 	
 	/* Create new hardware / SDL thread */
 	SDL_Thread *t = SDL_CreateThread(thread_run, NULL, Lthread);
-	checkSDL(t, "Could not create thread: %s");
+	checkSDL(t, "could not create thread: %s");
 	
 	/* Put hardware / SDL thread into Thread registry */
 	lua_getfield(L, LUA_REGISTRYINDEX, "Thread"); // t, stack: {Thread, Lthread, ...}
@@ -57,9 +55,7 @@ int thread_new(lua_State *L){
 
 // Waits for a thread to complete
 int thread_wait(lua_State *L){
-	if(!lua_isthread(L, 1)){
-		luaL_argerror(L, 1, "expected thread");
-	}
+	luaL_argcheck(L, lua_isthread(L, 1), 1, "expected thread");
 	lua_State *Lthread = lua_tothread(L, 1); // stack: {Lthread}
 	lua_getfield(L, LUA_REGISTRYINDEX, "Thread"); // t, stack: {Thread, Lthread}
 	lua_pushvalue(L, -2); // k, stack: {Lthread, Thread, Lthread}

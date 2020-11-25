@@ -135,7 +135,7 @@ int screen_resize(lua_State *L){
 		SDL_PIXELFORMAT_RGBA8888,
 		SDL_TEXTUREACCESS_TARGET,
 		window.rect.w, window.rect.h);
-	checkSDL(window.texture, "Could not initialize texture: %s\n");
+	checkSDL(window.texture, "could not initialize texture: %s\n");
 	
 	/* Set the source and destination rect */
 	SDL_Rect rect;
@@ -189,19 +189,19 @@ int luaopen_screen(lua_State *L){
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		window.rect.w, window.rect.h,
 		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-	checkSDL(window.window, "Could not initialize window: %s\n");
+	checkSDL(window.window, "could not initialize window: %s\n");
 	
 	/* Create renderer */
 	window.renderer = SDL_CreateRenderer(window.window, -1,
 		SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
-	checkSDL(window.renderer, "Could not initialize renderer: %s\n");
+	checkSDL(window.renderer, "could not initialize renderer: %s\n");
 	
 	/* Create texture */
 	window.texture = SDL_CreateTexture(window.renderer,
 		SDL_PIXELFORMAT_RGBA8888,
 		SDL_TEXTUREACCESS_TARGET,
 		window.rect.w, window.rect.h);
-	checkSDL(window.texture, "Could not initialize texture: %s\n");
+	checkSDL(window.texture, "could not initialize texture: %s\n");
 	
 	/* Set default colour to white */
 	SDL_SetRenderDrawColor(window.renderer, 255, 255, 255, 255);
