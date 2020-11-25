@@ -19,5 +19,3 @@ for i = 1, #threads do
 end
 
 print("in main, a = "..a.."!")
-
-return false
