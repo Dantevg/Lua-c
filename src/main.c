@@ -19,6 +19,8 @@
 
 #define VERSION "0.2.0"
 
+#define BASE_PATH "/home/dante/MoonBox-C/"
+
 #if defined(_WIN32)
 	#define SO_EXT "dll"
 #else
@@ -35,7 +37,7 @@ void print_usage(){
 }
 
 int main(int argc, char *argv[]){
-	char *file = "res/main.lua";
+	char *file = BASE_PATH "res/main.lua";
 	int lua_arg_start = argc;
 	
 	/* Parse command-line arguments */
@@ -70,16 +72,15 @@ int main(int argc, char *argv[]){
 	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
 	
 	/* Set cpath and path */
-	if(luaL_dostring(L, "package.cpath = package.cpath..';./bin/?." SO_EXT "'")){
+	if(luaL_dostring(L, "package.cpath = package.cpath..';" BASE_PATH "bin/?." SO_EXT "'")){
 		fprintf(stderr, "[C] Could not set package.cpath: %s\n", lua_tostring(L, -1));
 	}
-	if(luaL_dostring(L, "package.path = package.path..';./res/lib/?.lua'")){
+	if(luaL_dostring(L, "package.path = package.path..';" BASE_PATH "res/lib/?.lua'")){
 		fprintf(stderr, "[C] Could not set package.path: %s\n", lua_tostring(L, -1));
 	}
 	
 	/* Load main file */
 	if(luaL_loadfile(L, file) == LUA_OK){
-		// chdir("res");
 		/* Push lua args */
 		for(int i = lua_arg_start; i < argc; i++){
 			lua_pushstring(L, argv[i]);
