@@ -36,6 +36,13 @@ void print_usage(){
 	printf("  -\t\tstop handling options and execute stdin\n");
 }
 
+int lua_error_handler(lua_State *L){
+	luaL_traceback(L, L, lua_tostring(L, -1), 2);
+	fprintf(stderr, "%s\n", lua_tostring(L, -1));
+	lua_pop(L, 1);
+	return 1;
+}
+
 int main(int argc, char *argv[]){
 	char *file = BASE_PATH "res/main.lua";
 	int lua_arg_start = argc;
@@ -79,19 +86,22 @@ int main(int argc, char *argv[]){
 		fprintf(stderr, "[C] Could not set package.path: %s\n", lua_tostring(L, -1));
 	}
 	
+	/* Push Lua error handler */
+	lua_pushcfunction(L, lua_error_handler);
+	
 	/* Load main file */
 	if(luaL_loadfile(L, file) == LUA_OK){
 		/* Push lua args */
 		for(int i = lua_arg_start; i < argc; i++){
 			lua_pushstring(L, argv[i]);
 		}
-		if(lua_pcall(L, argc-lua_arg_start, 1, 0) == LUA_OK){
+		if(lua_pcall(L, argc-lua_arg_start, 1, 1) == LUA_OK){
 			// Immediately stop execution when main chunk returns false
 			if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
 				return 0;
 			}
 		}else{
-			fprintf(stderr, "%s\n", lua_tostring(L, -1));
+			// Error message was already printed by lua_error_handler
 			return -1;
 		}
 	}else{
