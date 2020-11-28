@@ -68,7 +68,7 @@ int thread_new(lua_State *L){
 /***
  * Wait for a thread to complete.
  * @function wait
- * @tparam thread t the Lua thread as returned from @{thread.new}
+ * @tparam thread t the Lua thread as returned from @{new}
  * @return the values returned from the thread function
  */
 int thread_wait(lua_State *L){
