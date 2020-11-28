@@ -1,3 +1,9 @@
+/***
+ * The `thread` module provides simple multithreading access.
+ * **Warning: don't use this module in its current state!**
+ * @module thread
+ */
+
 #include <SDL2/SDL.h>
 
 #include <lua.h>
@@ -23,7 +29,13 @@ int thread_run(void *data){
 
 /* Lua API definitions */
 
-// Creates a new thread
+/***
+ * Create a new thread.
+ * @function new
+ * @tparam function fn the function to be called in the new thread
+ * @param[opt] ... any arguments which will be passed to `fn`
+ * @treturn thread the newly created Lua thread
+ */
 int thread_new(lua_State *L){
 	luaL_argcheck(L, lua_isfunction(L, 1), 1, "expected function");
 	
@@ -53,7 +65,12 @@ int thread_new(lua_State *L){
 	return 1;
 }
 
-// Waits for a thread to complete
+/***
+ * Wait for a thread to complete.
+ * @function wait
+ * @tparam thread t the Lua thread as returned from @{thread.new}
+ * @return the values returned from the thread function
+ */
 int thread_wait(lua_State *L){
 	luaL_argcheck(L, lua_isthread(L, 1), 1, "expected thread");
 	lua_State *Lthread = lua_tothread(L, 1); // stack: {Lthread}
