@@ -18,4 +18,4 @@ int thread_new(lua_State *L);
 // Waits for a thread to complete
 int thread_wait(lua_State *L);
 
-LUAMOD_API int luaopen_thread(lua_State *L);
+LUAMOD_API int luaopen_thread_unsafe(lua_State *L);

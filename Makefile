@@ -22,12 +22,12 @@ endif
 all: main libraries
 init:
 	mkdir -p build bin
-	mkdir -p build/image bin/image
+	mkdir -p build/image bin/image build/thread bin/thread
 main: bin/main
 libraries: bin/event.$(SO)\
 	bin/SDLWindow.$(SO)\
 	bin/image/SDLImage.$(SO)\
-	bin/thread.$(SO)\
+	bin/thread/unsafe.$(SO)\
 	bin/sys.$(SO)\
 	bin/mouse.$(SO)\
 	bin/kb.$(SO)\
@@ -53,8 +53,8 @@ build/SDLWindow.o: src/SDLWindow.c src/SDLWindow.h
 bin/image/SDLImage.$(SO): build/image/SDLImage.o build/font.o build/util.o
 build/image/SDLImage.o: src/image/SDLImage.c src/image/SDLImage.h
 
-bin/thread.$(SO): build/thread.o build/util.o
-build/thread.o: src/thread.c src/thread.h
+bin/thread/unsafe.$(SO): build/thread/unsafe.o build/util.o
+build/thread/unsafe.o: src/thread/unsafe.c src/thread/unsafe.h
 
 bin/sys.$(SO): build/sys.o
 build/sys.o: src/sys.c

@@ -1,7 +1,7 @@
 /***
- * The `thread` module provides simple multithreading access.
+ * The `unsafe` thread module provides simple multithreading access.
  * **Warning: don't use this module in its current state!**
- * @module thread
+ * @module thread.unsafe
  */
 
 #include <SDL2/SDL.h>
@@ -10,8 +10,8 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "util.h"
-#include "thread.h"
+#include "../util.h"
+#include "unsafe.h"
 
 /* C library definitions */
 
@@ -96,7 +96,7 @@ static const struct luaL_Reg thread_f[] = {
 	{NULL, NULL}
 };
 
-LUAMOD_API int luaopen_thread(lua_State *L){
+LUAMOD_API int luaopen_thread_unsafe(lua_State *L){
 	lua_newtable(L); // stack: {table}
 	luaL_setfuncs(L, thread_f, 0);
 	
