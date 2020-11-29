@@ -15,7 +15,7 @@ for i = 1, 4 do
 end
 
 for i = 1, #threads do
-	print(thread.wait(threads[i]))
+	print(threads[i]:wait())
 end
 
 print("in main, a = "..a.."!")

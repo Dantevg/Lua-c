@@ -28,6 +28,7 @@ libraries: bin/event.$(SO)\
 	bin/SDLWindow.$(SO)\
 	bin/image/SDLImage.$(SO)\
 	bin/thread/unsafe.$(SO)\
+	bin/thread/posix.$(SO)\
 	bin/sys.$(SO)\
 	bin/mouse.$(SO)\
 	bin/kb.$(SO)\
@@ -55,6 +56,10 @@ build/image/SDLImage.o: src/image/SDLImage.c src/image/SDLImage.h
 
 bin/thread/unsafe.$(SO): build/thread/unsafe.o build/util.o
 build/thread/unsafe.o: src/thread/unsafe.c src/thread/unsafe.h
+
+bin/thread/posix.$(SO): build/thread/posix.o
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO) -shared -pthread
+build/thread/posix.o: src/thread/posix.c src/thread/posix.h
 
 bin/sys.$(SO): build/sys.o
 build/sys.o: src/sys.c
