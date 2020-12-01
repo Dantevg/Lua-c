@@ -1,6 +1,6 @@
 /***
  * The `win` thread module provides simple multithreading access.
- * Note that this module is only available Windows.
+ * Note that this module is only available on Windows.
  * @module thread.win
  */
 
