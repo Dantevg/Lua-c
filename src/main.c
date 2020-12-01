@@ -19,7 +19,9 @@
 
 #define VERSION "0.2.0"
 
-#define BASE_PATH "/home/dante/MoonBox-C/"
+#ifndef BASE_PATH
+	#define BASE_PATH "/"
+#endif
 
 #if defined(_WIN32)
 	#define SO_EXT "dll"

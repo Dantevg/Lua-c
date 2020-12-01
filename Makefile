@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Wextra -Wshadow -Wno-unused-parameter -std=c99
+CFLAGS = -Wall -Wextra -Wshadow -Wno-unused-parameter -std=c99 -DBASE_PATH=\"$(CURDIR)/\"
 LUA_VERSION = 5.3
 INCLUDE = -I/usr/include/lua$(LUA_VERSION) -I/usr/local/include/lua$(LUA_VERSION)
 LIBS_MAIN = -llua$(LUA_VERSION)
@@ -8,6 +8,17 @@ SO = so
 # Parallel compilation is faster
 MAKEFLAGS += -j
 
+libs = bin/event.$(SO)\
+	bin/SDLWindow.$(SO)\
+	bin/image/SDLImage.$(SO)\
+	bin/thread/unsafe.$(SO)\
+	bin/sys.$(SO)\
+	bin/mouse.$(SO)\
+	bin/kb.$(SO)\
+	bin/data.$(SO)
+
+libs_posix = bin/thread/posix.$(SO)
+
 ifeq ($(OS),Windows_NT)
 	CFLAGS += -DLUA_LIB -DLUA_BUILD_AS_DLL
 	# TODO: use $HOME or other more generic env var?
@@ -15,6 +26,8 @@ ifeq ($(OS),Windows_NT)
 	LIBS_MAIN = -llua
 	LIBS_SO = -lmingw32 -lSDL2main -lSDL2 -llua
 	SO = dll
+else
+	libs += libs_posix
 endif
 
 .PHONY: all init main libraries clean
@@ -24,15 +37,7 @@ init:
 	mkdir -p build bin
 	mkdir -p build/image bin/image build/thread bin/thread
 main: bin/main
-libraries: bin/event.$(SO)\
-	bin/SDLWindow.$(SO)\
-	bin/image/SDLImage.$(SO)\
-	bin/thread/unsafe.$(SO)\
-	bin/thread/posix.$(SO)\
-	bin/sys.$(SO)\
-	bin/mouse.$(SO)\
-	bin/kb.$(SO)\
-	bin/data.$(SO)
+libraries: $(libs)
 
 
 
