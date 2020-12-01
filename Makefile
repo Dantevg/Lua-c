@@ -27,7 +27,7 @@ ifeq ($(OS),Windows_NT)
 	LIBS_SO = -lmingw32 -lSDL2main -lSDL2 -llua
 	SO = dll
 else
-	libs += libs_posix
+	libs += $(libs_posix)
 endif
 
 .PHONY: all init main libraries clean
