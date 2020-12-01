@@ -16,9 +16,6 @@ typedef struct Thread {
 // Gets called in the new thread
 void *thread_run(void *data);
 
-// Get thread id from Lua thread in the registry, and remove the registry entry
-pthread_t thread_remove(lua_State *L);
-
 /* Lua API definitions */
 
 // Creates a new thread

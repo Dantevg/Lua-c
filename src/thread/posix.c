@@ -29,24 +29,6 @@ void *thread_run(void *data){
 	pthread_exit(NULL);
 }
 
-// Get thread id from Lua thread in the registry, and remove the registry entry
-pthread_t thread_remove(lua_State *L){
-	/* Get pthread id */
-	lua_getfield(L, LUA_REGISTRYINDEX, "Thread"); // t, stack: {Thread, Lthread}
-	lua_rotate(L, 1, 1); // k, stack: {Lthread, Thread}
-	lua_pushvalue(L, 2); // stack: {Lthread, Lthread, Thread}
-	lua_gettable(L, -3); // v = t[k], tid = Thread[Lthread], stack: {tid, Lthread, Thread}
-	pthread_t tid = lua_tointeger(L, -1);
-	lua_pop(L, 1); // stack: {Lthread, Thread}
-	
-	/* Remove thread from registry, to avoid waiting on a non-existing thread */
-	lua_pushnil(L); // stack: {nil, Lthread, Thread}
-	lua_settable(L, -3); // stack: {Thread}
-	lua_pop(L, 1);
-	
-	return tid;
-}
-
 /* Lua API definitions */
 
 /***
