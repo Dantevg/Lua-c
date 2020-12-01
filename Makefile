@@ -19,6 +19,8 @@ libs = bin/event.$(SO)\
 
 libs_posix = bin/thread/posix.$(SO)
 
+libs_win = bin/thread/win.$(SO)
+
 ifeq ($(OS),Windows_NT)
 	CFLAGS += -DLUA_LIB -DLUA_BUILD_AS_DLL
 	# TODO: use $HOME or other more generic env var?
@@ -26,6 +28,7 @@ ifeq ($(OS),Windows_NT)
 	LIBS_MAIN = -llua
 	LIBS_SO = -lmingw32 -lSDL2main -lSDL2 -llua
 	SO = dll
+	libs += $(libs_win)
 else
 	libs += $(libs_posix)
 endif
@@ -65,6 +68,9 @@ build/thread/unsafe.o: src/thread/unsafe.c src/thread/unsafe.h
 bin/thread/posix.$(SO): build/thread/posix.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO) -shared -pthread
 build/thread/posix.o: src/thread/posix.c src/thread/posix.h
+
+bin/thread/win.$(SO): build/thread/win.o
+build/thread/win.o: src/thread/win.c src/thread/win.h
 
 bin/sys.$(SO): build/sys.o
 build/sys.o: src/sys.c
