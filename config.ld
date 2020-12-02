@@ -6,3 +6,4 @@ title = "MoonBox reference"
 format = "markdown"
 not_luadoc = true
 backtick_references = false
+style = true
