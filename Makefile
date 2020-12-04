@@ -1,6 +1,6 @@
 CFLAGS = -Wall -Wextra -Wshadow -Wno-unused-parameter -std=c99 -DBASE_PATH=\"$(CURDIR)/\"
 LUA_VERSION = 5.3
-INCLUDE = -I/usr/include/lua$(LUA_VERSION) -I/usr/local/include/lua$(LUA_VERSION)
+INCLUDE = -I/usr/include/lua$(LUA_VERSION) -I/usr/local/include/lua$(LUA_VERSION) -isystem lib
 LIBS_MAIN = -llua$(LUA_VERSION)
 LIBS_SO = -lSDL2 -llua$(LUA_VERSION)
 SO = so
@@ -15,7 +15,8 @@ libs = bin/event.$(SO)\
 	bin/sys.$(SO)\
 	bin/mouse.$(SO)\
 	bin/kb.$(SO)\
-	bin/data.$(SO)
+	bin/data.$(SO)\
+	bin/screen/terminal.$(SO)
 
 libs_posix = bin/thread/posix.$(SO)
 
@@ -38,7 +39,7 @@ endif
 all: main libraries
 init:
 	mkdir -p build bin
-	mkdir -p build/image bin/image build/thread bin/thread
+	mkdir -p build/image bin/image build/thread bin/thread build/screen bin/screen
 main: bin/main
 libraries: $(libs)
 
@@ -83,6 +84,10 @@ build/kb.o: src/kb.c src/kb.h
 
 bin/data.$(SO): build/data.o
 build/data.o: src/data.c src/data.h
+
+bin/screen/terminal.$(SO): build/screen/terminal.o lib/libtg.a
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO) -shared -lncursesw
+build/screen/terminal.o: src/screen/terminal.c src/screen/terminal.h
 
 
 
