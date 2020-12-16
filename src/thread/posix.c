@@ -1,7 +1,9 @@
 /***
  * The `posix` thread module provides simple multithreading access.
  * Note that this module is only available on POSIX systems (i.e. not Windows)
+ * 
  * @module thread.posix
+ * @see thread
  */
 
 #define _REENTRANT // needed for pthread_kill
@@ -31,13 +33,7 @@ void *thread_run(void *data){
 
 /* Lua API definitions */
 
-/***
- * Create a new thread.
- * @function new
- * @tparam function fn the function to be called in the new thread
- * @param[opt] ... any arguments which will be passed to `fn`
- * @treturn Thread a wrapper around the newly created Lua thread
- */
+// Create a new thread
 int thread_new(lua_State *L){
 	luaL_argcheck(L, lua_isfunction(L, 1), 1, "expected function");
 	
@@ -60,14 +56,7 @@ int thread_new(lua_State *L){
 	return 1;
 }
 
-/// @type Thread
-
-/***
- * Wait for a thread to complete.
- * @function wait
- * @tparam Thread t the thread as returned from @{new}
- * @return the values returned from the thread function
- */
+// Wait for a thread to complete
 int thread_wait(lua_State *L){
 	/* Get Lua thread */
 	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {t}
@@ -82,11 +71,7 @@ int thread_wait(lua_State *L){
 	return n_return_values;
 }
 
-/***
- * Immediately stop a thread.
- * @function kill
- * @tparam Thread t the thread as returned from @{new}
- */
+// Immediately stop a thread
 int thread_kill(lua_State *L){
 	/* Get Lua thread */
 	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {t}
