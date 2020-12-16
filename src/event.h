@@ -30,7 +30,7 @@ uint32_t timer_async_callback(uint32_t delay, void *param);
 Callback *event_add_callback(lua_State *L, const char *event, int callbackid, void *data);
 
 // Dispatches event to Lua callbacks
-void event_dispatch_callbacks(lua_State *L, char *eventname, int args);
+void event_dispatch_callbacks(lua_State *L, const char *eventname, int args);
 
 // Handle events and dispatch them to Lua
 int event_loop(lua_State *L);
@@ -56,5 +56,8 @@ int event_addTimer(lua_State *L);
 // Expects a callback id
 // Returns whether the timer was successfully removed
 int event_removeTimer(lua_State *L);
+
+// Adds an event to the queue
+int event_push(lua_State *L);
 
 LUAMOD_API int luaopen_event(lua_State *L);

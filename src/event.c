@@ -81,7 +81,7 @@ Callback *event_add_callback(lua_State *L, const char *eventname, int callbackid
 }
 
 // Dispatches event to Lua callbacks
-void event_dispatch_callbacks(lua_State *L, char *eventname, int args){
+void event_dispatch_callbacks(lua_State *L, const char *eventname, int args){
 	// stack: {eventdata, ...}
 	/* Get callbacks table */
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, eventdata, ...}
@@ -120,11 +120,32 @@ void event_dispatch_callbacks(lua_State *L, char *eventname, int args){
 			lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
 		}
 	}
-	lua_pop(L, 2); // stack: {...}
+	lua_pop(L, args+1); // stack: {...}
 }
 
 // Handle events and dispatch them to Lua
 int event_loop(lua_State *L){
+	/* Handle Lua events */
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {events}
+	int n = luaL_len(L, -1);
+	for(int i = 1; i <= n; i++){
+		lua_geti(L, -1, i); // stack: {event, events}
+		lua_getfield(L, -1, "name"); // stack: {name, event, events}
+		const char *name = lua_tostring(L, -1);
+		lua_pop(L, 1); // stack: {event, events}
+		int n_args = luaL_len(L, -1);
+		int top = lua_gettop(L);
+		for(int j = 1; j <= n_args; j++){
+			lua_geti(L, top, j);
+		} // stack: {v (x n_args), event, events}
+		event_dispatch_callbacks(L, name, n_args); // stack: {event, events}
+		lua_pop(L, 1); // stack: {events}
+		lua_pushnil(L);
+		lua_seti(L, -2, i);
+	}
+	lua_pop(L, 1); // stack: {}
+	
+	/* Handle SDL2 events */
 	SDL_Event e;
 	while(SDL_PollEvent(&e)){
 		if(e.type == SDL_QUIT){
@@ -290,11 +311,32 @@ int event_removeTimer(lua_State *L){
 	return 1;
 }
 
+/***
+ * Push an event on the queue.
+ * @function push
+ * @tparam string name the event name
+ * @param[opt] ... the event arguments
+ */
+int event_push(lua_State *L){
+	int n_args = lua_gettop(L)-1; // stack: {args, name}
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {events, args, name}
+	lua_newtable(L); // stack: {event, events, args, name}
+	lua_rotate(L, 1, -1); // stack: {name, event, events, args}
+	lua_setfield(L, -2, "name"); // stack: {event, events, args}
+	lua_rotate(L, 1, -n_args); // stack: {args, event, events}
+	for(int i = n_args; i >= 1; i--){
+		lua_seti(L, 2, i);
+	} // stack: {event, events}
+	lua_seti(L, 1, luaL_len(L, 1)+1); // stack: {events}
+	return 0;
+}
+
 static const struct luaL_Reg event_f[] = {
 	{"on", event_on},
 	{"off", event_off},
 	{"addTimer", event_addTimer},
 	{"removeTimer", event_removeTimer},
+	{"push", event_push},
 	{NULL, NULL}
 };
 
@@ -307,10 +349,14 @@ LUAMOD_API int luaopen_event(lua_State *L){
 	lua_setfield(L, LUA_REGISTRYINDEX, "event_loop");
 	
 	/* Register callbacks table */
-	lua_newtable(L); // stack: {tbl}
-	lua_pushinteger(L, 0); // stack: {0, tbl}
-	lua_setfield(L, -2, "n"); // stack: {tbl}
-	lua_setfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {}
+	lua_newtable(L); // stack: {tbl, ...}
+	lua_pushinteger(L, 0); // stack: {0, tbl, ...}
+	lua_setfield(L, -2, "n"); // stack: {tbl, ...}
+	lua_setfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {, ...}
+	
+	/* Register event queue */
+	lua_newtable(L);
+	lua_setfield(L, LUA_REGISTRYINDEX, "event_queue");
 	
 	return 1;
 }
