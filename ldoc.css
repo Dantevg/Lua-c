@@ -7,12 +7,18 @@
 	--bg-main: #222;
 	--bg-mdlist: #2D2D2D;
 	--bg-fnlist: #2B2D38;
-	--bg-pre: #333338;
+	--bg-pre: #111115;
 	--border-dark: #444;
 	--border-med: #666;
 	--text: #DDD;
 	--link: #86aad2;
 	--link-visited: #89bbd4;
+	
+	--syntax-comment: #8b949e;
+	--syntax-constant: #79c0ff;
+	--syntax-keyword: #ff7b72;
+	--syntax-string: #a5d6ff;
+	--syntax-escape: #7ee787;
 }
 
 /* BEGIN RESET
@@ -127,17 +133,18 @@ blockquote { margin-left: 3em; }
 ul { list-style-type: disc; }
 
 p.name {
-	font-family: "Andale Mono", monospace;
+	font-family: "Fira Code", "Andale Mono", monospace;
 	padding-top: 1em;
 }
 
 pre {
 	background-color: var(--bg-pre);
-	border: 1px solid var(--border-med); /* silver */
+	border: 1px solid var(--border-dark); /* silver */
 	padding: 10px;
 	margin: 10px 0 10px 0;
 	overflow: auto;
-	font-family: "Andale Mono", monospace;
+	font-family: "Fira Code", "Andale Mono", monospace;
+	tab-size: 4;
 }
 
 pre.example {
@@ -246,7 +253,7 @@ table.index td { text-align: left; vertical-align: top; }
 		display: none;
 	}
 	pre.example {
-		font-family: "Andale Mono", monospace;
+		font-family: "Fira Code", "Andale Mono", monospace;
 		font-size: 10pt;
 		page-break-inside: avoid;
 	}
@@ -307,17 +314,17 @@ a:target + * {
 }
 
 /* styles for prettification of source */
-pre .comment { color: #558817; }
-pre .constant { color: #a8660d; }
-pre .escape { color: #844631; }
-pre .keyword { color: #aa5050; font-weight: bold; }
+pre .comment { color: var(--syntax-comment); }
+pre .constant { color: var(--syntax-constant); }
+pre .escape { color: var(--syntax-escape); }
+pre .keyword { color: var(--syntax-keyword); font-weight: 500; }
 pre .library { color: #0e7c6b; }
-pre .marker { color: #512b1e; background: #fedc56; font-weight: bold; }
-pre .string { color: #8080ff; }
-pre .number { color: #f8660d; }
-pre .operator { color: #2239a8; font-weight: bold; }
+pre .marker { color: #512b1e; background: #fedc56; font-weight: 500; }
+pre .string { color: var(--syntax-string); }
+pre .number { color: var(--syntax-constant); }
+pre .operator { color: #2239a8; font-weight: 500; }
 pre .preprocessor, pre .prepro { color: #a33243; }
-pre .global { color: #800080; }
-pre .user-keyword { color: #800080; }
+pre .global { color: var(--syntax-constant); }
+pre .user-keyword { color: var(--syntax-constant); }
 pre .prompt { color: #558817; }
 pre .url { color: #272fc2; text-decoration: underline; }
