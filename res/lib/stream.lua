@@ -479,11 +479,15 @@ function stream.group.new(source, fn)
 	self.get = coroutine.wrap(function()
 		self.buffer = {}
 		for x in self.source do
-			if self.fn(x) then -- add to group
+			if self.fn(x, self.buffer[#self.buffer]) then -- add to group
 				table.insert(self.buffer, x)
 			elseif #self.buffer > 0 then -- prevent empty groups
 				coroutine.yield(stream.table(self.buffer))
-				self.buffer = {}
+				if self.fn(x, nil) then -- start new buffer
+					self.buffer = {x}
+				else
+					self.buffer = {}
+				end
 			end
 		end
 		if #self.buffer > 0 then -- source is empty, buffer still has items
