@@ -7,6 +7,8 @@
 	
 ]]--
 
+local op = require "operator"
+
 local stream = {}
 
 
@@ -521,6 +523,29 @@ end
 
 
 
+--- Group the stream at the value `at`.
+-- Alias for `group(function(x) return x ~= at end)`
+-- @function splitAt
+-- @param at
+-- @treturn Stream
+-- @see group
+-- @usage
+-- stream.string("hello world")
+-- 	:splitAt(" ")
+-- 	:map(stream.tostring)
+-- 	:totable() --> {"hello", "world"}
+function stream.splitAt(source, at)
+	return setmetatable(source:group(stream.op.neq(at)), {
+		__index = stream.group,
+		__tostring = function(self)
+			return string.format("%s -> SplitAt %q", source, at)
+		end,
+		__call = stream.get,
+	})
+end
+
+
+
 --- Map numbers from (`min1`,`max1`) to (`min2`,`max2`).
 -- Alias for
 -- 	map(function(x)
@@ -694,12 +719,23 @@ function stream.util.match(match)
 	return function(x) return string.match(x, match) end
 end
 
---- Wrap a regular 2-parameter function into a curried variant
+--- Wrap a regular 2-parameter function into a curried variant.
 -- @usage
--- filter(stream.util.curry(op.eq)(1))
+-- filter(stream.util.curry(op.index){'a','b','c'})
 -- -- is equivalent to
--- filter(function(x) return op.eq(x,1) end)
+-- filter(function(x) ({'a','b','c'})[x] end)
 function stream.util.curry(f)
+	return function(a) return function(b) return f(a,b) end end
+end
+
+--- Wrap a regular 2-parameter function into a flipped curried variant.
+-- Note how the function's arguments are flipped in the example;
+-- the second argument is given first.
+-- @usage
+-- filter(stream.util.curry(op.lt)(3))
+-- -- is equivalent to
+-- filter(function(x) return x < 3 end)
+function stream.util.curry_(f)
 	return function(b) return function(a) return f(a,b) end end
 end
 
@@ -710,18 +746,24 @@ end
 --- Operators
 -- @section op
 
+local flipped = {
+	lt = true, ["<"] = true,
+	gt = true, [">"] = true,
+	leq = true, le = true, ["<="] = true,
+	geq = true, ge = true, [">="] = true,
+}
+
 --- Curried `operator` library proxy.
+-- The curried comparison functions (`lt`, `gt`, `leq`/`le`, `geq`/`ge` and their symbols)
+-- have a logical order (use @{curry_}), so the first function specifies
+-- the second argument
 -- @table stream.op
--- This table will only be present when the `operator` library is.
--- `stream.op.eq == stream.util.curry(operator.eq)`
-
-local success, op = pcall(require, "operator")
-
-if success then
-	stream.op = setmetatable({}, {__index = function(t,k)
-		return stream.util.curry(op[k])
-	end})
-end
+-- @usage
+-- stream.op.index({'a','b','c'})(2) --> 'b'  -- normal order, t[2]
+-- stream.op.lt(3)(1)                --> true -- reversed order, 1 < 3
+stream.op = setmetatable({}, {__index = function(t,k)
+	return flipped[k] and stream.util.curry_(op[k]) or stream.util.curry(op[k])
+end})
 
 
 
