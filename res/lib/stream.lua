@@ -208,8 +208,18 @@ end
 --- @type Stream
 
 --- Get a single value from the stream.
+-- You can also just call the stream immediately. This makes it possible
+-- for the streams to be used as iterators (see example)
 -- @function get
--- @return the value from the stream
+-- @return the value from the stream, or `nil` if nothing is present
+-- @usage
+-- for x in stream("Hello, world! From Lua"):group(stream.util.match("%a")) do
+-- 	print(x:tostring())
+-- end
+-- --> Hello
+-- --> world
+-- --> From
+-- --> Lua
 
 stream.map = {}
 
@@ -476,6 +486,9 @@ function stream.group.new(source, fn)
 				self.buffer = {}
 			end
 		end
+		if #self.buffer > 0 then -- source is empty, buffer still has items
+			coroutine.yield(stream.table(self.buffer))
+		end
 	end)
 	
 	return setmetatable(self, stream.group)
@@ -605,6 +618,7 @@ end
 
 --- Get the stream length.
 -- Alias for `reduce(function(a) return a+1 end, 0)`
+-- (which can be written as `reduce(stream.op.add(1), 0)`)
 -- @function length
 -- @treturn number
 -- @see reduce
