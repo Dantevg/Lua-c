@@ -16,8 +16,8 @@ local stream = {}
 stream.__index = stream
 stream.__call = function(x, ...) return x.new(...) end
 
-function stream:has()
-	return self.source:has()
+function stream:get()
+	return self.get()
 end
 
 
@@ -49,6 +49,7 @@ stream.string.__index = stream.string
 stream.string.__tostring = function(self)
 	return string.format("%s String", stream)
 end
+stream.string.__call = stream.get
 
 --- Stream string source.
 -- When nothing is given, defaults to an empty string.
@@ -61,17 +62,13 @@ function stream.string.new(data)
 	self.data = data or ""
 	self.i = 1
 	
+	self.get = coroutine.wrap(function()
+		for i = 1, #self.data do
+			coroutine.yield(self.data:sub(i,i))
+		end
+	end)
+	
 	return setmetatable(self, stream.string)
-end
-
-function stream.string:has()
-	return self.i <= #self.data
-end
-
-function stream.string:get()
-	if not self:has() then return end
-	self.i = self.i+1
-	return self.data:sub(self.i-1,self.i-1)
 end
 
 setmetatable(stream.string, stream)
@@ -90,6 +87,7 @@ stream.file.__tostring = function(self)
 		return string.format("%s File", stream)
 	end
 end
+stream.file.__call = stream.get
 
 --- Stream file source.
 -- When `source` is a string, interprets it as a path.
@@ -105,27 +103,10 @@ function stream.file.new(file)
 	else
 		self.file = file or io.stdin
 	end
-	self.buffer = nil
-	self.started = false
+	
+	self.get = function() return self.file:read(1) end
 	
 	return setmetatable(self, stream.file)
-end
-
-function stream.file:buf()
-	self.started = true
-	self.buffer = self.file:read(1)
-end
-
-function stream.file:has()
-	if not self.started then self:buf() end
-	return self.buffer ~= nil
-end
-
-function stream.file:get()
-	if not self.started then self:buf() end
-	local x = self.buffer
-	self:buf()
-	return x
 end
 
 setmetatable(stream.file, stream)
@@ -138,6 +119,7 @@ stream.table.__index = stream.table
 stream.table.__tostring = function(self)
 	return string.format("%s Table", stream)
 end
+stream.table.__call = stream.get
 
 --- Stream table source.
 -- When nothing is given, defaults to an empty table.
@@ -149,16 +131,13 @@ function stream.table.new(data)
 	local self = {}
 	self.data = data or {}
 	
+	self.get = coroutine.wrap(function()
+		for i = 1, #self.data do
+			coroutine.yield(self.data[i])
+		end
+	end)
+	
 	return setmetatable(self, stream.table)
-end
-
-function stream.table:has()
-	return #self.data > 0
-end
-
-function stream.table:get()
-	if not self:has() then return end
-	return table.remove(self.data, 1)
 end
 
 setmetatable(stream.table, stream)
@@ -175,6 +154,7 @@ stream.generate.__tostring = function(self)
 		return string.format("%s Generate", stream)
 	end
 end
+stream.generate.__call = stream.get
 
 --- Stream generator function or value source.
 -- When `data` is a function, repeatedly calls this function for values.
@@ -186,21 +166,13 @@ end
 function stream.generate.new(fn)
 	local self = {}
 	if type(fn) == "function" then
-		self.fn = fn
+		self.get = function() return fn() end
 	else
 		self.value = fn
-		self.fn = function() return fn end
+		self.get = function() return fn end
 	end
 	
 	return setmetatable(self, stream.generate)
-end
-
-function stream.generate:has()
-	return true -- TODO: implement
-end
-
-function stream.generate:get()
-	return self.fn()
 end
 
 setmetatable(stream.generate, stream)
@@ -224,7 +196,8 @@ function stream.from(v)
 		__index = stream.generate,
 		__tostring = function()
 			return string.format("%s From %q", stream, v)
-		end
+		end,
+		__call = stream.get,
 	})
 end
 
@@ -233,10 +206,6 @@ end
 -- FILTERS
 
 --- @type Stream
-
---- Whether the stream has data.
--- @function has
--- @treturn boolean whether the stream has data
 
 --- Get a single value from the stream.
 -- @function get
@@ -248,6 +217,7 @@ stream.map.__index = stream.map
 stream.map.__tostring = function(self)
 	return string.format("%s -> Map", self.source)
 end
+stream.map.__call = stream.get
 
 --- Perform a function on every value.
 -- The function will be called with every value from the source,
@@ -261,12 +231,13 @@ function stream.map.new(source, fn)
 	self.source = source
 	self.fn = fn or function(...) return ... end
 	
+	self.get = coroutine.wrap(function()
+		for x in self.source do
+			coroutine.yield(self.fn(x))
+		end
+	end)
+	
 	return setmetatable(self, stream.map)
-end
-
-function stream.map:get()
-	if not self.source:has() then return end
-	return (self.fn( (self.source:get()) ))
 end
 
 setmetatable(stream.map, stream)
@@ -279,6 +250,7 @@ stream.forEach.__index = stream.forEach
 stream.forEach.__tostring = function(self)
 	return string.format("%s -> ForEach", self.source)
 end
+stream.forEach.__call = stream.get
 
 --- Perform a function on every value, but ignore the result.
 -- @function forEach
@@ -293,14 +265,14 @@ function stream.forEach.new(source, fn)
 	self.source = source
 	self.fn = fn or function() end
 	
+	self.get = coroutine.wrap(function()
+		for x in self.source do
+			self.fn(x)
+			coroutine.yield(x)
+		end
+	end)
+	
 	return setmetatable(self, stream.forEach)
-end
-
-function stream.forEach:get()
-	if not self.source:has() then return end
-	local x = self.source:get()
-	self.fn(x)
-	return x
 end
 
 setmetatable(stream.forEach, stream)
@@ -313,6 +285,7 @@ stream.filter.__index = stream.filter
 stream.filter.__tostring = function(self)
 	return string.format("%s -> Filter", self.source)
 end
+stream.filter.__call = stream.get
 
 --- Filter the stream.
 -- The function will be called with every value from its source,
@@ -329,28 +302,13 @@ function stream.filter.new(source, fn)
 	self.buffer = nil
 	self.started = false
 	
-	return setmetatable(self, stream.filter)
-end
-
-function stream.filter:buf()
-	self.started = true
+	self.get = coroutine.wrap(function()
+		for x in self.source do
+			if self.fn(x) then coroutine.yield(x) end
+		end
+	end)
 	
-	repeat
-		if not self.source:has() then self.buffer = nil return end
-		self.buffer = self.source:get()
-	until self.fn(self.buffer)
-end
-
-function stream.filter:has()
-	if not self.started then self:buf() end
-	return self.buffer ~= nil
-end
-
-function stream.filter:get()
-	if not self.started then self:buf() end
-	local x = self.buffer
-	self:buf()
-	return x
+	return setmetatable(self, stream.filter)
 end
 
 setmetatable(stream.filter, stream)
@@ -363,6 +321,7 @@ stream.reverse.__index = stream.reverse
 stream.reverse.__tostring = function(self)
 	return string.format("%s -> Reverse", self.source)
 end
+stream.reverse.__call = stream.get
 
 --- Reverse the stream.
 -- **Warning**: this function needs to read the entire source stream
@@ -375,27 +334,17 @@ function stream.reverse.new(source)
 	self.source = source
 	self.data = nil
 	
+	self.get = coroutine.wrap(function()
+		self.data = {}
+		for x in self.source do
+			table.insert(self.data, x)
+		end
+		for i = #self.data, 1, -1 do
+			coroutine.yield(self.data[i])
+		end
+	end)
+	
 	return setmetatable(self, stream.reverse)
-end
-
-function stream.reverse:has()
-	if self.data then
-		return #self.data > 0
-	else
-		return self.source:has()
-	end
-end
-
-function stream.reverse:init()
-	self.data = {}
-	while self.source:has() do
-		table.insert(self.data, self.source:get())
-	end
-end
-
-function stream.reverse:get()
-	if not self.data then self:init() end
-	return table.remove(self.data)
 end
 
 setmetatable(stream.reverse, stream)
@@ -408,6 +357,7 @@ stream.take.__index = stream.take
 stream.take.__tostring = function(self)
 	return string.format("%s -> Take %s", self.source, self.n)
 end
+stream.take.__call = stream.get
 
 --- Take the first `n` values.
 -- @function take
@@ -416,20 +366,15 @@ end
 function stream.take.new(source, n)
 	local self = {}
 	self.source = source
-	self.i = 0
 	self.n = n or 1
 	
+	self.get = coroutine.wrap(function()
+		for i = 1, self.n do
+			coroutine.yield(self.source:get())
+		end
+	end)
+	
 	return setmetatable(self, stream.take)
-end
-
-function stream.take:has()
-	return self.i < self.n and self.source:has()
-end
-
-function stream.take:get()
-	if not self:has() then return end
-	self.i = self.i+1
-	return self.source:get()
 end
 
 setmetatable(stream.take, stream)
@@ -453,7 +398,8 @@ function stream.tail(source, n)
 		__index = stream.reverse,
 		__tostring = function(self)
 			return string.format("%s -> Tail %d", source, n)
-		end
+		end,
+		__call = stream.get,
 	})
 end
 
@@ -465,6 +411,7 @@ stream.takeWhile.__index = stream.takeWhile
 stream.takeWhile.__tostring = function(self)
 	return string.format("%s -> TakeWhile", self.source)
 end
+stream.takeWhile.__call = stream.get
 
 --- Pass the input values along until the condition isn't met.
 -- Uses the function `fn` in the same way as @{filter}.
@@ -479,32 +426,15 @@ function stream.takeWhile.new(source, fn)
 	local self = {}
 	self.source = source
 	self.fn = fn
-	self.buffer = nil
-	self.started = false
+	
+	self.get = coroutine.wrap(function()
+		for x in self.source do
+			if not self.fn(x) then break end
+			coroutine.yield(x)
+		end
+	end)
 	
 	return setmetatable(self, stream.takeWhile)
-end
-
-function stream.takeWhile:buf()
-	self.started = true
-	self.buffer = self.source:get()
-	if not self.fn(self.buffer) then self.buffer = nil end
-end
-
-function stream.takeWhile:has()
-	if not self.started then self:buf() end
-	return self.buffer ~= nil
-end
-
-function stream.takeWhile:get()
-	if not self.started then self:buf() end
-	if not self.buffer or not self.fn(self.buffer) then
-		self.buffer = nil
-		return
-	end
-	local x = self.buffer
-	self:buf()
-	return x
 end
 
 setmetatable(stream.takeWhile, stream)
@@ -517,6 +447,7 @@ stream.group.__index = stream.group
 stream.group.__tostring = function(self)
 	return string.format("%s -> Group", self.source)
 end
+stream.group.__call = stream.get
 
 --- Group values into streams.
 -- Uses the function `fn` in the same way as @{filter},
@@ -535,21 +466,19 @@ function stream.group.new(source, fn)
 	self.fn = fn or function() return true end
 	self.buffer = nil
 	
-	return setmetatable(self, stream.group)
-end
-
-function stream.group:get()
-	local buffer = {self.buffer}
-	while self.source:has() do
-		local x = self.source:get()
-		if self.fn(x, buffer[#buffer]) then
-			table.insert(buffer, x)
-		elseif #buffer > 0 then -- prevent empty groups
-			self.buffer = x
-			return stream.table(buffer)
+	self.get = coroutine.wrap(function()
+		self.buffer = {}
+		for x in self.source do
+			if self.fn(x) then -- add to group
+				table.insert(self.buffer, x)
+			elseif #self.buffer > 0 then -- prevent empty groups
+				coroutine.yield(stream.table(self.buffer))
+				self.buffer = {}
+			end
 		end
-	end
-	return stream.table(buffer)
+	end)
+	
+	return setmetatable(self, stream.group)
 end
 
 setmetatable(stream.group, stream)
@@ -569,6 +498,7 @@ function stream.stopAt(source, at)
 		__tostring = function(self)
 			return string.format("%s -> StopAt %q", source, at)
 		end,
+		__call = stream.get,
 	})
 end
 
@@ -594,7 +524,8 @@ function stream.mapRange(source, min1, max1, min2, max2)
 		__index = stream.map,
 		__tostring = function()
 			return string.format("%s -> MapRange (%d,%d) to (%d,%d)", source, min1, max1, min2, max2)
-		end
+		end,
+		__call = stream.get,
 	})
 end
 
@@ -617,7 +548,8 @@ function stream.mapIndex(source, t)
 		__index = stream.map,
 		__tostring = function()
 			return string.format("%s -> MapIndex", source)
-		end
+		end,
+		__call = stream.get,
 	})
 end
 
@@ -628,9 +560,9 @@ end
 --- Discard the stream result, just pump all values.
 -- @function null
 function stream.null(source)
-	while source:has() do
-		source:get()
-	end
+	repeat
+		local x = source()
+	until not x
 end
 
 --- Reduce the stream values into a single value.
@@ -640,10 +572,9 @@ end
 -- @return acc
 -- @usage stream.table({1,2,3,4,5}):reduce(op.add) --> 15
 function stream.reduce(source, fn, acc)
-	if not source:has() then return acc end
-	acc = acc or source:get()
-	while source:has() do
-		acc = fn(acc, source:get())
+	acc = acc or source()
+	for x in source do
+		acc = fn(acc, x)
 	end
 	return acc
 end
@@ -705,8 +636,8 @@ end
 -- @usage stream.string("hello world"):any(stream.op.eq(" ")) --> true
 function stream.any(source, fn)
 	fn = fn or function() return true end
-	while source:has() do
-		if fn(source:get()) then return true end
+	for x in source do
+		if fn(x) then return true end
 	end
 	return false
 end
@@ -721,8 +652,8 @@ end
 -- --> true (or false, I don't know)
 function stream.all(source, fn)
 	fn = fn or function() return true end
-	while source:has() do
-		if not fn(source:get()) then return false end
+	for x in source do
+		if not fn(x) then return false end
 	end
 	return true
 end
