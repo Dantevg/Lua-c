@@ -28,20 +28,60 @@ end
 
 --- Auto-detect stream source type.
 -- You can also just call `stream(data)` immediately.
--- @param data
+-- @param source
 -- @treturn Stream
-function stream.new(data)
-	local t = type(data)
+function stream.new(source)
+	local t = type(source)
 	if t == "string" then
-		return stream.string(data)
+		return stream.string(source)
 	elseif t == "table" then
-		return stream.table(data)
-	elseif t == "userdata" and getmetatable(data) == getmetatable(io.stdin) then
-		return stream.file(data)
-	else -- for generator functions or arbitrary data (numbers, booleans, userdata)
-		return stream.generate(data)
+		return stream.table(source)
+	elseif t == "userdata" and getmetatable(source) == getmetatable(io.stdin) then
+		return stream.file(source)
+	else -- for generator functions or arbitrary values (numbers, booleans, userdata)
+		return stream.generate(source)
 	end
 end
+
+--- Check whether `source` is a stream
+-- @param source
+-- @treturn boolean
+function stream.is(source)
+	local mt = getmetatable(source)
+	return mt and mt.__index and getmetatable(mt.__index) == stream
+end
+
+
+
+stream.null = {}
+
+stream.null.__index = stream.null
+stream.null.__tostring = function(self)
+	return string.format("%s Null", stream)
+end
+stream.null.__call = stream.get
+
+--- Empty stream source, or pump all stream values.
+-- When `source` is a @{Stream}, pumps all values and ignores the result.  
+-- Otherwise, returns a new empty stream (somewhat useless).
+-- @function null
+-- @tparam[opt] Stream source
+-- @treturn nil|Stream
+function stream.null.new(source)
+	if stream.is(source) then
+		return source:forAll(function() end)
+	end
+	
+	local self = {}
+	self.get = function() end
+	
+	return setmetatable(self, stream.null)
+end
+
+--- Alias for @{null}
+-- @function empty
+-- @see null
+stream.empty = stream.null
 
 
 
@@ -53,20 +93,29 @@ stream.string.__tostring = function(self)
 end
 stream.string.__call = stream.get
 
---- Stream string source.
--- When nothing is given, defaults to an empty string.
+--- Stream string source or sink.
+-- 
+-- When `source` is a @{Stream}, reduces this stream to a string,
+-- alias for `table.concat(source:table())`.
+-- 
+-- Otherwise, creates a @{Stream} from this string (or an empty string)
 -- @function string
--- @tparam[opt] string data
--- @treturn Stream
--- @usage stream.string("hello"):totable() --> {'h','e','l','l','o'}
-function stream.string.new(data)
+-- @tparam[opt] Stream|string source
+-- @treturn string|Stream
+-- @usage stream.string("hello"):table() --> {'h','e','l','l','o'}
+-- @usage stream.table({1,2,3}):string() --> "123"
+function stream.string.new(source)
+	if stream.is(source) then
+		return table.concat(source:table())
+	end
+	
 	local self = {}
-	self.data = data or ""
+	self.source = source or ""
 	self.i = 1
 	
 	self.get = coroutine.wrap(function()
-		for i = 1, #self.data do
-			coroutine.yield(self.data:sub(i,i))
+		for i = 1, #self.source do
+			coroutine.yield(self.source:sub(i,i))
 		end
 	end)
 	
@@ -92,21 +141,40 @@ end
 stream.file.__call = stream.get
 
 --- Stream file source.
--- When `source` is a string, interprets it as a path.
--- Otherwise, `source` needs to be an already opened file.
+-- 
+-- When `source` is a @{Stream}, reads from this stream to `file`, which is a
+-- path or opened file (or `stdout`), and returns `nil`: (default for `mode` is `"ab"`)  
+-- `source:file([file] [, mode])`
+-- 
+-- Otherwise, reads from `source`, which is a path or opened file (or `stdin`),
+-- and returns a @{Stream}: (default for `mode` is `"rb"`)  
+-- `file([source] [, mode])`
+-- 
+-- When `mode` is specified, writes/reads to/from the file using this mode.
 -- @function file
--- @tparam[opt=io.stdin] string|file source
--- @treturn Stream
-function stream.file.new(file)
-	local self = {}
-	if type(file) == "string" then
-		self.path = file
-		self.file = io.open(file, "rb")
-	else
-		self.file = file or io.stdin
+-- @tparam[opt=io.stdin] Stream|string|file source
+-- @tparam[opt=io.stdout] string|file file
+-- @tparam[opt] string mode
+-- @treturn nil|Stream
+-- @usage stream.file("input.txt"):string() --> "Hello" (contents of input.txt)
+-- @usage stream.string(""):file("emptyme.txt", "w") -- clear file contents
+-- @usage stream.file():file() -- echo user input back
+function stream.file.new(source, file, mode)
+	if stream.is(source) then
+		local f = (type(file) == "string") and io.open(file, mode or "ab") or file or io.stdout
+		for x in source do f:write(x) end
+		f:close()
 	end
 	
-	self.get = function() return self.file:read(1) end
+	local self = {}
+	if type(source) == "string" then
+		self.path = source
+		self.source = io.open(source, file or "rb")
+	else
+		self.source = source or io.stdin
+	end
+	
+	self.get = function() return self.source:read(1) end
 	
 	return setmetatable(self, stream.file)
 end
@@ -124,18 +192,28 @@ end
 stream.table.__call = stream.get
 
 --- Stream table source.
--- When nothing is given, defaults to an empty table.
+-- 
+-- When `source` is a @{Stream}, reduces the stream to a table.
+-- Alias for
+-- 	source:reduce(function(a, x) table.insert(a, x) return a end, {})
+-- 
+-- When `source` is a table, creates a @{Stream} from this table (or an empty table)
 -- @function table
--- @tparam[opt] table data
--- @treturn Stream
--- @usage stream.table({'h','e','l','l','o'}):tostring() --> "hello"
-function stream.table.new(data)
+-- @tparam[opt] table|Stream source
+-- @treturn Stream|table
+-- @usage stream.table({1,2,3}):string() --> "123"
+-- @usage stream.string("hello"):table() --> {'h','e','l','l','o'}
+function stream.table.new(source)
+	if stream.is(source) then
+		return source:reduce(function(a, x) table.insert(a, x) return a end, {})
+	end
+	
 	local self = {}
-	self.data = data or {}
+	self.source = source or {}
 	
 	self.get = coroutine.wrap(function()
-		for i = 1, #self.data do
-			coroutine.yield(self.data[i])
+		for i = 1, #self.source do
+			coroutine.yield(self.source[i])
 		end
 	end)
 	
@@ -164,7 +242,7 @@ stream.generate.__call = stream.get
 -- @function generate
 -- @tparam function|any data
 -- @treturn Stream
--- @usage stream.generate(math.random):take(2):totable() --> {0.84018771676347, 0.39438292663544}
+-- @usage stream.generate(math.random):take(2):table() --> {0.84018771676347, 0.39438292663544}
 function stream.generate.new(fn)
 	local self = {}
 	if type(fn) == "function" then
@@ -192,7 +270,7 @@ setmetatable(stream.generate, stream)
 -- @tparam number num
 -- @treturn Stream
 -- @see generate
--- @usage stream.from(1):take(5):totable() --> {1,2,3,4,5}
+-- @usage stream.from(1):take(5):table() --> {1,2,3,4,5}
 function stream.from(v)
 	return setmetatable(stream.generate(function() v = v+1 return v-1 end), {
 		__index = stream.generate,
@@ -216,7 +294,7 @@ end
 -- @return the value from the stream, or `nil` if nothing is present
 -- @usage
 -- for x in stream("Hello, world! From Lua"):group(stream.util.match("%a")) do
--- 	print(x:tostring())
+-- 	print(x:string())
 -- end
 -- --> Hello
 -- --> world
@@ -237,7 +315,7 @@ stream.map.__call = stream.get
 -- @function map
 -- @tparam function fn
 -- @treturn Stream
--- @usage stream.string("12345"):map(tonumber):totable() --> {1,2,3,4,5}
+-- @usage stream.string("12345"):map(tonumber):table() --> {1,2,3,4,5}
 function stream.map.new(source, fn)
 	local self = {}
 	self.source = source
@@ -306,7 +384,7 @@ stream.filter.__call = stream.get
 -- @tparam function fn
 -- @treturn Stream
 -- @usage
--- stream.string("AbCdEf"):filter(stream.util.match("%l")):tostring() --> "bdf"
+-- stream.string("AbCdEf"):filter(stream.util.match("%l")):string() --> "bdf"
 function stream.filter.new(source, fn)
 	local self = {}
 	self.source = source
@@ -340,7 +418,7 @@ stream.reverse.__call = stream.get
 -- before it can return any value. Will not work for infinite streams.
 -- @function reverse
 -- @treturn Stream
--- @usage stream.string("hello"):reverse():tostring() --> "olleh"
+-- @usage stream.string("hello"):reverse():string() --> "olleh"
 function stream.reverse.new(source)
 	local self = {}
 	self.source = source
@@ -433,7 +511,7 @@ stream.takeWhile.__call = stream.get
 -- @see op
 -- @usage stream.table({1,2,3,4,3,2,1})
 -- 	:takeWhile(stream.op.lt(4))
--- 	:totable() --> {1,2,3}
+-- 	:table() --> {1,2,3}
 function stream.takeWhile.new(source, fn)
 	local self = {}
 	self.source = source
@@ -470,8 +548,8 @@ stream.group.__call = stream.get
 -- @treturn Stream
 -- @usage stream.table({1,2,1,3,2,2})
 -- 	:group(function(x, prev) return not prev or x >= prev end)
--- 	:map(function(s) return s:tostring() end) -- s is a Stream here
--- 	:totable() --> {"12","13","22"}
+-- 	:map(function(s) return s:string() end) -- s is a Stream here
+-- 	:table() --> {"12","13","22"}
 function stream.group.new(source, fn)
 	local self = {}
 	self.source = source
@@ -510,7 +588,7 @@ setmetatable(stream.group, stream)
 -- @param at
 -- @treturn Stream
 -- @see takeWhile
--- @usage stream.string("hello world"):stopAt("r"):tostring() --> "hello wo"
+-- @usage stream.string("hello world"):stopAt("r"):string() --> "hello wo"
 function stream.stopAt(source, at)
 	return setmetatable(source:takeWhile(stream.op.neq(at)), {
 		__index = stream.takeWhile,
@@ -532,8 +610,8 @@ end
 -- @usage
 -- stream.string("hello world")
 -- 	:splitAt(" ")
--- 	:map(stream.tostring)
--- 	:totable() --> {"hello", "world"}
+-- 	:map(stream.string)
+-- 	:table() --> {"hello", "world"}
 function stream.splitAt(source, at)
 	return setmetatable(source:group(stream.op.neq(at)), {
 		__index = stream.group,
@@ -560,7 +638,7 @@ end
 -- @see map
 -- @usage stream.generate(math.random)
 -- 	:mapRange(0,1,0,10):map(math.floor)
--- 	:take(2):totable() --> {8,3}
+-- 	:take(2):table() --> {8,3}
 function stream.mapRange(source, min1, max1, min2, max2)
 	return setmetatable(source:map(function(x) return min2 + (x-min1)/(max1-min1)*(max2-min2) end), {
 		__index = stream.map,
@@ -578,7 +656,7 @@ end
 -- @see map
 -- @usage stream.generate(math.random)
 -- 	:mapRange(0,1,1,16):mapIndex("0123456789abcdef")
--- 	:take(5):tostring() --> "d16c2"
+-- 	:take(5):string() --> "d16c2"
 function stream.mapIndex(source, t)
 	local f
 	if type(t) == "string" then
@@ -599,14 +677,6 @@ end
 
 -- SINKS
 
---- Discard the stream result, just pump all values.
--- @function null
-function stream.null(source)
-	repeat
-		local x = source()
-	until not x
-end
-
 --- Reduce the stream values into a single value.
 -- @function reduce
 -- @tparam function fn
@@ -621,30 +691,6 @@ function stream.reduce(source, fn, acc)
 	return acc
 end
 
---- Reduce the stream to a table.
--- Alias for
--- 	reduce(function(a, x)
--- 		table.insert(a, x)
--- 		return a
--- 	end, {})
--- @function totable
--- @treturn table
--- @see reduce
--- @usage stream.string("hello"):totable() --> {'h','e','l','l','o'}
-function stream.totable(source)
-	return source:reduce(function(a, x) table.insert(a, x) return a end, {})
-end
-
---- Reduce the stream to a string.
--- Alias for `table.concat(source:totable())`
--- @function tostring
--- @treturn string
--- @see totable
--- @usage stream.table({'h','e','l','l','o'}):tostring() --> "hello"
-function stream.tostring(source)
-	return table.concat(source:totable())
-end
-
 --- Get the stream length.
 -- Alias for `reduce(function(a) return a+1 end, 0)`
 -- (which can be written as `reduce(stream.op.add(1), 0)`)
@@ -657,17 +703,16 @@ function stream.length(source)
 end
 
 --- Perform `fn` on all values, but ignore the stream result.
--- Alias for `forEach(fn):null()`
 -- @function forAll
 -- @tparam function fn
--- @see forEach
--- @see null
 -- @usage stream.string("abc"):forAll(print)
 -- --> a
 -- --> b
 -- --> c
 function stream.forAll(source, fn)
-	return source:forEach(fn):null()
+	for x in source do
+		fn(source)
+	end
 end
 
 --- Returns whether **any** of the values fit the constraint `fn`.
