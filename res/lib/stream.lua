@@ -78,6 +78,8 @@ function stream.null.new(source)
 	return setmetatable(self, stream.null)
 end
 
+setmetatable(stream.null, stream)
+
 --- Alias for @{null}
 -- @function empty
 -- @see null
