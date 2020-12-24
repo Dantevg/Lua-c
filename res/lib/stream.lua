@@ -543,7 +543,8 @@ stream.group.__call = stream.get
 
 --- Group values into streams.
 -- Uses the function `fn` in the same way as @{filter},
--- but passes the previous value as a second parameter.
+-- but passes the previous value as a second parameter,
+-- and the size of the current group as a third parameter.
 -- Returns a `Stream` of `Streams`.
 -- @function group
 -- @tparam function fn
@@ -561,11 +562,11 @@ function stream.group.new(source, fn)
 	self.get = coroutine.wrap(function()
 		self.buffer = {}
 		for x in self.source do
-			if self.fn(x, self.buffer[#self.buffer]) then -- add to group
+			if self.fn(x, self.buffer[#self.buffer], #self.buffer) then -- add to group
 				table.insert(self.buffer, x)
 			elseif #self.buffer > 0 then -- prevent empty groups
 				coroutine.yield(stream.table(self.buffer))
-				if self.fn(x, nil) then -- start new buffer
+				if self.fn(x, nil, 0) then -- start new buffer
 					self.buffer = {x}
 				else
 					self.buffer = {}
