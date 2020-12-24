@@ -713,7 +713,7 @@ end
 -- --> c
 function stream.forAll(source, fn)
 	for x in source do
-		fn(source)
+		fn(x)
 	end
 end
 
