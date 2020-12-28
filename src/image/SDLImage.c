@@ -48,7 +48,13 @@ void SDLImage_load(SDLImage *image, const char *filename){
 
 /* Lua API definitions */
 
-// Returns the image width
+/// @type Image
+
+/***
+ * Get the image width.
+ * @function getWidth
+ * @treturn int width
+ */
 int SDLImage_getWidth(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	lua_pushinteger(L, image->rect.w / image->scale);
@@ -56,15 +62,22 @@ int SDLImage_getWidth(lua_State *L){
 	return 1;
 }
 
-// Returns the image height
+/***
+ * Get the image height.
+ * @function getHeight
+ * @treturn int height
+ */
 int SDLImage_getHeight(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	lua_pushinteger(L, image->rect.h / image->scale);
 	
 	return 1;
 }
-
-// Returns the rendering scale
+/***
+ * Get the rendering scale.
+ * @function getScale
+ * @treturn int scale
+ */
 int SDLImage_getScale(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	lua_pushinteger(L, image->scale);
@@ -72,7 +85,11 @@ int SDLImage_getScale(lua_State *L){
 	return 1;
 }
 
-// Sets the rendering scale
+/***
+ * Set the rendering scale.
+ * @function setScale
+ * @tparam int scale
+ */
 int SDLImage_setScale(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	image->scale = luaL_checkinteger(L, 2);
@@ -81,7 +98,16 @@ int SDLImage_setScale(lua_State *L){
 	return 0;
 }
 
-// Sets drawing colour
+/***
+ * Set the drawing colour.
+ * All values are from 0 to 255. For a, 0 means fully transparent,
+ * 255 means fully opaque
+ * @function colour
+ * @tparam int r red
+ * @tparam[opt=r] int g green
+ * @tparam[opt=r] int b blue
+ * @tparam[opt=255] int a alpha / transparency
+ */
 int SDLImage_colour(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	int r = luaL_checkinteger(L, 2);
@@ -94,7 +120,12 @@ int SDLImage_colour(lua_State *L){
 	return 0;
 }
 
-// Sets pixel
+/***
+ * Set a pixel.
+ * @function pixel
+ * @tparam int x
+ * @tparam int y
+ */
 int SDLImage_pixel(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	int x = luaL_checkinteger(L, 2);
@@ -105,7 +136,15 @@ int SDLImage_pixel(lua_State *L){
 	return 0;
 }
 
-// Draws a rectangle
+/***
+ * Draw a rectangle.
+ * @function rect
+ * @tparam int x
+ * @tparam int y
+ * @tparam int w
+ * @tparam int h
+ * @tparam[opt] boolean fill
+ */
 int SDLImage_rect(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	
@@ -125,7 +164,10 @@ int SDLImage_rect(lua_State *L){
 	return 0;
 }
 
-// Clears the image using the current colour
+/***
+ * Clear the image using the current colour.
+ * @function clear
+ */
 int SDLImage_clear(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	SDL_RenderClear(image->renderer);
@@ -133,7 +175,13 @@ int SDLImage_clear(lua_State *L){
 	return 0;
 }
 
-// Draws a character on the image
+/***
+ * Draw a single character on the image.
+ * @function char
+ * @tparam string char
+ * @tparam int x
+ * @tparam int y
+ */
 int SDLImage_char(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	const char *str = luaL_checkstring(L, 2);
@@ -145,7 +193,13 @@ int SDLImage_char(lua_State *L){
 	return 0;
 }
 
-// Draws a string of characters on the image
+/***
+ * Draw a string of characters on the image.
+ * @function write
+ * @tparam string text
+ * @tparam int x
+ * @tparam int y
+ */
 int SDLImage_write(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	const char *str = luaL_checkstring(L, 2);
@@ -169,7 +223,15 @@ int SDLImage_write(lua_State *L){
 	return 0;
 }
 
-// Gets the pixel colour on the given coordinates
+/***
+ * Get the pixel colour on the given coordinates.
+ * @function getPixel
+ * @tparam int x
+ * @tparam int y
+ * @treturn int r
+ * @treturn int g
+ * @treturn int b
+ */
 int SDLImage_getPixel(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage"); // stack: {y, x, SDLImage}
 	int x = luaL_checkinteger(L, 2);
@@ -196,7 +258,11 @@ int SDLImage_getPixel(lua_State *L){
 	return 3;
 }
 
-// Loads a font
+/***
+ * Load a font.
+ * @function loadFont
+ * @tparam string name
+ */
 int SDLImage_loadFont(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage"); // stack: {filename, SDLImage}
 	lua_replace(L, 1); // stack: {filename}
@@ -204,9 +270,15 @@ int SDLImage_loadFont(lua_State *L){
 	return 0;
 }
 
-// Resizes the image
-// Intended to be used as callback for screen interface compatibility
-// (ignores first argument, event name)
+/***
+ * Resize the image.
+ * Intended to be used as callback for screen interface compatibility
+ * (ignores first argument, event name)
+ * @function resize
+ * @param _ (ignored)
+ * @tparam int w
+ * @tparam int h
+ */
 int SDLImage_resize(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	
@@ -239,12 +311,22 @@ int SDLImage_resize(lua_State *L){
 	return 0;
 }
 
-// For screen interface compatibility
+/***
+ * For screen interface compatibility.
+ * @function present
+ */
 int SDLImage_present(lua_State *L){
 	return 0;
 }
 
-// Saves the image to a file
+/***
+ * Save the image to a file.
+ * @function save
+ * @tparam string path
+ * @treturn[1] boolean true
+ * @treturn[2] boolean false
+ * @treturn[2] string err
+ */
 int SDLImage_save(lua_State *L){
 	SDLImage *image = luaL_checkudata(L, 1, "SDLImage");
 	const char *filename = luaL_checkstring(L, 2);
@@ -261,6 +343,15 @@ int SDLImage_save(lua_State *L){
 	return 1;
 }
 
+/// @section end
+
+/***
+ * Create a new image.
+ * @function new
+ * @tparam string|int filename_or_w
+ * @tparam[opt] int h
+ * @treturn Image image
+ */
 int SDLImage_new(lua_State *L){
 	SDLImage *image;
 	
