@@ -60,4 +60,4 @@ event.addTimer(20, draw, true)
 -- event.on("mouse.scroll", print)
 event.on("screen.resize", function(...) return screen:resize(...) end)
 
-screen:loadFont("poly4x3-r_meta.lua")
+screen:loadFont("res/poly4x3-r_meta.lua")
