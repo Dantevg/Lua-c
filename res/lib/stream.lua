@@ -771,7 +771,7 @@ end
 -- @usage
 -- filter(stream.util.curry(op.index){'a','b','c'})
 -- -- is equivalent to
--- filter(function(x) ({'a','b','c'})[x] end)
+-- filter(function(x) return ({'a','b','c'})[x] end)
 function stream.util.curry(f)
 	return function(a) return function(b) return f(a,b) end end
 end
