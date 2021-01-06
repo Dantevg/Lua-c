@@ -15,9 +15,15 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "posix.h"
+#include "thread.h"
 
 /* C library definitions */
+
+typedef struct Thread {
+	lua_State *Lthread;
+	pthread_t tid;
+	int state;
+} Thread;
 
 // Gets called in the new thread
 void *thread_run(void *data){

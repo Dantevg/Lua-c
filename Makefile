@@ -64,10 +64,10 @@ build/image/SDLImage.o: src/image/SDLImage.c src/image/SDLImage.h
 
 bin/thread/posix.$(SO): build/thread/posix.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO) -shared -pthread
-build/thread/posix.o: src/thread/posix.c src/thread/posix.h
+build/thread/posix.o: src/thread/posix.c src/thread/thread.h
 
 bin/thread/win.$(SO): build/thread/win.o
-build/thread/win.o: src/thread/win.c src/thread/win.h
+build/thread/win.o: src/thread/win.c src/thread/thread.h
 
 bin/sys.$(SO): build/sys.o
 build/sys.o: src/sys.c

@@ -12,9 +12,16 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "win.h"
+#include "thread.h"
 
 /* C library definitions */
+
+typedef struct Thread {
+	lua_State *Lthread;
+	DWORD tid;
+	HANDLE thandle;
+	int state;
+} Thread;
 
 // Gets called in the new thread
 DWORD WINAPI thread_run(LPVOID data){
