@@ -37,10 +37,15 @@ local alpha = stream.from(32)
 	:table()
 print(table.concat(alpha))
 
--- Other small tests
+-- Base64
+-- local enc = stream{250,251,252,253}:base64encode():string()
+local enc = stream("Lorem ipsum dolor sit amet, consectetur adipiscing elit"):base64encode(true):string()
+local dec = stream(enc):base64decode(true):string()
+print(enc)
+print(dec)
+
+-- Random hex
 print(stream(math.random):mapRange(0,1,1,16):mapIndex("0123456789abcdef"):take(5):string())
-print(stream("Hello, World!"):stopAt("r"):string())
-print(stream({1,2,3,4,5}):reduce(op.add))
 
 -- String parsing (pretty long code in comparison to plain Lua)
 local t = stream("hello=world,foo=bar")
