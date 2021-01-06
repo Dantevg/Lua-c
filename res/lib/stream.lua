@@ -108,7 +108,7 @@ stream.string.__call = stream.get
 -- @usage stream.table({1,2,3}):string() --> "123"
 function stream.string.new(source)
 	if stream.is(source) then
-		return table.concat(source:table())
+		return table.concat(source:map(tostring):table())
 	end
 	
 	local self = {}
