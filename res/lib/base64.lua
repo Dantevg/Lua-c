@@ -134,28 +134,12 @@ end
 
 function stream.base64encode:chunk(buf)
 	local all = buf[1] << 0x10 | (buf[2] or 0) << 0x8 | (buf[3] or 0)
-	if #buf == 3 then
-		return {
-			self:enc((all >> 3*6) & 0x3F),
-			self:enc((all >> 2*6) & 0x3F),
-			self:enc((all >> 1*6) & 0x3F),
-			self:enc((all >> 0*6) & 0x3F),
-		}
-	elseif #buf == 2 then
-		return {
-			self:enc((all >> 3*6) & 0x3F),
-			self:enc((all >> 2*6) & 0x3F),
-			self:enc((all >> 1*6) & 0x3F),
-			base64.padding,
-		}
-	elseif #buf == 1 then
-		return {
-			self:enc((all >> 3*6) & 0x3F),
-			self:enc((all >> 2*6) & 0x3F),
-			base64.padding,
-			base64.padding,
-		}
-	end
+	return {
+		self:enc((all >> 3*6) & 0x3F),
+		self:enc((all >> 2*6) & 0x3F),
+		(#buf >= 2 and self:enc((all >> 1*6) & 0x3F) or base64.padding),
+		(#buf >= 3 and self:enc((all >> 0*6) & 0x3F) or base64.padding),
+	}
 end
 
 setmetatable(stream.base64encode, stream)
