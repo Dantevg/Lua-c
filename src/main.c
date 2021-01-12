@@ -31,11 +31,12 @@
 
 void print_usage(){
 	printf("Usage: moonbox [options] [file [args]]\n");
-	printf("Execute FILE, or the default boot file\n\n");
+	printf("Execute 'file', or the default boot file\n\n");
 	printf("Options:\n" );
-	printf("  -v, --version\tprint version\n");
-	printf("  -h, --help\tprint this help message\n");
-	printf("  -\t\tstop handling options and execute stdin\n");
+	printf("  -v, --version\t\tprint version\n");
+	printf("  -h, --help\t\tprint this help message\n");
+	printf("  -m, --module name\trequire library 'name'. Pass '*' to load all available\n");
+	printf("  -\t\t\tstop handling options and execute stdin\n");
 }
 
 int lua_error_handler(lua_State *L){
@@ -49,6 +50,21 @@ int main(int argc, char *argv[]){
 	char *file = BASE_PATH "res/main.lua";
 	int lua_arg_start = argc;
 	
+	/* Init Lua */
+	lua_State *L = luaL_newstate();
+	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
+	
+	/* Set cpath and path */
+	if(luaL_dostring(L, "package.cpath = package.cpath..';" BASE_PATH "bin/?." SO_EXT "'")){
+		fprintf(stderr, "[C] Could not set package.cpath:\n%s\n", lua_tostring(L, -1));
+	}
+	if(luaL_dostring(L, "package.path = package.path..';" BASE_PATH "res/lib/?.lua'")){
+		fprintf(stderr, "[C] Could not set package.path:\n%s\n", lua_tostring(L, -1));
+	}
+	
+	/* Push Lua error handler */
+	lua_pushcfunction(L, lua_error_handler);
+	
 	/* Parse command-line arguments */
 	for(int i = 1; i < argc; i++){
 		if(strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0){
@@ -59,13 +75,26 @@ int main(int argc, char *argv[]){
 			/* Print usage and return */
 			print_usage();
 			return 0;
+		}else if(strcmp(argv[i], "-m") == 0 || strcmp(argv[i], "--module") == 0){
+			if(i >= argc){
+				fprintf(stderr, "Option --module expects an argument");
+				return -1;
+			}
+			char *module = argv[++i];
+			lua_getglobal(L, "require");
+			lua_pushstring(L, module);
+			if(lua_pcall(L, 1, 1, 0) != LUA_OK){
+				fprintf(stderr, "[C] Could not load module %s:\n%s\n", module, lua_tostring(L, -1));
+				return -1;
+			}
+			lua_setglobal(L, module);
 		}else if(strcmp(argv[i], "-") == 0){
 			/* Execute stdin */
 			file = NULL;
 			break;
 		}else if(argv[i][0] == '-'){
 			/* Unrecognised command line option */
-			printf("Unrecognised option: %s\n", argv[i]);
+			fprintf(stderr, "Unrecognised option: %s\n", argv[i]);
 			print_usage();
 			return -1;
 		}else{
@@ -75,21 +104,6 @@ int main(int argc, char *argv[]){
 			break;
 		}
 	}
-	
-	/* Init Lua */
-	lua_State *L = luaL_newstate();
-	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
-	
-	/* Set cpath and path */
-	if(luaL_dostring(L, "package.cpath = package.cpath..';" BASE_PATH "bin/?." SO_EXT "'")){
-		fprintf(stderr, "[C] Could not set package.cpath: %s\n", lua_tostring(L, -1));
-	}
-	if(luaL_dostring(L, "package.path = package.path..';" BASE_PATH "res/lib/?.lua'")){
-		fprintf(stderr, "[C] Could not set package.path: %s\n", lua_tostring(L, -1));
-	}
-	
-	/* Push Lua error handler */
-	lua_pushcfunction(L, lua_error_handler);
 	
 	/* Load main file */
 	if(luaL_loadfile(L, file) == LUA_OK){
