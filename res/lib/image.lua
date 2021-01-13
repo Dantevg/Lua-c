@@ -4,4 +4,6 @@
 -- Default implementations: @{image.SDLImage}
 -- @module image
 
-return require("image.SDLImage")
+local prequire = require "prequire"
+return prequire "image.SDLImage"
+	or error "Could not find implementation for 'image'"
