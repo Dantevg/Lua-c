@@ -4,7 +4,9 @@
 -- Default implementations: @{thread.posix}, @{thread.win}
 -- @module thread
 
-return require("thread.posix")
+local prequire = require "prequire"
+return prequire "thread.posix" or prequire "thread.win"
+	or error "Could not find implementation for 'thread'"
 
 --- Create a new thread.
 -- @function new
