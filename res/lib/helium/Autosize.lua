@@ -31,10 +31,14 @@ function Autosize.FitParent.h(node)
 end
 
 function Autosize.FitParent:W()
-	return self.node.parent and self.node.parent.inner:W() or 0
+	return self.node.parent
+		and self.node.parent.inner:W() - (self.node.outer:X() - self.node.parent.inner:X())
+		or 0
 end
 function Autosize.FitParent:H()
-	return self.node.parent and self.node.parent.inner:H() or 0
+	return self.node.parent
+		and self.node.parent.inner:H() - (self.node.outer:Y() - self.node.parent.inner:Y())
+		or 0
 end
 
 setmetatable(Autosize.FitParent, {
