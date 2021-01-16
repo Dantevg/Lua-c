@@ -1,33 +1,28 @@
-local he = require "helium"
+local Node = require "helium.Node"
 
 local Text = {}
+Text.__index = Text
 
-
-
-function Text.new(text, x, y, colour)
-	local self = setmetatable({}, {
-		__name = "Text",
-		__index = function(t, k)
-			return Text[k] or (rawget(t, "parent") and t.parent[k])
-		end,
-	})
-	self.type = "text"
-	self.objects = {}
-	self.text = text or ""
-	self.x = x or 0
-	self.y = y or 0
-	self.colour = colour or {255}
-	
-	return self
+function Text.new(x, y, text)
+	local self = Node(x, y)
+	self.text = text
+	return setmetatable(self, Text)
 end
 
-function Text:draw()
-	self.screen:colour(table.unpack(self.colour))
-	self.screen:write(self.text, self.x, self.y)
+function Text:Text() return self.text or "" end
+function Text:W() return #self:Text() end -- TODO: get bounding box
+function Text:H() return 1 end            -- TODO: get bounding box
+
+function Text:drawself(canvas)
+	canvas:colour(table.unpack(self.colour))
+	canvas:write(self:Text(), self:X(), self:Y())
 end
 
-
+function Text:__tostring()
+	return string.format("Text @ (%d,%d) %q", self.x, self.y, self.text)
+end
 
 return setmetatable(Text, {
+	__index = Node,
 	__call = function(_, ...) return Text.new(...) end,
 })
