@@ -105,6 +105,14 @@ int main(int argc, char *argv[]){
 		}
 	}
 	
+	/* Run init file */
+	if(luaL_loadfile(L, BASE_PATH "res/init.lua") == LUA_OK){
+		if(lua_pcall(L, 0, 0, 1) != LUA_OK) return -1;
+	}else{
+		fprintf(stderr, "%s\n", lua_tostring(L, -1));
+		return -1;
+	}
+	
 	/* Load main file */
 	if(luaL_loadfile(L, file) == LUA_OK){
 		/* Push lua args */
