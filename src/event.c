@@ -125,6 +125,7 @@ void event_dispatch_callbacks(lua_State *L, const char *eventname, int args){
 
 // Handle events and dispatch them to Lua
 int event_loop(lua_State *L){
+	uint32_t loop_start = SDL_GetTicks();
 	/* Handle Lua events */
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {events}
 	int n = luaL_len(L, -1);
@@ -212,6 +213,8 @@ int event_loop(lua_State *L){
 			event_dispatch_callbacks(L, "screen.resize", 2);
 		}
 	}
+	
+	if(SDL_GetTicks() < loop_start + 1) SDL_Delay(1);
 	
 	return 0;
 }
