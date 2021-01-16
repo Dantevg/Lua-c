@@ -5,6 +5,7 @@ Box.__index = Box
 
 function Box.new(x, y, w, h)
 	local self = Node(x, y)
+	table.insert(self.tags, 1, "Box")
 	self.w = w
 	self.h = h
 	return setmetatable(self, Box)
@@ -14,7 +15,7 @@ function Box:W() return self.w or 0 end
 function Box:H() return self.h or 0 end
 
 function Box:drawself(canvas)
-	canvas:colour(table.unpack(self.colour))
+	canvas:colour(table.unpack(self:Style("colour")))
 	canvas:rect(self:X(), self:Y(), self:W(), self:H())
 end
 

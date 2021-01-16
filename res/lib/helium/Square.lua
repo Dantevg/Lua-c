@@ -3,10 +3,10 @@ local Box = require "helium.Box"
 local Square = {}
 Square.__index = Square
 
-function Square.new(x, y, size, name)
+function Square.new(x, y, size)
 	local self = Box(x, y, size, size)
+	table.insert(self.tags, 1, "Square")
 	self.size = size
-	self.name = name
 	return setmetatable(self, Square)
 end
 

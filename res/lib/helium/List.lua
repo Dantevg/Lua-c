@@ -7,6 +7,7 @@ List.__index = List
 
 function List.new(x, y, w, h)
 	local self = Box(x, y, w, h)
+	table.insert(self.tags, 1, "List")
 	return setmetatable(self, List)
 end
 

@@ -9,6 +9,7 @@ function Node.new(x, y)
 	self.y = y
 	self.outer = Dimensions.outer(self)
 	self.inner = Dimensions.inner(self)
+	self.tags = {"*"}
 	self.nodes = {}
 	return setmetatable(self, Node)
 end
@@ -38,6 +39,11 @@ function Node:sibling(n)
 	return i and self.parent.nodes[i+n]
 end
 
+function Node:Style(style, node)
+	node = node or self
+	return self[style] or (self.parent and self.parent:Style(style, node))
+end
+
 function Node:draw(canvas)
 	if self.drawself then self:drawself(canvas) end
 	for _, node in ipairs(self.nodes) do
@@ -48,7 +54,5 @@ end
 function Node:__tostring()
 	return string.format("Node @ (%d,%d)", self.x, self.y)
 end
-
-Node.colour = {255,255,255}
 
 return setmetatable(Node, {__call = function(_, ...) return Node.new(...) end})

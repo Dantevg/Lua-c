@@ -5,6 +5,7 @@ Text.__index = Text
 
 function Text.new(x, y, text)
 	local self = Node(x, y)
+	table.insert(self.tags, 1, "Text")
 	self.text = text
 	return setmetatable(self, Text)
 end
@@ -14,7 +15,7 @@ function Text:W() return #self:Text() end -- TODO: get bounding box
 function Text:H() return 1 end            -- TODO: get bounding box
 
 function Text:drawself(canvas)
-	canvas:colour(table.unpack(self.colour))
+	canvas:colour(table.unpack(self:Style("colour")))
 	canvas:write(self:Text(), self:X(), self:Y())
 end
 
