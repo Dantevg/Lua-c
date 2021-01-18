@@ -58,7 +58,7 @@ int main(int argc, char *argv[]){
 	if(luaL_dostring(L, "package.cpath = package.cpath..';" BASE_PATH "bin/?." SO_EXT "'")){
 		fprintf(stderr, "[C] Could not set package.cpath:\n%s\n", lua_tostring(L, -1));
 	}
-	if(luaL_dostring(L, "package.path = package.path..';" BASE_PATH "res/lib/?.lua'")){
+	if(luaL_dostring(L, "package.path = package.path..';" BASE_PATH "res/lib/?.lua;" BASE_PATH "res/lib/?/init.lua'")){
 		fprintf(stderr, "[C] Could not set package.path:\n%s\n", lua_tostring(L, -1));
 	}
 	
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]){
 				fprintf(stderr, "[C] Could not load module %s:\n%s\n", module, lua_tostring(L, -1));
 				return -1;
 			}
-			lua_setglobal(L, module);
+			lua_setglobal(L, module); // TODO: Set better name for submodules
 		}else if(strcmp(argv[i], "-") == 0){
 			/* Execute stdin */
 			file = NULL;
