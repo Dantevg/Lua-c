@@ -24,7 +24,7 @@ libs_win = bin/thread/win.$(SO)
 ifeq ($(OS),Windows_NT)
 	CFLAGS += -DLUA_LIB -DLUA_BUILD_AS_DLL
 	# TODO: use $HOME or other more generic env var?
-	INCLUDE = -I "C:\Users\dante\Documents\mingw\include\lua"
+	INCLUDE = -I "C:\Users\dante\Documents\mingw\include\lua" -isystem lib
 	LIBS_MAIN = -llua
 	LIBS_SO = -lmingw32 -lSDL2main -lSDL2 -llua
 	SO = dll
@@ -39,14 +39,15 @@ all: main libraries
 init:
 	mkdir -p build bin
 	mkdir -p build/image bin/image build/thread bin/thread build/screen bin/screen
-main: bin/main
+main: bin/MoonBox
 libraries: $(libs)
 
 
 
 # Dependency list
 
-bin/main: build/main.o
+bin/MoonBox: build/main.o
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_MAIN)
 build/main.o: src/main.c
 
 build/util.o: src/util.c src/util.h
@@ -88,10 +89,6 @@ build/screen/terminal.o: src/screen/terminal.c src/screen/terminal.h
 
 
 # Automatic rules
-
-# For main file
-bin/%: build/%.o
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_MAIN)
 
 # For libraries (.so/.dll files)
 bin/%.$(SO): build/%.o
