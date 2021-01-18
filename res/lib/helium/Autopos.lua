@@ -75,9 +75,9 @@ function Autopos.hor:Y()
 		or (self.node.parent and self.node.parent.inner:Y() or 0)
 end
 
-setmetatable(Autopos.vert, {
+setmetatable(Autopos.hor, {
 	__index = Autopos,
-	__call = function(_, ...) return Autopos.vert.new(...) end,
+	__call = function(_, ...) return Autopos.hor.new(...) end,
 })
 
 
