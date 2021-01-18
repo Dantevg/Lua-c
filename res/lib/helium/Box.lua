@@ -16,7 +16,7 @@ function Box:H() return self.h or 0 end
 
 function Box:drawself(canvas)
 	canvas:colour(table.unpack(self:Style("colour")))
-	canvas:rect(self:X(), self:Y(), self:W(), self:H())
+	canvas:rect(self:X(), self:Y(), self:W(), self:H(), true)
 end
 
 function Box:__tostring()
