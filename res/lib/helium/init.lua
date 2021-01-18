@@ -28,8 +28,8 @@ end
 function He:Style(style, node)
 	for _, tag in ipairs(node.tags or {"*"}) do
 		if self.style[tag] and self.style[tag][style] then
-			local style = self.style[tag][style](node)
-			if style then return style end
+			local value = self.style[tag][style](node)
+			if value then return value end
 		end
 	end
 end
@@ -41,12 +41,27 @@ function He:__tostring()
 end
 
 -- Default style
-He.style = {}
+He.style = setmetatable({}, {
+	__index = function(_, k)
+		He.style[k] = {} -- Create new style table
+		return He.style[k]
+	end
+})
 He.style["*"] = {
 	colour = He.proxy {255, 255, 255}
 }
 
 return setmetatable(He, {
-	__index = Box,
 	__call = function(_, ...) return He.new(...) end,
+	__index = function(_, k)
+		-- Behave like __index = Box
+		if Box[k] then return Box[k] end
+		
+		-- Require modules when needed
+		local success, module = pcall(require, "helium."..k)
+		if success then
+			He[k] = module
+			return module
+		end
+	end,
 })
