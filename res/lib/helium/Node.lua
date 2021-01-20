@@ -10,6 +10,7 @@ function Node.new(x, y)
 	self.outer = Dimensions.outer(self)
 	self.inner = Dimensions.inner(self)
 	self.tags = {"*"}
+	self.style = {}
 	self.nodes = {}
 	return setmetatable(self, Node)
 end
@@ -41,7 +42,7 @@ end
 
 function Node:Style(style, node)
 	node = node or self
-	return self[style] or (self.parent and self.parent:Style(style, node))
+	return self.style[style] or (self.parent and self.parent:Style(style, node))
 end
 
 function Node:draw(canvas)
