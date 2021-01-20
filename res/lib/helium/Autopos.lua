@@ -32,13 +32,13 @@ end
 
 function Autopos.vert:X()
 	local prev = self.node:sibling(-1)
-	return prev and prev.outer:X() + self.node.x
-		or (self.node.parent and self.node.parent.inner:X() + self.node.x or 0)
+	return prev and prev.outer:X() + (self.node.x or 0)
+		or (self.node.parent and self.node.parent.inner:X() + (self.node.x or 0) or 0)
 end
 function Autopos.vert:Y()
 	local prev = self.node:sibling(-1)
-	return prev and prev.outer:Y() + prev.outer:H() + self.node.y
-		or (self.node.parent and self.node.parent.inner:Y() + self.node.y or 0)
+	return prev and prev.outer:Y() + prev.outer:H() + (self.node.y or 0)
+		or (self.node.parent and self.node.parent.inner:Y() + (self.node.y or 0) or 0)
 end
 
 setmetatable(Autopos.vert, {
@@ -66,13 +66,13 @@ end
 
 function Autopos.hor:X()
 	local prev = self.node:sibling(-1)
-	return prev and prev.outer:X() + prev.outer:W() + self.node.x
+	return prev and prev.outer:X() + prev.outer:W() + (self.node.x or 0)
 		or (self.node.parent and self.node.parent.inner:X() + self.node.x or 0)
 end
 function Autopos.hor:Y()
 	local prev = self.node:sibling(-1)
-	return prev and prev.outer:Y() + self.node.y
-		or (self.node.parent and self.node.parent.inner:Y() + self.node.y or 0)
+	return prev and prev.outer:Y() + (self.node.y or 0)
+		or (self.node.parent and self.node.parent.inner:Y() + (self.node.y or 0) or 0)
 end
 
 setmetatable(Autopos.hor, {
