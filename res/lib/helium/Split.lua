@@ -26,21 +26,28 @@ end
 Split.hor = {}
 Split.hor.__index = Split.hor
 
-function Split.hor.new(x, y, w, h, split)
-	local self = Split(x, y, w, h, split)
+function Split.hor.new(...)
+	local self = Split(...)
 	return setmetatable(self, Split.hor)
 end
 
 function Split.hor:insert(node, i)
+	if #self.nodes >= 2 then error("Split can contain at most 2 elements") end
 	Node.insert(self, node, i)
 	local n = #self.nodes
 	node.X = function(el)
-		return self.inner:X() + (n >= 2 and math.floor(self.inner:W() * self:Split()) + self.padding or 0)
+		return math.floor(
+			self.inner:X()
+			+ (n >= 2 and self.inner:W() * self:Split()
+			+ (self.padding or 0)/2 or 0)
+		)
 	end
 	node.Y = Autopos.hor.y(node)
 	node.W = function(el)
-		-- TODO: Remove math.floor
-		return math.floor( self.inner:W() * (n >= 2 and 1-self:Split() or self:Split()) - self.padding/2 )
+		return (n >= 2 and math.ceil or math.floor)(
+			self.inner:W() * (n >= 2 and 1-self:Split() or self:Split())
+			- (self.padding or 0)/2
+		)
 	end
 	node.H = Autosize.FitParent.h(node)
 end
@@ -55,22 +62,29 @@ setmetatable(Split.hor, {
 Split.vert = {}
 Split.vert.__index = Split.vert
 
-function Split.vert.new(x, y, w, h, split)
-	local self = Split(x, y, w, h, split)
+function Split.vert.new(...)
+	local self = Split(...)
 	return setmetatable(self, Split.vert)
 end
 
 function Split.vert:insert(node, i)
+	if #self.nodes >= 2 then error("Split can contain at most 2 elements") end
 	Node.insert(self, node, i)
 	local n = #self.nodes
 	node.X = Autopos.vert.x(node)
 	node.Y = function(el)
-		return self.inner:Y() + (n >= 2 and math.floor(self.inner:H() * self:Split()) + self.padding or 0)
+		return math.floor(
+			self.inner:Y()
+			+ (n >= 2 and self.inner:H() * self:Split()
+			+ (self.padding or 0)/2 or 0)
+		)
 	end
 	node.W = Autosize.FitParent.w(node)
 	node.H = function(el)
-		-- TODO: Remove math.floor
-		return math.floor( self.inner:H() * (n >= 2 and 1-self:Split() or self:Split()) - self.padding/2 )
+		return (n >= 2 and math.ceil or math.floor)(
+			self.inner:H() * (n >= 2 and 1-self:Split() or self:Split())
+			- (self.padding or 0)/2
+		)
 	end
 end
 
