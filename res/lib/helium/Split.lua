@@ -34,7 +34,9 @@ end
 function Split.hor:insert(node, i)
 	Node.insert(self, node, i)
 	local n = #self.nodes
-	node.X = Autopos.hor.x(node)
+	node.X = function(el)
+		return self.inner:X() + (n >= 2 and math.floor(self.inner:W() * self:Split()) + self.padding or 0)
+	end
 	node.Y = Autopos.hor.y(node)
 	node.W = function(el)
 		-- TODO: Remove math.floor
@@ -62,7 +64,9 @@ function Split.vert:insert(node, i)
 	Node.insert(self, node, i)
 	local n = #self.nodes
 	node.X = Autopos.vert.x(node)
-	node.Y = Autopos.vert.y(node)
+	node.Y = function(el)
+		return self.inner:Y() + (n >= 2 and math.floor(self.inner:H() * self:Split()) + self.padding or 0)
+	end
 	node.W = Autosize.FitParent.w(node)
 	node.H = function(el)
 		-- TODO: Remove math.floor
