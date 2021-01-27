@@ -54,7 +54,7 @@ uint32_t timer_async_callback(uint32_t delay, void *param){
 // Creates a callback for the function in the given registry id, for the given event,
 // with the given data, and places it into the callback table
 // Returns the callback struct, and places the callback id on the stack
-Callback *event_add_callback(lua_State *L, const char *eventname, int callbackid, void *data){
+Callback *event_add_callback(lua_State *L, int filter_id, int callback_id, void *data){
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, ...}
 	
 	/* Increment n */
@@ -66,50 +66,56 @@ Callback *event_add_callback(lua_State *L, const char *eventname, int callbackid
 	
 	/* Create callback struct */
 	Callback *callback = lua_newuserdata(L, sizeof(Callback)); // stack: {callback userdata, callbacks, ...}
-	callback->fn = callbackid;
-	callback->event = eventname;
+	callback->filter_id = filter_id;
+	callback->fn_id = callback_id;
+	callback->n = n;
 	callback->data = data;
-	callback->id = n;
 	
 	/* Add callback userdata to callback table */
 	lua_rawseti(L, -2, n); // stack: {callbacks, ...}
 	
 	lua_pop(L, 1); // stack: {...}
 	lua_pushinteger(L, n); // stack: {n, ...}
-	fprintf(stderr, "[C] Registered callback %d for %s, fn %d\n", n, callback->event, callback->fn);
+	fprintf(stderr, "[C] Registered callback %d, fn %d\n", n, callback->fn_id);
 	return callback;
 }
 
+int event_match(lua_State *L){
+	// TODO: implement
+}
+
 // Dispatches event to Lua callbacks
-void event_dispatch_callbacks(lua_State *L, const char *eventname, int args){
-	// stack: {eventdata, ...}
+void event_dispatch_callbacks(lua_State *L){
+	// stack: {event, ...}
 	/* Get callbacks table */
-	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, eventdata, ...}
-	lua_getfield(L, -1, "n"); // stack: {n, callbacks, eventdata, ...}
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, event, ...}
+	lua_getfield(L, -1, "n"); // stack: {n, callbacks, event, ...}
 	int n = lua_tointeger(L, -1);
-	lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
+	lua_pop(L, 1); // stack: {callbacks, event, ...}
 	
 	/* Loop through all registered callbacks */
 	for(int i = 1; i <= n; i++){
 		/* Get callback struct from userdata */
-		lua_rawgeti(L, -1, i); // stack: {callbacks[i], callbacks, eventdata, ...}
+		lua_rawgeti(L, -1, i); // stack: {callbacks[i], callbacks, event, ...}
 		void *ptr = lua_touserdata(L, -1);
 		if(ptr == NULL){ // No callback at this position
-			lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
+			lua_pop(L, 1); // stack: {callbacks, event, ...}
 			continue;
 		}
 		Callback *callback = (Callback*)ptr;
-		lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
+		lua_pop(L, 1); // stack: {callbacks, event, ...}
 		
-		if(strcmp(callback->event, eventname) == 0){
+		if(event_match(L)){
 			/* Callback is for current event */
-			lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, callbacks, eventdata, ...}
-			lua_pushstring(L, eventname);
-			for(int j = 0; j < args; j++){ // Push all arguments on top of stack
-				lua_pushvalue(L, -3-args); // stack: {eventdata, fn, callbacks, eventdata, ...}
-			}
+			int event_n = luaL_len(L, -3);
+			int event_idx = lua_gettop(L) - 1;
+			for(int j = 1; j <= event_n; j++){
+				lua_geti(L, event_idx, j);
+			} // stack: {(eventdata...), callbacks, event, ...}
+			
 			// TODO: maybe pass callback ID
-			if(lua_pcall(L, args+1, 1, 0) != LUA_OK){ // stack: {error / continue, callbacks, eventdata, ...}
+			lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn_id); // stack: {fn, (eventdata...), callbacks, event, ...}
+			if(lua_pcall(L, event_n, 1, 0) != LUA_OK){ // stack: {error / continue, callbacks, event, ...}
 				fprintf(stderr, "%s\n", lua_tostring(L, -1));
 			}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
 				/* Callback function returned false, remove callback */
@@ -117,102 +123,154 @@ void event_dispatch_callbacks(lua_State *L, const char *eventname, int args){
 				lua_pushinteger(L, i);
 				lua_call(L, 1, 0);
 			}
-			lua_pop(L, 1); // stack: {callbacks, eventdata, ...}
+			lua_pop(L, 1); // stack: {callbacks, event, ...}
+			
+			// lua_pushstring(L, eventname);
+			// for(int j = 0; j < args; j++){ // Push all arguments on top of stack
+			// 	lua_pushvalue(L, -3-args); // stack: {event, fn, callbacks, event, ...}
+			// }
+			// // TODO: maybe pass callback ID
+			// if(lua_pcall(L, args+1, 1, 0) != LUA_OK){ // stack: {error / continue, callbacks, event, ...}
+			// 	fprintf(stderr, "%s\n", lua_tostring(L, -1));
+			// }else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+			// 	/* Callback function returned false, remove callback */
+			// 	lua_pushcfunction(L, event_off);
+			// 	lua_pushinteger(L, i);
+			// 	lua_call(L, 1, 0);
+			// }
+			// lua_pop(L, 1); // stack: {callbacks, event, ...}
 		}
 	}
-	lua_pop(L, args+1); // stack: {...}
+	lua_pop(L, 1); // stack: {...}
 }
 
-// Handle events and dispatch them to Lua
-int event_loop(lua_State *L){
-	uint32_t loop_start = SDL_GetTicks();
-	/* Handle Lua events */
-	lua_getfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {events}
-	int n = luaL_len(L, -1);
-	for(int i = 1; i <= n; i++){
-		lua_geti(L, -1, i); // stack: {event, events}
-		lua_getfield(L, -1, "name"); // stack: {name, event, events}
-		const char *name = lua_tostring(L, -1);
-		lua_pop(L, 1); // stack: {event, events}
-		int n_args = luaL_len(L, -1);
-		int top = lua_gettop(L);
-		for(int j = 1; j <= n_args; j++){
-			lua_geti(L, top, j);
-		} // stack: {v (x n_args), event, events}
-		event_dispatch_callbacks(L, name, n_args); // stack: {event, events}
-		lua_pop(L, 1); // stack: {events}
-		lua_pushnil(L);
-		lua_seti(L, -2, i);
-	}
-	lua_pop(L, 1); // stack: {}
-	
-	/* Handle SDL2 events */
+// Poll for events
+void event_poll(lua_State *L){
 	SDL_Event e;
 	while(SDL_PollEvent(&e)){
+		printf("Event: %d\n", e.type);
+		if(e.type == SDL_WINDOWEVENT) printf("window\n");
 		if(e.type == SDL_QUIT){
-			return 1;
+			exit(0);
 		}else if(e.type == SDL_USEREVENT && e.user.code == 1){
-			/* Got callback event, call Lua callback */
-			Callback *callback = e.user.data1;
-			lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, ...}
-			lua_pushstring(L, "timer"); // stack: {"timer", fn, ...}
-			lua_pushinteger(L, ((Timer*)callback->data)->delay); // stack: {delay, "timer", fn, ...}
-			
-			if(lua_pcall(L, 2, 1, 0) != LUA_OK){ // stack: {error / continue, ...}
-				fprintf(stderr, "%s\n", lua_tostring(L, -1));
-			}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+			printf("timer\n");
+			Timer *timer = (Timer*)((Callback*)e.user.data1)->data;
+			lua_pushstring(L, "timer");
+			lua_pushinteger(L, timer->id);
+			lua_pushinteger(L, timer->delay);
+			lua_pushcfunction(L, event_push);
+			if(lua_pcall(L, 3, 1, 0) == LUA_OK && lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
 				/* Callback function returned false, remove timer callback */
-				lua_pushcfunction(L, event_removeTimer);
-				lua_pushinteger(L, callback->id);
-				lua_call(L, 1, 0);
 			}
-			lua_pop(L, 1); // stack: {...}
+			
+			/* Got callback event, call Lua callback */
+			// Callback *callback = e.user.data1;
+			// lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, ...}
+			// lua_pushstring(L, "timer"); // stack: {"timer", fn, ...}
+			// lua_pushinteger(L, ((Timer*)callback->data)->delay); // stack: {delay, "timer", fn, ...}
+			
+			// if(lua_pcall(L, 2, 1, 0) != LUA_OK){ // stack: {error / continue, ...}
+			// 	fprintf(stderr, "%s\n", lua_tostring(L, -1));
+			// }else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+			// 	/* Callback function returned false, remove timer callback */
+			// 	lua_pushcfunction(L, event_removeTimer);
+			// 	lua_pushinteger(L, callback->id);
+			// 	lua_call(L, 1, 0);
+			// }
+			// lua_pop(L, 1); // stack: {...}
 		}else if(e.type == SDL_KEYDOWN){
 			const char *key = SDL_GetKeyName(e.key.keysym.sym);
 			int length = strlen(key)+1;
 			char keyLower[length];
 			lower(key, keyLower, length);
+			lua_pushstring(L, "kb"); lua_pushstring(L, "down");
 			lua_pushstring(L, keyLower);
-			event_dispatch_callbacks(L, "kb.down", 1);
+			lua_pushcfunction(L, event_push);
+			lua_pcall(L, 3, 0, 0);
 		}else if(e.type == SDL_KEYUP){
 			const char *key = SDL_GetKeyName(e.key.keysym.sym);
 			int length = strlen(key)+1;
 			char keyLower[length];
 			lower(key, keyLower, length);
+			lua_pushstring(L, "kb"); lua_pushstring(L, "up");
 			lua_pushstring(L, keyLower);
-			event_dispatch_callbacks(L, "kb.up", 1);
+			lua_pushcfunction(L, event_push);
+			lua_pcall(L, 3, 0, 0);
 		}else if(e.type == SDL_TEXTINPUT){
+			lua_pushstring(L, "kb"); lua_pushstring(L, "input");
 			lua_pushstring(L, e.text.text);
-			event_dispatch_callbacks(L, "kb.input", 1);
+			lua_pushcfunction(L, event_push);
+			lua_pcall(L, 3, 0, 0);
 		}else if(e.type == SDL_MOUSEMOTION){
+			lua_pushstring(L, "mouse"); lua_pushstring(L, "move");
 			lua_pushinteger(L, e.motion.x);
 			lua_pushinteger(L, e.motion.y);
 			lua_pushinteger(L, e.motion.xrel);
 			lua_pushinteger(L, e.motion.yrel);
-			event_dispatch_callbacks(L, "mouse.move", 4);
+			lua_pushcfunction(L, event_push);
+			lua_pcall(L, 6, 0, 0);
 		}else if(e.type == SDL_MOUSEBUTTONDOWN){
+			lua_pushstring(L, "mouse"); lua_pushstring(L, "down");
 			lua_pushinteger(L, e.button.button);
 			lua_pushinteger(L, e.button.x);
 			lua_pushinteger(L, e.button.y);
 			lua_pushboolean(L, e.button.clicks-1);
-			event_dispatch_callbacks(L, "mouse.down", 4);
+			lua_pushcfunction(L, event_push);
+			lua_pcall(L, 6, 0, 0);
 		}else if(e.type == SDL_MOUSEBUTTONUP){
+			lua_pushstring(L, "mouse"); lua_pushstring(L, "up");
 			lua_pushinteger(L, e.button.button);
 			lua_pushinteger(L, e.button.x);
 			lua_pushinteger(L, e.button.y);
 			lua_pushboolean(L, e.button.clicks-1);
-			event_dispatch_callbacks(L, "mouse.up", 4);
+			lua_pushcfunction(L, event_push);
+			lua_pcall(L, 6, 0, 0);
 		}else if(e.type == SDL_MOUSEWHEEL){
+			lua_pushstring(L, "mouse"); lua_pushstring(L, "scroll");
 			lua_pushinteger(L, e.wheel.x);
 			lua_pushinteger(L, e.wheel.y);
 			lua_pushboolean(L, e.wheel.direction);
-			event_dispatch_callbacks(L, "mouse.scroll", 3);
+			lua_pushcfunction(L, event_push);
+			lua_pcall(L, 5, 0, 0);
 		}else if(e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED){
+			printf("[C] resize ");
+			lua_pushstring(L, "screen"); lua_pushstring(L, "resize");
 			lua_pushinteger(L, e.window.data1);
 			lua_pushinteger(L, e.window.data2);
-			event_dispatch_callbacks(L, "screen.resize", 2);
+			lua_pushcfunction(L, event_push);
+			lua_pcall(L, 4, 0, 0);
 		}
 	}
+}
+
+// Handle events and dispatch them to Lua
+int event_loop(lua_State *L){
+	uint32_t loop_start = SDL_GetTicks();
+	
+	/* Poll for SDL events */
+	event_poll(L);
+	
+	/* Handle Lua events */
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {queue}
+	int n = luaL_len(L, -1);
+	for(int i = 1; i <= n; i++){
+		lua_geti(L, -1, i); // stack: {event, queue}
+		lua_geti(L, -1, 1); printf("handle event %s\n", lua_tostring(L, -1)); lua_pop(L, 1); // TODO: remove
+		event_dispatch_callbacks(L); // stack: {queue}
+		// lua_getfield(L, -1, "name"); // stack: {name, event, queue}
+		// const char *name = lua_tostring(L, -1);
+		// lua_pop(L, 1); // stack: {event, queue}
+		// int n_args = luaL_len(L, -1);
+		// int top = lua_gettop(L);
+		// for(int j = 1; j <= n_args; j++){
+		// 	lua_geti(L, top, j);
+		// } // stack: {v (x n_args), event, queue}
+		// event_dispatch_callbacks(L, name, n_args); // stack: {event, queue}
+		// lua_pop(L, 1); // stack: {queue}
+		lua_pushnil(L);
+		lua_seti(L, -2, i);
+	}
+	lua_pop(L, 1); // stack: {}
 	
 	if(SDL_GetTicks() < loop_start + 1) SDL_Delay(1);
 	
@@ -224,14 +282,15 @@ int event_loop(lua_State *L){
 /***
  * Register event callback.
  * @function on
- * @tparam string eventname the event name
+ * @tparam table filter the event name
  * @tparam function callback the callback function
  * @treturn number the callback id
  */
 int event_on(lua_State *L){
-	const char *e = luaL_checkstring(L, 1); // stack: {callback, event}
-	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {event}
-	event_add_callback(L, e, id, NULL); // stack: {n, event}
+	const char *e = luaL_checkstring(L, 1); // stack: {callback, filter}
+	int callback_id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {filter}
+	int filter_id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {}
+	event_add_callback(L, filter_id, callback_id, NULL); // stack: {n}
 	return 1;
 }
 
@@ -321,16 +380,22 @@ int event_removeTimer(lua_State *L){
  * @param[opt] ... the event arguments
  */
 int event_push(lua_State *L){
-	int n_args = lua_gettop(L)-1; // stack: {args, name}
-	lua_getfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {events, args, name}
-	lua_newtable(L); // stack: {event, events, args, name}
-	lua_rotate(L, 1, -1); // stack: {name, event, events, args}
-	lua_setfield(L, -2, "name"); // stack: {event, events, args}
-	lua_rotate(L, 1, -n_args); // stack: {args, event, events}
-	for(int i = n_args; i >= 1; i--){
-		lua_seti(L, 2, i);
-	} // stack: {event, events}
-	lua_seti(L, 1, luaL_len(L, 1)+1); // stack: {events}
+	int n_args = lua_gettop(L)-1; // stack: {(args...)}
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {queue, (args...)}
+	lua_newtable(L); // stack: {event, queue, (args...)}
+	for(int i = 1; i <= n_args; i++){
+		lua_seti(L, lua_gettop(L), i);
+	} // stack: {event, queue}
+	lua_seti(L, 1, luaL_len(L, 1)+1); // stack: {queue}
+	return 0;
+	
+	// lua_rotate(L, 1, -1); // stack: {name, event, events, args}
+	// lua_setfield(L, -2, "name"); // stack: {event, events, args}
+	// lua_rotate(L, 1, -n_args); // stack: {args, event, events}
+	// for(int i = n_args; i >= 1; i--){
+	// 	lua_seti(L, 2, i);
+	// } // stack: {event, events}
+	// lua_seti(L, 1, luaL_len(L, 1)+1); // stack: {events}
 	return 0;
 }
 
@@ -348,8 +413,8 @@ LUAMOD_API int luaopen_event(lua_State *L){
 	luaL_setfuncs(L, event_f, 0);
 	
 	/* Put pointer to event_loop in registry, for main.c to call */
-	lua_pushlightuserdata(L, &event_loop);
-	lua_setfield(L, LUA_REGISTRYINDEX, "event_loop");
+	// lua_pushlightuserdata(L, &event_loop);
+	// lua_setfield(L, LUA_REGISTRYINDEX, "event_loop");
 	
 	/* Register callbacks table */
 	lua_newtable(L); // stack: {tbl, ...}

@@ -17,6 +17,8 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+#include "event.h"
+
 #define VERSION "0.2.0"
 
 #ifndef BASE_PATH
@@ -122,6 +124,7 @@ int main(int argc, char *argv[]){
 		if(lua_pcall(L, argc-lua_arg_start, 1, 1) == LUA_OK){
 			// Immediately stop execution when main chunk returns false
 			if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+				lua_close(L);
 				return 0;
 			}
 		}else{
@@ -134,20 +137,12 @@ int main(int argc, char *argv[]){
 	}
 	
 	/* Main loop */
-	lua_getfield(L, LUA_REGISTRYINDEX, "event_loop");
-	if(lua_islightuserdata(L, -1)){
-		int (*event_loop_ptr)(lua_State*) = lua_touserdata(L, -1);
-		lua_pop(L, 1);
-		if(event_loop_ptr != NULL){
-			int quit = 0;
-			while(!quit){
-				quit = event_loop_ptr(L);
-			}
-		}
+	int quit = 0;
+	while(!quit){
+		quit = event_loop(L);
 	}
 	
 	/* Exit */
 	lua_close(L);
-	
 	return 0;
 }

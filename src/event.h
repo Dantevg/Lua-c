@@ -14,10 +14,10 @@ typedef struct Timer {
 } Timer;
 
 typedef struct Callback {
-	int id;            // The callback id in the callback table
-	int fn;            // The function id in the Lua registry
-	void *data;        // Optional extra data
-	const char *event; // The event name
+	int filter_id; // Filter table id in the Lua registry
+	int fn_id;     // Callback function id in the Lua registry
+	int n;         // Callback struct number in the callbacks table
+	void *data;    // Optional extra data
 } Callback;
 
 // Callback function which gets called in different thread
@@ -31,6 +31,9 @@ Callback *event_add_callback(lua_State *L, const char *event, int callbackid, vo
 
 // Dispatches event to Lua callbacks
 void event_dispatch_callbacks(lua_State *L, const char *eventname, int args);
+
+// Poll for events
+void event_poll(lua_State *L);
 
 // Handle events and dispatch them to Lua
 int event_loop(lua_State *L);
