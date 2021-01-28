@@ -80,8 +80,10 @@ Callback *event_add_callback(lua_State *L, int filter_id, int callback_id, void 
 	return callback;
 }
 
+// Match an event filter with an event
 int event_match(lua_State *L){
 	// TODO: implement
+	return 1;
 }
 
 // Dispatches event to Lua callbacks
@@ -107,14 +109,14 @@ void event_dispatch_callbacks(lua_State *L){
 		
 		if(event_match(L)){
 			/* Callback is for current event */
+			lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn_id); // stack: {fn, (eventdata...), callbacks, event, ...}
 			int event_n = luaL_len(L, -3);
-			int event_idx = lua_gettop(L) - 1;
+			int event_idx = lua_gettop(L) - 2;
 			for(int j = 1; j <= event_n; j++){
 				lua_geti(L, event_idx, j);
 			} // stack: {(eventdata...), callbacks, event, ...}
 			
 			// TODO: maybe pass callback ID
-			lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn_id); // stack: {fn, (eventdata...), callbacks, event, ...}
 			if(lua_pcall(L, event_n, 1, 0) != LUA_OK){ // stack: {error / continue, callbacks, event, ...}
 				fprintf(stderr, "%s\n", lua_tostring(L, -1));
 			}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
@@ -141,7 +143,7 @@ void event_dispatch_callbacks(lua_State *L){
 			// lua_pop(L, 1); // stack: {callbacks, event, ...}
 		}
 	}
-	lua_pop(L, 1); // stack: {...}
+	lua_pop(L, 2); // stack: {...}
 }
 
 // Poll for events
@@ -247,11 +249,12 @@ void event_poll(lua_State *L){
 int event_loop(lua_State *L){
 	uint32_t loop_start = SDL_GetTicks();
 	
+	if(lua_getfield(L, LUA_REGISTRYINDEX, "event_queue") == LUA_TNIL) return 1; // stack: {queue}
+	
 	/* Poll for SDL events */
 	event_poll(L);
 	
 	/* Handle Lua events */
-	lua_getfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {queue}
 	int n = luaL_len(L, -1);
 	for(int i = 1; i <= n; i++){
 		lua_geti(L, -1, i); // stack: {event, queue}
@@ -287,7 +290,6 @@ int event_loop(lua_State *L){
  * @treturn number the callback id
  */
 int event_on(lua_State *L){
-	const char *e = luaL_checkstring(L, 1); // stack: {callback, filter}
 	int callback_id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {filter}
 	int filter_id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {}
 	event_add_callback(L, filter_id, callback_id, NULL); // stack: {n}
@@ -317,8 +319,9 @@ int event_off(lua_State *L){
 	lua_pushnil(L); // stack: {nil, callbacks[n], callbacks, n}
 	lua_rawseti(L, -3, n); // stack: {callbacks[n], callbacks, n}
 	
-	/* Unreference Lua callback function */
-	luaL_unref(L, LUA_REGISTRYINDEX, callback->fn);
+	/* Unreference Lua callback function and filter table */
+	luaL_unref(L, LUA_REGISTRYINDEX, callback->fn_id);
+	luaL_unref(L, LUA_REGISTRYINDEX, callback->filter_id);
 	
 	lua_pushboolean(L, 1); // Callback successfully removed, return true
 	return 1;
@@ -334,22 +337,24 @@ int event_off(lua_State *L){
  * @treturn number callback id
  */
 int event_addTimer(lua_State *L){
-	luaL_checktype(L, 2, LUA_TFUNCTION); // stack: {(repeat?), callback, delay}
+	// luaL_checktype(L, 2, LUA_TFUNCTION); // stack: {(repeat?), callback, delay}
 	
-	/* Create timer */
-	Timer *timer = malloc(sizeof(Timer)); // free'd by event_removeTimer
-	timer->delay = luaL_checkinteger(L, 1);
-	timer->repeat = lua_toboolean(L, 3);
+	// /* Create timer */
+	// Timer *timer = malloc(sizeof(Timer)); // free'd by event_removeTimer
+	// timer->delay = luaL_checkinteger(L, 1);
+	// timer->repeat = lua_toboolean(L, 3);
 	
-	/* Register timer callback event */
-	lua_pushvalue(L, 2); // stack: {callback, (repeat?), callback, delay}
-	int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {(repeat?), callback, delay}
-	Callback *callback = event_add_callback(L, "timer", id, timer); // stack: {n, (repeat?), callback, delay}
+	// /* Register timer callback event */
+	// lua_pushvalue(L, 2); // stack: {callback, (repeat?), callback, delay}
+	// int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {(repeat?), callback, delay}
+	// Callback *callback = event_add_callback(L, "timer", id, timer); // stack: {n, (repeat?), callback, delay}
 	
-	/* Set timer callback id */
-	timer->id = SDL_AddTimer(timer->delay, timer_async_callback, callback);
+	// /* Set timer callback id */
+	// timer->id = SDL_AddTimer(timer->delay, timer_async_callback, callback);
 	
-	return 1;
+	// return 1;
+	luaL_error(L, "Not implemented"); // TODO: re-implement
+	return 0;
 }
 
 /***
@@ -359,18 +364,20 @@ int event_addTimer(lua_State *L){
  * @treturn boolean whether the timer was successfully removed
  */
 int event_removeTimer(lua_State *L){
-	/* Remove callback */
-	event_off(L); // stack: {status, callbacks[n], callbacks, n}
-	if(lua_toboolean(L, -1)){ // Callback correctly removed
-		/* Remove SDL timer */
-		Callback *callback = (Callback*)lua_touserdata(L, -2);
-		Timer *timer = callback->data;
-		fprintf(stderr, "[C] Removing timer %d (%s), fn %d\n", (int)lua_tointeger(L, 1), callback->event, callback->fn);
-		SDL_RemoveTimer(timer->id);
-		free(timer); // malloc'd by event_addTimer
-	}
+	// /* Remove callback */
+	// event_off(L); // stack: {status, callbacks[n], callbacks, n}
+	// if(lua_toboolean(L, -1)){ // Callback correctly removed
+	// 	/* Remove SDL timer */
+	// 	Callback *callback = (Callback*)lua_touserdata(L, -2);
+	// 	Timer *timer = callback->data;
+	// 	fprintf(stderr, "[C] Removing timer %d (%s), fn %d\n", (int)lua_tointeger(L, 1), callback->event, callback->fn);
+	// 	SDL_RemoveTimer(timer->id);
+	// 	free(timer); // malloc'd by event_addTimer
+	// }
 	
-	return 1;
+	// return 1;
+	luaL_error(L, "Not implemented"); // TODO: re-implement
+	return 0;
 }
 
 /***
@@ -380,11 +387,12 @@ int event_removeTimer(lua_State *L){
  * @param[opt] ... the event arguments
  */
 int event_push(lua_State *L){
-	int n_args = lua_gettop(L)-1; // stack: {(args...)}
+	int n_args = lua_gettop(L); // stack: {(args...)}
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {queue, (args...)}
 	lua_newtable(L); // stack: {event, queue, (args...)}
+	lua_rotate(L, 1, 2); // stack: {(args...), event, queue}
 	for(int i = 1; i <= n_args; i++){
-		lua_seti(L, lua_gettop(L), i);
+		lua_seti(L, 2, n_args-i+1);
 	} // stack: {event, queue}
 	lua_seti(L, 1, luaL_len(L, 1)+1); // stack: {queue}
 	return 0;

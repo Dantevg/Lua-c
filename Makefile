@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Wextra -Wshadow -Wno-unused-parameter -std=c99 -DBASE_PATH=\"$(CURDIR)/\"
+CFLAGS = -Wall -Wextra -Wshadow -Wno-unused-parameter -std=c99 -DBASE_PATH=\"$(CURDIR)/\" -g
 LUA_VERSION = 5.3
 INCLUDE = -I/usr/include/lua$(LUA_VERSION) -I/usr/local/include/lua$(LUA_VERSION) -isystem lib
 LIBS_MAIN = -llua$(LUA_VERSION)
@@ -46,9 +46,9 @@ libraries: $(libs)
 
 # Dependency list
 
-bin/MoonBox: build/main.o
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_MAIN)
-build/main.o: src/main.c
+bin/MoonBox: build/main.o build/event.o build/util.o
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO)
+build/main.o: src/main.c src/event.c src/event.h src/util.c src/util.h
 
 build/util.o: src/util.c src/util.h
 

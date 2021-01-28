@@ -27,10 +27,13 @@ uint32_t timer_async_callback(uint32_t delay, void *param);
 // Creates a callback for the function in the given registry id, for the given event,
 // with the given data, and places it into the callback table
 // Returns the callback struct, and places the callback id on the stack
-Callback *event_add_callback(lua_State *L, const char *event, int callbackid, void *data);
+Callback *event_add_callback(lua_State *L, int filter_id, int callback_id, void *data);
+
+// Match an event filter with an event
+int event_match(lua_State *L);
 
 // Dispatches event to Lua callbacks
-void event_dispatch_callbacks(lua_State *L, const char *eventname, int args);
+void event_dispatch_callbacks(lua_State *L);
 
 // Poll for events
 void event_poll(lua_State *L);
