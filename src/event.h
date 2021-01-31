@@ -30,7 +30,7 @@ uint32_t timer_async_callback(uint32_t delay, void *param);
 Callback *event_add_callback(lua_State *L, int filter_id, int callback_id, void *data);
 
 // Match an event filter with an event
-int event_match(lua_State *L);
+int event_match(lua_State *L, Callback *callback);
 
 // Dispatches event to Lua callbacks
 void event_dispatch_callbacks(lua_State *L);
@@ -52,6 +52,11 @@ int event_on(lua_State *L);
 // Expects a callback id, as returned by event_on
 // Returns whether the callback was successfully removed
 int event_off(lua_State *L);
+
+// Starts a timer
+// Expects a delay in milliseconds and optionally a boolean repeat
+// Returns the timer id
+int event_startTimer(lua_State *L);
 
 // Adds a timer callback
 // Expects a delay in milliseconds, a callback function, and optionally a boolean repeat
