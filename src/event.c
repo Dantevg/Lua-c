@@ -287,13 +287,28 @@ int event_loop(lua_State *L){
 /***
  * Register event callback.
  * @function on
- * @tparam table filter the event name
+ * @param[opt] filter the event filter
+ * @param[optchain] ... rest of the filter
  * @tparam function callback the callback function
  * @treturn number the callback id
  */
 int event_on(lua_State *L){
-	int callback_id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {filter}
+	// stack: {callback, (filter...)}
+	/* Put callback function into registry */
+	int callback_id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {(filter...)}
+	
+	/* Put filter vararg into table */
+	int filter_len = lua_gettop(L);
+	lua_createtable(L, filter_len, 0); // stack: {table, (filter...)}
+	lua_rotate(L, 1, 1); // stack: {(filter...), table}
+	for(int i = filter_len; i >= 1; i--){
+		lua_seti(L, 1, i); // stack: {(filter...), table}
+	} // stack: {table}
+	
+	/* Put filter table into registry */
 	int filter_id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {}
+	
+	/* Set callback */
 	event_add_callback(L, filter_id, callback_id, NULL); // stack: {n}
 	return 1;
 }
@@ -441,8 +456,8 @@ int event_removeTimer(lua_State *L){
 /***
  * Push an event on the queue.
  * @function push
- * @tparam string name the event name
- * @param[opt] ... the event arguments
+ * @param name the first event argument
+ * @param[opt] ... other event arguments
  */
 int event_push(lua_State *L){
 	int n_args = lua_gettop(L); // stack: {(args...)}
