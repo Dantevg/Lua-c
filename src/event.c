@@ -29,6 +29,8 @@ The available events are:
 
 // Callback function which gets called in different thread
 // Receives the callback struct, puts it in an event and pushes that into the event queue
+// TODO: congestion control: when the callback takes longer than the repeating
+// timer, the timer events accumulate
 uint32_t timer_async_callback(uint32_t delay, void *param){
 	Timer *timer = (Timer*)param;
 	
@@ -47,7 +49,16 @@ uint32_t timer_async_callback(uint32_t delay, void *param){
 	SDL_PushEvent(&e);
 	
 	// Return the delay to continue repeating, return 0 to stop
-	return (timer->repeat) ? delay : 0; // TODO: check
+	return (timer->repeat) ? delay : 0;
+}
+
+// Get the callback struct from the registry
+Callback *event_get_callback(lua_State *L, int idx){
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, ...}
+	lua_rawgeti(L, -1, idx); // stack: {callbacks[idx], callbacks, ...}
+	Callback *callback = (Callback*)lua_touserdata(L, -1);
+	lua_pop(L, 2); // stack: {...}
+	return callback;
 }
 
 // Creates a callback for the function in the given registry id, for the given event,
@@ -150,8 +161,8 @@ void event_dispatch_callbacks(lua_State *L){
 void event_poll(lua_State *L){
 	SDL_Event e;
 	while(SDL_PollEvent(&e)){
-		printf("Event: %d\n", e.type);
-		if(e.type == SDL_WINDOWEVENT) printf("window\n");
+		// printf("Event: %d\n", e.type);
+		// if(e.type == SDL_WINDOWEVENT) printf("window\n");
 		if(e.type == SDL_QUIT){
 			exit(0);
 		}else if(e.type == SDL_USEREVENT && e.user.code == 1){
@@ -160,10 +171,13 @@ void event_poll(lua_State *L){
 			lua_pushstring(L, "timer");
 			lua_pushinteger(L, timer->id);
 			lua_pushinteger(L, timer->delay);
-			if(lua_pcall(L, 3, 1, 0) == LUA_OK && lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
-				/* Callback function returned false, remove timer callback */
-			}
-			lua_pop(L, 1);
+			lua_pcall(L, 3, 0, 0);
+			// if(lua_pcall(L, 3, 1, 0) == LUA_OK && lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+			// 	/* Callback function returned false, remove timer callback */
+			// 	lua_pushcfunction(L, event_removeTimer);
+			// 	lua_pushinteger(L, timer->id);
+			// }
+			// lua_pop(L, 1);
 			
 			/* Got callback event, call Lua callback */
 			// Callback *callback = e.user.data1;
@@ -292,16 +306,13 @@ int event_on(lua_State *L){
  */
 int event_off(lua_State *L){
 	int n = luaL_checkinteger(L, 1); // stack: {n}
-	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, n}
-	lua_rawgeti(L, -1, n); // stack: {callbacks[n], callbacks, n}
 	
 	/* Get callback struct */
-	void *ptr = lua_touserdata(L, -1);
-	if(ptr == NULL){ // No callback present, return false
+	Callback *callback = event_get_callback(L, n);
+	if(callback == NULL){ // No callback present, return false
 		lua_pushboolean(L, 0);
 		return 1;
 	}
-	Callback *callback = (Callback*)ptr;
 	
 	/* Remove callback struct from callback table */
 	lua_pushnil(L); // stack: {nil, callbacks[n], callbacks, n}
@@ -329,9 +340,44 @@ int event_startTimer(lua_State *L){
 	Timer *timer = malloc(sizeof(Timer)); // free'd by event_stopTimer
 	timer->delay = luaL_checkinteger(L, 1);
 	timer->repeat = lua_toboolean(L, 2);
-	timer->id = SDL_AddTimer(timer->delay, timer_async_callback, &timer);
+	timer->id = SDL_AddTimer(timer->delay, timer_async_callback, timer);
 	
-	return timer->id;
+	/* Add Timer struct to event_timers table */
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_timers"); // stack: {timers, (repeat?), delay}
+	lua_pushlightuserdata(L, timer); // stack: {timer, timers, (repeat?), delay}
+	lua_seti(L, -2, timer->id); // stack: {timers, (repeat?), delay}
+	
+	lua_pushinteger(L, timer->id); // stack: {timer_id, timers, (repeat?), delay}
+	return 1;
+}
+
+/***
+ * Stop a timer.
+ * @function stopTimer
+ * @tparam number id the timer id, as returned by @{event.startTimer}
+ * @treturn boolean whether the timer was successfully stopped
+ */
+int event_stopTimer(lua_State *L){
+	int id = luaL_checkinteger(L, 1); // stack: {id}
+	
+	/* Remove SDL timer */
+	int success = SDL_RemoveTimer(id);
+	if(!success){
+		lua_pushboolean(L, 0);
+		return 1;
+	}
+	
+	/* Free Timer struct and remove it from event_timers table */
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_timers"); // stack: {timers, id}
+	lua_geti(L, -1, id); // stack: {Timer, timers, id}
+	Timer *timer = lua_touserdata(L, -1);
+	if(timer != NULL) free(timer); // malloc'd by event_startTimer
+	
+	lua_pushnil(L); // stack: {nil, Timer, timers, id}
+	lua_seti(L, -3, id); // stack: {Timer, timers, id}
+	
+	lua_pushboolean(L, 1);
+	return 1;
 }
 
 /***
@@ -344,24 +390,29 @@ int event_startTimer(lua_State *L){
  * @treturn number callback id
  */
 int event_addTimer(lua_State *L){
-	// luaL_checktype(L, 2, LUA_TFUNCTION); // stack: {(repeat?), callback, delay}
+	luaL_checktype(L, 2, LUA_TFUNCTION); // stack: {(repeat?), callback, delay}
+	int has_repeat = lua_gettop(L) > 2;
 	
-	// /* Create timer */
-	// Timer *timer = malloc(sizeof(Timer)); // free'd by event_removeTimer
-	// timer->delay = luaL_checkinteger(L, 1);
-	// timer->repeat = lua_toboolean(L, 3);
+	/* Create timer */
+	lua_rotate(L, 1, -1); // stack: {delay, (repeat?), callback}
+	lua_rotate(L, 2, 1); // stack: {(repeat?), delay, callback}
+	lua_pushcfunction(L, event_startTimer); // stack: {event_startTimer, (repeat?), delay, callback}
+	lua_rotate(L, 2, 1); // stack: {(repeat?), delay, event_startTimer, callback}
+	lua_pcall(L, has_repeat ? 2 : 1, 1, 0); // stack: {timer_id, callback}
 	
-	// /* Register timer callback event */
-	// lua_pushvalue(L, 2); // stack: {callback, (repeat?), callback, delay}
-	// int id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {(repeat?), callback, delay}
-	// Callback *callback = event_add_callback(L, "timer", id, timer); // stack: {n, (repeat?), callback, delay}
+	/* Create timer filter */
+	lua_createtable(L, 2, 0); // stack: {filter, timer_id, callback}
+	lua_pushstring(L, "timer"); // stack: {"timer", filter, timer_id, callback}
+	lua_seti(L, -2, 1); // stack: {filter, timer_id, callback}
+	lua_rotate(L, 2, 1); // stack: {timer_id, filter, callback}
+	lua_seti(L, -2, 2); // stack: {filter, callback}
 	
-	// /* Set timer callback id */
-	// timer->id = SDL_AddTimer(timer->delay, timer_async_callback, callback);
+	/* Register timer callback event */
+	int filter_id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {callback}
+	int callback_id = luaL_ref(L, LUA_REGISTRYINDEX); // stack: {}
+	event_add_callback(L, filter_id, callback_id, NULL); // stack: {n}
 	
-	// return 1;
-	luaL_error(L, "Not implemented"); // TODO: re-implement
-	return 0;
+	return 1;
 }
 
 /***
@@ -371,20 +422,20 @@ int event_addTimer(lua_State *L){
  * @treturn boolean whether the timer was successfully removed
  */
 int event_removeTimer(lua_State *L){
-	// /* Remove callback */
-	// event_off(L); // stack: {status, callbacks[n], callbacks, n}
-	// if(lua_toboolean(L, -1)){ // Callback correctly removed
-	// 	/* Remove SDL timer */
-	// 	Callback *callback = (Callback*)lua_touserdata(L, -2);
-	// 	Timer *timer = callback->data;
-	// 	fprintf(stderr, "[C] Removing timer %d (%s), fn %d\n", (int)lua_tointeger(L, 1), callback->event, callback->fn);
-	// 	SDL_RemoveTimer(timer->id);
-	// 	free(timer); // malloc'd by event_addTimer
-	// }
+	/* Remove timer */
+	int n = luaL_checkinteger(L, -1); // stack: {n}
+	Callback *callback = event_get_callback(L, n);
+	lua_geti(L, LUA_REGISTRYINDEX, callback->filter_id); // stack: {filter, n}
+	lua_pushcfunction(L, event_stopTimer); // stack: {event_stopTimer, filter, n}
+	lua_geti(L, -1, 2); // stack: {timer_id, event_stopTimer, filter, n}
+	lua_pcall(L, 1, 1, 0); // stack: {success, filter, n}
+	if(!lua_toboolean(L, -1)){
+		return 1; // Timer not stopped, return false from event_stopTimer
+	}
 	
-	// return 1;
-	luaL_error(L, "Not implemented"); // TODO: re-implement
-	return 0;
+	/* Remove callback */
+	event_off(L); // stack: {status, callbacks[n], callbacks, n}
+	return 1;
 }
 
 /***
@@ -409,6 +460,7 @@ static const struct luaL_Reg event_f[] = {
 	{"on", event_on},
 	{"off", event_off},
 	{"startTimer", event_startTimer},
+	{"stopTimer", event_stopTimer},
 	{"addTimer", event_addTimer},
 	{"removeTimer", event_removeTimer},
 	{"push", event_push},
@@ -428,6 +480,14 @@ LUAMOD_API int luaopen_event(lua_State *L){
 	/* Register event queue */
 	lua_newtable(L);
 	lua_setfield(L, LUA_REGISTRYINDEX, "event_queue");
+	
+	/* Register timer table */
+	lua_newtable(L);
+	lua_setfield(L, LUA_REGISTRYINDEX, "event_timers");
+	
+	if(SDL_InitSubSystem(SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0){
+		luaL_error(L, "Failed to initialise SDL");
+	}
 	
 	return 1;
 }

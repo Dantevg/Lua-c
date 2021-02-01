@@ -24,6 +24,9 @@ typedef struct Callback {
 // Receives the callback struct, puts it in an event and pushes that into the event queue
 uint32_t timer_async_callback(uint32_t delay, void *param);
 
+// Get the callback struct from the registry
+Callback *event_get_callback(lua_State *L, int idx);
+
 // Creates a callback for the function in the given registry id, for the given event,
 // with the given data, and places it into the callback table
 // Returns the callback struct, and places the callback id on the stack
@@ -57,6 +60,11 @@ int event_off(lua_State *L);
 // Expects a delay in milliseconds and optionally a boolean repeat
 // Returns the timer id
 int event_startTimer(lua_State *L);
+
+// Stops a timer
+// Expects a timer id
+// Returns whether it stopped the timer
+int event_stopTimer(lua_State *L);
 
 // Adds a timer callback
 // Expects a delay in milliseconds, a callback function, and optionally a boolean repeat
