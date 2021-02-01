@@ -8,9 +8,9 @@
 /* C library definitions */
 
 typedef struct Timer {
-	int id;     // The SDL timer ID
-	int delay;  // The delay in ms
-	int repeat; // 1 = repeat, 0 = don't repeat
+	int delay;     // The delay in ms
+	int repeat;    // 1 = repeat, 0 = don't repeat
+	uint32_t time; // The time at which the timer started (or restarted)
 } Timer;
 
 typedef struct Callback {
@@ -19,10 +19,6 @@ typedef struct Callback {
 	int n;         // Callback struct number in the callbacks table
 	void *data;    // Optional extra data
 } Callback;
-
-// Callback function which gets called in different thread
-// Receives the callback struct, puts it in an event and pushes that into the event queue
-uint32_t timer_async_callback(uint32_t delay, void *param);
 
 // Get the callback struct from the registry
 Callback *event_get_callback(lua_State *L, int idx);

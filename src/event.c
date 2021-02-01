@@ -27,29 +27,20 @@ The available events are:
 
 /* C library definitions */
 
-// Callback function which gets called in different thread
-// Receives the callback struct, puts it in an event and pushes that into the event queue
-// TODO: congestion control: when the callback takes longer than the repeating
-// timer, the timer events accumulate
-uint32_t timer_async_callback(uint32_t delay, void *param){
-	Timer *timer = (Timer*)param;
-	
-	SDL_Event e;
-	SDL_UserEvent userevent;
-	
-	userevent.type = SDL_USEREVENT;
-	userevent.code = 1;
-	userevent.data1 = param;
-	
-	e.type = SDL_USEREVENT;
-	e.user = userevent;
-	
-	// Push timer event on the event stack,
-	// to call the lua function in the main thread
-	SDL_PushEvent(&e);
-	
-	// Return the delay to continue repeating, return 0 to stop
-	return (timer->repeat) ? delay : 0;
+static int get_table_n(lua_State *L, int idx){
+	lua_getfield(L, idx, "n"); // stack: {n, table, ...}
+	int n = lua_tointeger(L, -1);
+	lua_pop(L, 1); // stack: {table, ...}
+	return n;
+}
+
+static int insert_table(lua_State *L){
+	// stack: {element, table, ...}
+	int idx = get_table_n(L, -2) + 1;
+	lua_seti(L, -2, idx); // stack: {table, ...}
+	lua_pushinteger(L, idx);
+	lua_setfield(L, -2, "n"); // stack: {table, ...}
+	return idx;
 }
 
 // Get the callback struct from the registry
@@ -159,41 +150,42 @@ void event_dispatch_callbacks(lua_State *L){
 
 // Poll for events
 void event_poll(lua_State *L){
+	/* Poll for timers */
+	uint32_t tick = SDL_GetTicks();
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_timers"); // stack: {timers, ...}
+	int n = get_table_n(L, -1);
+	for(int i = 1; i <= n; i++){
+		if(lua_geti(L, -1, i) == LUA_TNIL){ // stack: {Timer, timers, ...}
+			lua_pop(L, 1); // stack: {timers, ...}
+			continue;
+		}
+		Timer *timer = lua_touserdata(L, -1);
+		if(timer != NULL && timer->time + timer->delay <= tick){
+			timer->time = tick;
+			lua_pushcfunction(L, event_push);
+			lua_pushstring(L, "timer");
+			lua_pushinteger(L, i);
+			lua_pushinteger(L, timer->delay);
+			lua_pcall(L, 3, 0, 0);
+			
+			if(!timer->repeat){
+				// Stop non-repeating timer
+				lua_pushcfunction(L, event_stopTimer);
+				lua_pushinteger(L, i);
+				lua_pcall(L, 1, 0, 0);
+			}
+		}
+		lua_pop(L, 1); // stack: {timers, ...}
+	}
+	lua_pop(L, 1); // stack: {...}
+	
+	/* Poll for SDL events */
 	SDL_Event e;
 	while(SDL_PollEvent(&e)){
 		// printf("Event: %d\n", e.type);
 		// if(e.type == SDL_WINDOWEVENT) printf("window\n");
 		if(e.type == SDL_QUIT){
 			exit(0);
-		}else if(e.type == SDL_USEREVENT && e.user.code == 1){
-			lua_pushcfunction(L, event_push);
-			Timer *timer = (Timer*)e.user.data1;
-			lua_pushstring(L, "timer");
-			lua_pushinteger(L, timer->id);
-			lua_pushinteger(L, timer->delay);
-			lua_pcall(L, 3, 0, 0);
-			// if(lua_pcall(L, 3, 1, 0) == LUA_OK && lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
-			// 	/* Callback function returned false, remove timer callback */
-			// 	lua_pushcfunction(L, event_removeTimer);
-			// 	lua_pushinteger(L, timer->id);
-			// }
-			// lua_pop(L, 1);
-			
-			/* Got callback event, call Lua callback */
-			// Callback *callback = e.user.data1;
-			// lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn); // stack: {fn, ...}
-			// lua_pushstring(L, "timer"); // stack: {"timer", fn, ...}
-			// lua_pushinteger(L, ((Timer*)callback->data)->delay); // stack: {delay, "timer", fn, ...}
-			
-			// if(lua_pcall(L, 2, 1, 0) != LUA_OK){ // stack: {error / continue, ...}
-			// 	fprintf(stderr, "%s\n", lua_tostring(L, -1));
-			// }else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
-			// 	/* Callback function returned false, remove timer callback */
-			// 	lua_pushcfunction(L, event_removeTimer);
-			// 	lua_pushinteger(L, callback->id);
-			// 	lua_call(L, 1, 0);
-			// }
-			// lua_pop(L, 1); // stack: {...}
 		}else if(e.type == SDL_KEYDOWN){
 			lua_pushcfunction(L, event_push);
 			const char *key = SDL_GetKeyName(e.key.keysym.sym);
@@ -355,14 +347,14 @@ int event_startTimer(lua_State *L){
 	Timer *timer = malloc(sizeof(Timer)); // free'd by event_stopTimer
 	timer->delay = luaL_checkinteger(L, 1);
 	timer->repeat = lua_toboolean(L, 2);
-	timer->id = SDL_AddTimer(timer->delay, timer_async_callback, timer);
+	timer->time = SDL_GetTicks();
 	
 	/* Add Timer struct to event_timers table */
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_timers"); // stack: {timers, (repeat?), delay}
 	lua_pushlightuserdata(L, timer); // stack: {timer, timers, (repeat?), delay}
-	lua_seti(L, -2, timer->id); // stack: {timers, (repeat?), delay}
+	int timer_id = insert_table(L); // stack: {timers, (repeat?), delay}
 	
-	lua_pushinteger(L, timer->id); // stack: {timer_id, timers, (repeat?), delay}
+	lua_pushinteger(L, timer_id); // stack: {timer_id, timers, (repeat?), delay}
 	return 1;
 }
 
@@ -375,21 +367,20 @@ int event_startTimer(lua_State *L){
 int event_stopTimer(lua_State *L){
 	int id = luaL_checkinteger(L, 1); // stack: {id}
 	
-	/* Remove SDL timer */
-	int success = SDL_RemoveTimer(id);
-	if(!success){
+	/* Get Timer struct from event_timers table */
+	lua_getfield(L, LUA_REGISTRYINDEX, "event_timers"); // stack: {timers, id}
+	if(lua_geti(L, -1, id) == LUA_TNIL){ // stack: {Timer, timers, id}
+		// No such timer found, return false
 		lua_pushboolean(L, 0);
 		return 1;
 	}
 	
-	/* Free Timer struct and remove it from event_timers table */
-	lua_getfield(L, LUA_REGISTRYINDEX, "event_timers"); // stack: {timers, id}
-	lua_geti(L, -1, id); // stack: {Timer, timers, id}
+	/* Free Timer struct */
 	Timer *timer = lua_touserdata(L, -1);
 	if(timer != NULL) free(timer); // malloc'd by event_startTimer
 	
-	lua_pushnil(L); // stack: {nil, Timer, timers, id}
-	lua_seti(L, -3, id); // stack: {Timer, timers, id}
+	lua_pushnil(L);
+	lua_seti(L, -3, id);
 	
 	lua_pushboolean(L, 1);
 	return 1;
@@ -498,6 +489,8 @@ LUAMOD_API int luaopen_event(lua_State *L){
 	
 	/* Register timer table */
 	lua_newtable(L);
+	lua_pushinteger(L, 0);
+	lua_setfield(L, -2, "n");
 	lua_setfield(L, LUA_REGISTRYINDEX, "event_timers");
 	
 	if(SDL_InitSubSystem(SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0){
