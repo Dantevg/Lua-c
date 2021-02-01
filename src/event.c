@@ -182,8 +182,6 @@ void event_poll(lua_State *L){
 	/* Poll for SDL events */
 	SDL_Event e;
 	while(SDL_PollEvent(&e)){
-		// printf("Event: %d\n", e.type);
-		// if(e.type == SDL_WINDOWEVENT) printf("window\n");
 		if(e.type == SDL_QUIT){
 			exit(0);
 		}else if(e.type == SDL_KEYDOWN){
@@ -241,7 +239,6 @@ void event_poll(lua_State *L){
 			lua_pushboolean(L, e.wheel.direction);
 			lua_pcall(L, 5, 0, 0);
 		}else if(e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED){
-			printf("[C] resize ");
 			lua_pushcfunction(L, event_push);
 			lua_pushstring(L, "screen"); lua_pushstring(L, "resize");
 			lua_pushinteger(L, e.window.data1);
