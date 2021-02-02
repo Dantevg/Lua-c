@@ -160,15 +160,17 @@ void event_poll(lua_State *L){
 			continue;
 		}
 		Timer *timer = lua_touserdata(L, -1);
-		if(timer != NULL && timer->time + timer->delay <= tick){
-			timer->time = tick;
+		if(timer != NULL && timer->time <= tick){
 			lua_pushcfunction(L, event_push);
 			lua_pushstring(L, "timer");
 			lua_pushinteger(L, i);
-			lua_pushinteger(L, timer->delay);
+			lua_pushinteger(L, tick - (timer->time - timer->delay));
 			lua_pcall(L, 3, 0, 0);
 			
-			if(!timer->repeat){
+			if(timer->repeat){
+				timer->time = timer->time + timer->delay;
+				if(timer->time < tick) timer->time = tick; // Don't set next time to past
+			}else{
 				// Stop non-repeating timer
 				lua_pushcfunction(L, event_stopTimer);
 				lua_pushinteger(L, i);
@@ -344,7 +346,7 @@ int event_startTimer(lua_State *L){
 	Timer *timer = malloc(sizeof(Timer)); // free'd by event_stopTimer
 	timer->delay = luaL_checkinteger(L, 1);
 	timer->repeat = lua_toboolean(L, 2);
-	timer->time = SDL_GetTicks();
+	timer->time = SDL_GetTicks() + timer->delay;
 	
 	/* Add Timer struct to event_timers table */
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_timers"); // stack: {timers, (repeat?), delay}
