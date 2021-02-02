@@ -138,12 +138,11 @@ int SDLWindow_loadFont(lua_State *L){
 }
 
 // Resizes the SDLWindow canvas
-// Intended to be used as callback (ignores first argument, event name)
 int SDLWindow_resize(lua_State *L){
 	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	
-	window->rect.w = luaL_checkinteger(L, 3);
-	window->rect.h = luaL_checkinteger(L, 4);
+	window->rect.w = luaL_checkinteger(L, 2);
+	window->rect.h = luaL_checkinteger(L, 3);
 	
 	/* Create a new texture */
 	SDL_Texture *newtexture = SDL_CreateTexture(window->renderer,
@@ -172,20 +171,18 @@ int SDLWindow_resize(lua_State *L){
 
 // Presents the buffer on SDLWindow
 // Can block if vsync enabled
-// FIXME: results in segfault / realloc invalid next size / malloc assertion failed
-// when this function doesn't get called often enough (less than 10 times per second)
-// and there is mouse movement (?)
 int SDLWindow_present(lua_State *L){
 	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
 	
 	/* Display */
 	SDL_SetRenderTarget(window->renderer, NULL);
 	SDL_RenderCopy(window->renderer, window->texture, &window->rect, &window->rect);
+	SDL_RenderSetScale(window->renderer, window->scale, window->scale);
 	SDL_RenderPresent(window->renderer);
 	
-	/* Reset render target and set scale */
+	/* Reset render target */
 	SDL_SetRenderTarget(window->renderer, window->texture);
-	SDL_RenderSetScale(window->renderer, window->scale, window->scale);
+	SDL_RenderSetScale(window->renderer, 1, 1);
 	
 	return 0;
 }

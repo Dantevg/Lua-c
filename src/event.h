@@ -31,7 +31,10 @@ Callback *event_add_callback(lua_State *L, int filter_id, int callback_id, void 
 // Match an event filter with an event
 int event_match(lua_State *L, Callback *callback);
 
-// Dispatches event to Lua callbacks
+// Dispatch single Lua callback
+void event_dispatch_callback(lua_State *L, Callback *callback, int i);
+
+// Dispatch event to Lua callbacks
 void event_dispatch_callbacks(lua_State *L);
 
 // Poll for events

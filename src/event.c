@@ -106,6 +106,31 @@ int event_match(lua_State *L, Callback *callback){
 	return 1;
 }
 
+// Dispatch single Lua callback
+void event_dispatch_callback(lua_State *L, Callback *callback, int i){
+	lua_rawgeti(L, LUA_REGISTRYINDEX, callback->filter_id); // stack: {filter, callbacks, event, ...}
+	int filter_n = luaL_len(L, -1);
+	lua_pop(L, 1); // stack: {callbacks, event, ...}
+	
+	lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn_id); // stack: {fn, callbacks, event, ...}
+	int event_n = luaL_len(L, -3);
+	int event_idx = lua_gettop(L) - 2;
+	for(int j = filter_n+1; j <= event_n; j++){
+		lua_geti(L, event_idx, j);
+	} // stack: {(eventdata...), fn, callbacks, event, ...}
+	
+	// TODO: maybe pass callback ID
+	if(lua_pcall(L, event_n - filter_n, 1, 0) != LUA_OK){ // stack: {error / continue, callbacks, event, ...}
+		fprintf(stderr, "Error calling callback: %s\n", lua_tostring(L, -1));
+	}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+		/* Callback function returned false, remove callback */
+		lua_pushcfunction(L, event_off);
+		lua_pushinteger(L, i);
+		lua_call(L, 1, 0);
+	}
+	lua_pop(L, 1); // stack: {callbacks, event, ...}
+}
+
 // Dispatches event to Lua callbacks
 void event_dispatch_callbacks(lua_State *L){
 	// stack: {event, ...}
@@ -124,26 +149,8 @@ void event_dispatch_callbacks(lua_State *L){
 		if(ptr == NULL) continue; // No callback at this position
 		Callback *callback = (Callback*)ptr;
 		
-		if(event_match(L, callback)){
-			/* Callback is for current event */
-			lua_rawgeti(L, LUA_REGISTRYINDEX, callback->fn_id); // stack: {fn, callbacks, event, ...}
-			int event_n = luaL_len(L, -3);
-			int event_idx = lua_gettop(L) - 2;
-			for(int j = 1; j <= event_n; j++){
-				lua_geti(L, event_idx, j);
-			} // stack: {(eventdata...), fn, callbacks, event, ...}
-			
-			// TODO: maybe pass callback ID
-			if(lua_pcall(L, event_n, 1, 0) != LUA_OK){ // stack: {error / continue, callbacks, event, ...}
-				fprintf(stderr, "%s\n", lua_tostring(L, -1));
-			}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
-				/* Callback function returned false, remove callback */
-				lua_pushcfunction(L, event_off);
-				lua_pushinteger(L, i);
-				lua_call(L, 1, 0);
-			}
-			lua_pop(L, 1); // stack: {callbacks, event, ...}
-		}
+		// Callback is for current event
+		if(event_match(L, callback)) event_dispatch_callback(L, callback, i);
 	}
 	lua_pop(L, 2); // stack: {...}
 }
