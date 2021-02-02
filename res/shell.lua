@@ -2,12 +2,12 @@ local window = require "SDLWindow"
 local event = require "event"
 
 local screen = window.new()
-screen:loadFont("poly4x3-r_meta.lua")
+screen:loadFont("res/poly4x3-r_meta.lua")
 
 local input = ""
 local x, y = 0, 0
 
-function onkeydown(_, key)
+function onkeydown(key)
 	if key == "backspace" and x > 0 then
 		input = input:sub(1, -2)
 		x = x-4
@@ -21,7 +21,7 @@ function onkeydown(_, key)
 	end
 end
 
-function oninput(_, text)
+function oninput(text)
 	input = input .. text
 	screen:write(text, x, y)
 	x = x+4
@@ -35,7 +35,7 @@ function draw()
 	screen:present()
 end
 
-event.on("kb.down", onkeydown)
-event.on("kb.input", oninput)
-event.on("screen.resize", function(...) return screen:resize(...) end)
+event.on("kb", "down", onkeydown)
+event.on("kb", "input", oninput)
+event.on("screen", "resize", function(...) return screen:resize(...) end)
 event.addTimer(20, draw, true)

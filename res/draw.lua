@@ -35,7 +35,7 @@ function spiral()
 	end
 end
 
-function draw(_, dt)
+function draw(dt)
 	screen:colour(0)
 	screen:clear()
 	t = t+dt
@@ -58,6 +58,6 @@ event.addTimer(20, draw, true)
 -- event.on("mouse.move", print)
 -- event.on("mouse.down", print)
 -- event.on("mouse.scroll", print)
-event.on("screen.resize", function(...) return screen:resize(...) end)
+event.on("screen", "resize", function(...) return screen:resize(...) end)
 
 screen:loadFont("res/poly4x3-r_meta.lua")
