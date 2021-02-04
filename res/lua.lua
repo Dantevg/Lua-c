@@ -1,5 +1,10 @@
 local console = require "console"
 
+local trace = {}
+local dotrace = false
+
+
+
 local prettyprint = {}
 
 local resultstyle = console.reset..console.bright
@@ -30,16 +35,21 @@ prettyprint["number"] = function(x) return console.reset..console.fg.cyan..tostr
 prettyprint["string"] = function(x) return console.reset..console.fg.green..'"'..x..'"' end
 prettyprint["boolean"] = function(x) return console.reset..console.fg.yellow..tostring(x) end
 prettyprint["table"] = function(x, long)
+	if type(x) ~= "table" and not (getmetatable(x) or {}).__pairs then
+		return prettyprint.error("not a table")
+	end
 	if not long then return special(x) end
 	
 	local contents = {}
 	
-	for i, v in ipairs(x) do
-		table.insert(contents, pretty(v))
+	if type(x) == "table" then
+		for _, v in ipairs(x) do
+			table.insert(contents, pretty(v))
+		end
 	end
 	
 	for k, v in pairs(x) do
-		if type(k) ~= "number" then
+		if not contents[k] then
 			table.insert(contents, prettykey(k).." = "..pretty(v))
 		end
 	end
@@ -48,6 +58,7 @@ prettyprint["table"] = function(x, long)
 		..(getmetatable(x) and console.fg.grey.." + mt" or "")
 end
 prettyprint["function"] = function(x, long)
+	if type(x) ~= "function" then return prettyprint.error("not a function") end
 	local d = debug.getinfo(x, "S")
 	local filename = d.short_src:match("([^/]+)$")
 	local str = string.format("%s[%s @ %s:%d]",
@@ -74,7 +85,13 @@ prettyprint["thread"] = special
 prettyprint["userdata"] = special
 
 prettyprint["error"] = function(x)
-	return console.bright..console.fg.red..tostring(x)..resultstyle
+	return console.bright..console.fg.red..tostring(x)
+end
+
+prettyprint["trace"] = function(x)
+	return string.format("%s (%s%s%s) %s",
+		x.name or x.source, console.fg.cyan, x.namewhat, resultstyle,
+		prettyprint["function"](x.func))
 end
 
 
@@ -110,6 +127,25 @@ function commands.require(arg)
 	end
 end
 
+function commands.trace(arg)
+	if arg == "start" or arg == "on" then
+		dotrace = true
+	elseif arg == "stop"  or arg == "off" then
+		dotrace = false
+	end
+end
+
+function commands.help(arg)
+	print("Available commands:")
+	print("  :table, :t <table>")
+	print("  :metatable, :mt <object>")
+	print("  :function, :fn, :f <function>")
+	print("  :require <modulename>")
+	print("  :trace <on|start|off|stop>")
+	print("  :help, :?")
+	print("  :exit, :quit, :q")
+end
+
 function commands.exit()
 	os.exit()
 end
@@ -119,6 +155,7 @@ commands.mt = commands.metatable
 commands.fn = commands["function"]
 commands.f = commands["function"]
 commands.m = commands.require
+commands["?"] = commands.help
 commands.quit = commands.exit
 commands.q = commands.exit
 
@@ -129,17 +166,34 @@ local function onerror(err)
 end
 
 local function result(success, ...)
+	debug.sethook() -- Reset debug hook
 	local t = {...}
-	if success then -- Error case has already been handled by onerror via xpcall
-		for i = 1, select("#", ...) do
-			print(pretty(t[i], true))
+	
+	-- Error case has already been handled by onerror via xpcall
+	if not success then return end
+	
+	-- Print results
+	for i = 1, select("#", ...) do
+		print(pretty(t[i], true))
+	end
+	
+	-- Print debug trace
+	local level = 0
+	for i = 4, #trace-3 do
+		if trace[i].type == "return" then
+			level = level-1
+		elseif trace[i].type == "call" then
+			print(resultstyle
+				..string.rep("\u{2502} ", level).."\u{251c}\u{2574}"
+				..prettyprint.trace(trace[i]))
+			level = level+1
 		end
 	end
 end
 
 local function multiline(input)
 	local fn, err = load(input, "=stdin", "t")
-	while not fn and string.match(err, "<end>$") do
+	while not fn and string.match(err, "<eof>$") do
 		io.write(console.reset, "... ")
 		local newinput = io.read()
 		if not newinput then print() os.exit() end
@@ -147,6 +201,12 @@ local function multiline(input)
 		fn, err = load(input, "=stdin", "t")
 	end
 	return fn, err
+end
+
+local function hook(type)
+	local d = debug.getinfo(2)
+	d.type = type
+	table.insert(trace, d)
 end
 
 while true do
@@ -162,6 +222,8 @@ while true do
 		if not fn then
 			print(prettyprint.error(err))
 		else
+			trace = {}
+			if dotrace then debug.sethook(hook, "cr") end
 			result(xpcall(fn, onerror))
 		end
 	end
