@@ -2,6 +2,8 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+#include "../event.h"
+
 #include "terminal.h"
 #include "tg.h"
 
@@ -146,8 +148,8 @@ int termWindow_loadFont(lua_State *L){
 // Intended to be used as callback (ignores first argument, event name)
 int termWindow_resize(lua_State *L){
 	TermWindow *window = luaL_checkudata(L, 1, "TermWindow");
-	int w = luaL_checkinteger(L, 3);
-	int h = luaL_checkinteger(L, 4);
+	int w = luaL_checkinteger(L, 2);
+	int h = luaL_checkinteger(L, 3);
 	
 	TGBufSize(&window->tg->drawBuffer, w, h);
 	
@@ -155,6 +157,35 @@ int termWindow_resize(lua_State *L){
 }
 
 int termWindow_present(lua_State *L){
+	TGInput event = TGGetInput();
+	while(!event.empty){
+		if(event.eventType == TG_EVENT_RESIZE){
+			TGHandleResizeEvent(event);
+		}else if(event.eventType == TG_EVENT_KEY){
+			lua_pushcfunction(L, event_push);
+			lua_pushstring(L, "kb");
+			lua_pushstring(L, "down");
+			lua_pushinteger(L, event.event.keyEvent.key);
+			lua_pcall(L, 3, 0, 0);
+		}else if(event.eventType == TG_EVENT_MOUSE && event.event.mouseEvent.action == TG_MOUSE_CLICK){
+			lua_pushcfunction(L, event_push);
+			lua_pushstring(L, "mouse");
+			lua_pushstring(L, "down");
+			lua_pushinteger(L, event.event.mouseEvent.button);
+			lua_pushinteger(L, event.event.mouseEvent.position.X);
+			lua_pushinteger(L, event.event.mouseEvent.position.Y);
+			lua_pcall(L, 5, 0, 0);
+		}else if(event.eventType == TG_EVENT_MOUSE && event.event.mouseEvent.action == TG_MOUSE_MOVE){
+			lua_pushcfunction(L, event_push);
+			lua_pushstring(L, "mouse");
+			lua_pushstring(L, "move");
+			lua_pushinteger(L, event.event.mouseEvent.position.X);
+			lua_pushinteger(L, event.event.mouseEvent.position.Y);
+			lua_pcall(L, 4, 0, 0);
+		}
+		event = TGGetInput();
+	}
+	
 	TGUpdate();
 	return 0;
 }
