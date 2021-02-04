@@ -7,6 +7,66 @@ local env = {}
 
 
 
+-- Autocompletion modified from https://github.com/Dantevg/MoonBox/blob/master/rom/lib/luasyntax.lua#L67
+local keywords = {
+	"and", "break", "do", "else", "elseif",
+	"end", "false", "for", "function", "if",
+	"in", "local", "nil", "not", "or",
+	"repeat", "return", "then", "true", "until", "while",
+}
+local function autocomplete(input)
+	local path = {}
+	
+	-- Get path
+	local str = input:match("%.$") or input:match("%.[%a_][%w_]*$")
+	while str do
+		table.insert( path, 1, str:sub(2) )
+		input = string.sub( input, 1, -#str-1 )
+		str = input:match("%.[%a_][%w_]*$") -- Match ".word"
+	end
+	str = input:match("[%a_][%w_]*$") -- Match "word"
+	if not str then return end
+	table.insert( path, 1, str )
+	
+	-- Get variable
+	local t = _G
+	for i = 1, #path-1 do
+		if type(t) == "table" and t[ path[i] ] then
+			t = t[ path[i] ]
+		else
+			return {}
+		end
+	end
+	
+	local name = path[#path]
+	local completions = {}
+	
+	-- Find autocompletion
+	while t do
+		for k, v in pairs(t) do
+			if type(k) == "string" and k:sub( 1, #name ) == name then
+				local after = (type(v) == "table" and "." or (type(v) == "function" and "(" or ""))
+				table.insert(completions, k:sub(#name + 1)..after)
+			end
+		end
+		t = getmetatable(t) and getmetatable(t).__index or nil
+		if type(t) ~= "table" then break end
+	end
+	
+	-- Find keyword
+	if #path == 1 then
+		for _, keyword in ipairs(keywords) do
+			if keyword:sub( 1, #name )  == name then
+				table.insert(completions, keyword:sub(#name + 1))
+			end
+		end
+	end
+	
+	return completions
+end
+
+
+
 local prettyprint = {}
 
 local resultstyle = console.reset..console.bright
@@ -146,6 +206,13 @@ function commands.use(arg)
 	end
 end
 
+function commands.complete(arg)
+	local completions = autocomplete(arg or "")
+	for _, completion in ipairs(completions) do
+		print(console.fg.grey..arg..resultstyle..completion)
+	end
+end
+
 function commands.help()
 	print("Available commands:")
 	print("  :table, :t <table>")
@@ -153,6 +220,8 @@ function commands.help()
 	print("  :function, :fn, :f <function>")
 	print("  :require <modulename>")
 	print("  :trace <on|start|off|stop>")
+	print("  :use [table]")
+	print("  :complete <part>")
 	print("  :help, :?")
 	print("  :exit, :quit, :q")
 end
@@ -208,7 +277,7 @@ local function multiline(input)
 	while not fn and string.match(err, "<eof>$") do
 		io.write(console.reset, "... ")
 		local newinput = io.read()
-		if not newinput then print() os.exit() end
+		if not newinput then break end
 		input = input.."\n"..newinput
 		fn, err = load(input, "=stdin", "t")
 	end
