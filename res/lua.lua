@@ -1,11 +1,12 @@
-local consolecolours = require "consolecolours"
+local console = require "console"
 
 local prettyprint = {}
 
-local nop = tostring
-local function pretty(x)
+local resultstyle = console.reset..console.bright
+local nop = function(x) return resultstyle..tostring(x) end
+local function pretty(x, ...)
 	local t = type(x)
-	return prettyprint[t] and prettyprint[t](x) or nop(x)
+	return prettyprint[t] and prettyprint[t](x, ...)..resultstyle or nop(x)..resultstyle
 end
 local function prettykey(x)
 	if type(x) == "string" and x:match("^[%a_][%w_]*$") then
@@ -15,10 +16,10 @@ local function prettykey(x)
 	end
 end
 
-prettyprint["nil"] = function(x) return consolecolours.fg.grey..nop(x)..consolecolours.reset end
-prettyprint["number"] = function(x) return consolecolours.fg.blue..nop(x)..consolecolours.reset end
-prettyprint["string"] = function(x) return consolecolours.fg.green..'"'..x..'"'..consolecolours.reset end
-prettyprint["boolean"] = function(x) return consolecolours.fg.yellow..nop(x)..consolecolours.reset end
+prettyprint["nil"] = function(x) return console.reset..console.fg.grey..tostring(x) end
+prettyprint["number"] = function(x) return console.reset..console.fg.cyan..tostring(x) end
+prettyprint["string"] = function(x) return console.reset..console.fg.green..'"'..x..'"' end
+prettyprint["boolean"] = function(x) return console.reset..console.fg.yellow..tostring(x) end
 prettyprint["table"] = function(x)
 	local contents = {}
 	
@@ -32,38 +33,67 @@ prettyprint["table"] = function(x)
 		end
 	end
 	
-	return "{ "..table.concat(contents, ", ").." }"
+	return resultstyle.."{ "..table.concat(contents, ", ").." }"
 end
-prettyprint["function"] = nop
+prettyprint["function"] = function(x, long)
+	local d = debug.getinfo(x, "S")
+	local filename = d.short_src:match("([^/]+)$")
+	local str = string.format("%s[%s @ %s:%d]",
+		console.bright..console.fg.magenta, tostring(x), filename,
+		d.linedefined)
+		
+	if not long or d.source:sub(1,1) ~= "@" or d.source == "@stdin" then
+		return str
+	end
+	
+	local file = io.open(d.short_src)
+	local contents = {}
+	local i = 1
+	for line in file:lines() do
+		if i >= d.linedefined then
+			if i > d.lastlinedefined then break end
+			table.insert(contents, line)
+		end
+		i = i+1
+	end
+	file:close()
+	return str..resultstyle.."\n"..table.concat(contents, "\n")
+end
 prettyprint["thread"] = nop
 prettyprint["userdata"] = nop
 
+prettyprint["error"] = function(x)
+	return console.bright..console.fg.red..tostring(x)..resultstyle
+end
+
+local function onerror(err)
+	print(debug.traceback(prettyprint.error(err), 2))
+end
+
 local function eval(input)
-	local fn1, err1 = load(input, "@stdin", "t")
-	local fn2, err2 = load("return "..input, "@stdin", "t")
+	local fn1, err1 = load(input, "=stdin", "t")
+	local fn2, err2 = load("return "..input, "=stdin", "t")
 	
 	return (fn2 or fn1), err1
 end
 
-local function result(success, ...)
+local function result(fn, success, ...)
 	local t = {...}
-	if not success then
-		print(t[1])
-	else
+	if success then -- Error case has already been handled by onerror via xpcall
 		for i = 1, select("#", ...) do
-			print(pretty(t[i]))
+			print(pretty(t[i], true))
 		end
 	end
 end
 
 while true do
-	io.write(consolecolours.reset, "> ")
+	io.write(console.reset, "> ")
 	local input = io.read()
 	if not input then print() break end
 	local fn, err = eval(input)
 	if not fn then
-		print(err)
+		print(prettyprint.error(err))
 	else
-		result(pcall(fn))
+		result(fn, xpcall(fn, onerror))
 	end
 end
