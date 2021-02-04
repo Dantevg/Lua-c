@@ -3,6 +3,8 @@ local console = require "console"
 local trace = {}
 local dotrace = false
 
+local env = {}
+
 
 
 local prettyprint = {}
@@ -135,7 +137,16 @@ function commands.trace(arg)
 	end
 end
 
-function commands.help(arg)
+function commands.use(arg)
+	local tbl = _G[arg]
+	if tbl then
+		setmetatable(env, {__index = tbl})
+	else
+		setmetatable(env, nil)
+	end
+end
+
+function commands.help()
 	print("Available commands:")
 	print("  :table, :t <table>")
 	print("  :metatable, :mt <object>")
@@ -173,6 +184,7 @@ local function result(success, ...)
 	if not success then return end
 	
 	-- Print results
+	env.it = t[1]
 	for i = 1, select("#", ...) do
 		print(pretty(t[i], true))
 	end
@@ -208,6 +220,8 @@ local function hook(type)
 	d.type = type
 	table.insert(trace, d)
 end
+
+setmetatable(_G, {__index = env})
 
 while true do
 	io.write(console.reset, "> ")
