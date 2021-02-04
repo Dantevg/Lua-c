@@ -3,10 +3,19 @@ local console = require "console"
 local prettyprint = {}
 
 local resultstyle = console.reset..console.bright
-local nop = function(x) return resultstyle..tostring(x) end
-local function pretty(x, ...)
+local function nop(x) return resultstyle..tostring(x) end
+local function special(x)
+	return string.format("%s[%s]",
+		console.bright..console.fg.magenta, tostring(x))
+end
+local function pretty(x, long)
 	local t = type(x)
-	return prettyprint[t] and prettyprint[t](x, ...)..resultstyle or nop(x)..resultstyle
+	
+	if prettyprint[t] and not (getmetatable(x) or {}).__tostring then
+		return prettyprint[t](x, long)..resultstyle
+	else
+		return nop(x)..resultstyle
+	end
 end
 local function prettykey(x)
 	if type(x) == "string" and x:match("^[%a_][%w_]*$") then
@@ -20,7 +29,9 @@ prettyprint["nil"] = function(x) return console.reset..console.fg.grey..tostring
 prettyprint["number"] = function(x) return console.reset..console.fg.cyan..tostring(x) end
 prettyprint["string"] = function(x) return console.reset..console.fg.green..'"'..x..'"' end
 prettyprint["boolean"] = function(x) return console.reset..console.fg.yellow..tostring(x) end
-prettyprint["table"] = function(x)
+prettyprint["table"] = function(x, long)
+	if not long then return special(x) end
+	
 	local contents = {}
 	
 	for i, v in ipairs(x) do
@@ -40,8 +51,7 @@ prettyprint["function"] = function(x, long)
 	local d = debug.getinfo(x, "S")
 	local filename = d.short_src:match("([^/]+)$")
 	local str = string.format("%s[%s @ %s:%d]",
-		console.bright..console.fg.magenta, tostring(x), filename,
-		d.linedefined)
+		console.bright..console.fg.magenta, tostring(x), filename, d.linedefined)
 		
 	if not long or d.source:sub(1,1) ~= "@" or d.source == "@stdin" then
 		return str
@@ -60,12 +70,59 @@ prettyprint["function"] = function(x, long)
 	file:close()
 	return str..resultstyle.."\n"..table.concat(contents, "\n")
 end
-prettyprint["thread"] = nop
-prettyprint["userdata"] = nop
+prettyprint["thread"] = special
+prettyprint["userdata"] = special
 
 prettyprint["error"] = function(x)
 	return console.bright..console.fg.red..tostring(x)..resultstyle
 end
+
+
+
+local commands = {}
+
+function commands.table(arg)
+	local tbl = _G[arg]
+	if not tbl then return end
+	print(prettyprint.table(tbl, true))
+end
+
+function commands.metatable(arg)
+	local mt = getmetatable(_G[arg])
+	if not mt then return end
+	print(prettyprint.table(mt, true))
+end
+
+commands["function"] = function(arg)
+	local fn = _G[arg]
+	if not fn then return end
+	print(prettyprint["function"](fn, true))
+end
+
+function commands.require(arg)
+	local has = package.loaded[arg]
+	if has then package.loaded[arg] = nil end
+	local success, result = pcall(require, arg)
+	if success then
+		_G[arg] = result
+	else
+		print(prettyprint.error(result))
+	end
+end
+
+function commands.exit()
+	os.exit()
+end
+
+commands.t = commands.table
+commands.mt = commands.metatable
+commands.fn = commands["function"]
+commands.f = commands["function"]
+commands.m = commands.require
+commands.quit = commands.exit
+commands.q = commands.exit
+
+
 
 local function onerror(err)
 	print(debug.traceback(prettyprint.error(err), 2))
@@ -82,7 +139,7 @@ end
 
 local function multiline(input)
 	local fn, err = load(input, "=stdin", "t")
-	while not fn do
+	while not fn and string.match(err, "<end>$") do
 		io.write(console.reset, "... ")
 		local newinput = io.read()
 		if not newinput then print() os.exit() end
@@ -92,23 +149,20 @@ local function multiline(input)
 	return fn, err
 end
 
-local function repl()
+while true do
 	io.write(console.reset, "> ")
 	local input = io.read()
 	if not input then print() os.exit() end
-	
-	local fn, err = load("return "..input, "=stdin", "t")
-	if not fn then
-		fn, err = multiline(input)
-	end
-	return fn, err
-end
-
-while true do
-	local fn, err = repl()
-	if not fn then
-		print(prettyprint.error(err))
+	local command, args = input:match("^:(%S+)%s*(.*)$")
+	if command and commands[command] then
+		commands[command](args)
 	else
-		result(xpcall(fn, onerror))
+		local fn, err = load("return "..input, "=stdin", "t")
+		if not fn then fn, err = multiline(input) end
+		if not fn then
+			print(prettyprint.error(err))
+		else
+			result(xpcall(fn, onerror))
+		end
 	end
 end
