@@ -34,6 +34,7 @@ prettyprint["table"] = function(x)
 	end
 	
 	return resultstyle.."{ "..table.concat(contents, ", ").." }"
+		..(getmetatable(x) and console.fg.grey.." + mt" or "")
 end
 prettyprint["function"] = function(x, long)
 	local d = debug.getinfo(x, "S")
@@ -70,14 +71,7 @@ local function onerror(err)
 	print(debug.traceback(prettyprint.error(err), 2))
 end
 
-local function eval(input)
-	local fn1, err1 = load(input, "=stdin", "t")
-	local fn2, err2 = load("return "..input, "=stdin", "t")
-	
-	return (fn2 or fn1), err1
-end
-
-local function result(fn, success, ...)
+local function result(success, ...)
 	local t = {...}
 	if success then -- Error case has already been handled by onerror via xpcall
 		for i = 1, select("#", ...) do
@@ -86,14 +80,35 @@ local function result(fn, success, ...)
 	end
 end
 
-while true do
+local function multiline(input)
+	local fn, err = load(input, "=stdin", "t")
+	while not fn do
+		io.write(console.reset, "... ")
+		local newinput = io.read()
+		if not newinput then print() os.exit() end
+		input = input.."\n"..newinput
+		fn, err = load(input, "=stdin", "t")
+	end
+	return fn, err
+end
+
+local function repl()
 	io.write(console.reset, "> ")
 	local input = io.read()
-	if not input then print() break end
-	local fn, err = eval(input)
+	if not input then print() os.exit() end
+	
+	local fn, err = load("return "..input, "=stdin", "t")
+	if not fn then
+		fn, err = multiline(input)
+	end
+	return fn, err
+end
+
+while true do
+	local fn, err = repl()
 	if not fn then
 		print(prettyprint.error(err))
 	else
-		result(fn, xpcall(fn, onerror))
+		result(xpcall(fn, onerror))
 	end
 end
