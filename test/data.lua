@@ -1,18 +1,19 @@
 local data = require "data"
+local value = require "value"
 
 function data:map(fn)
 	for i = 0, #self-1 do
-		self[i] = fn(self, self[i])
+		self[i] = fn(self, value.of(self[i])):get()
 	end
 	return self
 end
 
 function rot(n)
 	return function(self, c)
-		if c >= string.byte("A") and c <= string.byte("Z") then
-			return (c-string.byte("A")+n) % 26 + string.byte("A")
-		elseif c >= string.byte("a") and c <= string.byte("z") then
-			return (c-string.byte("a")+n) % 26 + string.byte("a")
+		if c >= "A" and c <= "Z" then
+			return (c-"A"+n) % 26 + "A"
+		elseif c >= "a" and c <= "z" then
+			return (c-"a"+n) % 26 + "a"
 		else
 			return c
 		end
@@ -20,6 +21,8 @@ function rot(n)
 end
 
 local d = data.of("Hello, World!")
-d:set(3, "abc")
+-- d:set(3, "abc")
 print(d, #d)
 print(d:map(rot(13)))
+
+print(value.of(0x42) + 1)
