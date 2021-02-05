@@ -60,6 +60,10 @@ void init_lua(lua_State *L){
 		fprintf(stderr, "[C] Could not set package.path:\n%s\n", lua_tostring(L, -1));
 	}
 	
+	/* Push MoonBox version */
+	lua_pushstring(L, "MoonBox " VERSION);
+	lua_setglobal(L, "_MB_VERSION");
+	
 	/* Push Lua error handler */
 	lua_pushcfunction(L, lua_error_handler);
 }
