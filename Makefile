@@ -82,9 +82,9 @@ build/kb.o: src/kb.c src/kb.h
 bin/data.$(SO): build/data.o
 build/data.o: src/data.c src/data.h
 
-bin/screen/terminal.$(SO): build/screen/terminal.o lib/libtg.a
+bin/screen/terminal.$(SO): build/screen/terminal.o lib/libtg.a build/event.o build/util.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO) -shared -lncursesw
-build/screen/terminal.o: src/screen/terminal.c src/screen/terminal.h
+build/screen/terminal.o: src/screen/terminal.c src/screen/terminal.h src/event.c src/event.h src/util.c src/util.h
 
 
 
