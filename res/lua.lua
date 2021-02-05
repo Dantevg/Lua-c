@@ -291,6 +291,7 @@ local function hook(type)
 end
 
 setmetatable(_G, {__index = env})
+print(_MB_VERSION.." for ".._VERSION)
 
 while true do
 	io.write(console.reset, "> ")

@@ -1,1 +1,1 @@
-print "Hello, World!"
+dofile "res/lua.lua"
