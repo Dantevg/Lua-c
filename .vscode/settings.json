@@ -5,6 +5,7 @@
 		"/usr/include/SDL2",
 		"/usr/local/include/lua",
 		"/usr/local/include/SDL2",
-		"./lib"
+		"./lib",
+		"C:/Program Files/Lua53/include",
 	]
 }
