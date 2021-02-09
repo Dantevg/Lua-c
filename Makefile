@@ -24,7 +24,7 @@ libs_win = bin/thread/win.$(SO)
 ifeq ($(OS),Windows_NT)
 	CFLAGS += -DLUA_LIB -DLUA_BUILD_AS_DLL
 	# TODO: use $HOME or other more generic env var?
-	INCLUDE = -I "C:\Users\dante\Documents\mingw\include\lua" -isystem lib
+	INCLUDE = -I "C:\Program Files\Lua53\include" -isystem lib
 	LIBS_MAIN = -llua
 	LIBS_SO = -lmingw32 -lSDL2main -lSDL2 -llua
 	SO = dll
