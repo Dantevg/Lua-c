@@ -14,21 +14,66 @@ local keywords = {
 	"in", "local", "nil", "not", "or",
 	"repeat", "return", "then", "true", "until", "while",
 }
+
+local function keywordcomplete(name, completions)
+	for _, keyword in ipairs(keywords) do
+		if keyword:sub( 1, #name )  == name then
+			table.insert(completions, keyword:sub(#name + 1))
+		end
+	end
+end
+
+local function containercomplete(t, name, before, after, completions)
+	while t do
+		for k, v in pairs(t) do
+			if type(k) == "string" and k:sub( 1, #name ) == name and (after ~= "" or k:match("[%a_][%w_]*")) then
+				local after = after..(type(v) == "table" and "." or (type(v) == "function" and "(" or ""))
+				table.insert(completions, before..k:sub(#name + 1)..after)
+			end
+		end
+		t = getmetatable(t) and getmetatable(t).__index or nil
+		if type(t) ~= "table" then break end
+	end
+end
+
 local function autocomplete(input)
 	local path = {}
 	
-	-- Get path
-	local str = input:match("%.$") or input:match("%.[%a_][%w_]*$")
-	while str do
-		table.insert( path, 1, str:sub(2) )
-		input = string.sub( input, 1, -#str-1 )
-		str = input:match("%.[%a_][%w_]*$") -- Match ".word"
+	local from, to, match = input:find("^([%a_][%w_]*)")
+	while input and to do
+		table.insert(path, match)
+		input = input:sub(to+1)
+		from, to, match = input:find("^%.([%a_][%w_]*)")
+		if not from then
+			from, to, match = input:find("%['([^']*)'%]")
+		end
+		if not from then
+			from, to, match = input:find('%["([^"]*)"%]')
+		end
 	end
-	str = input:match("[%a_][%w_]*$") -- Match "word"
-	if not str then return end
-	table.insert( path, 1, str )
 	
-	-- Get variable
+	-- Last part
+	from, to, match = input:find("^%.")
+	local before, after = "", ""
+	if not from then
+		from, to, match = input:find("%['([^']*)$")
+		before, after = "", "']"
+	end
+	if not from then
+		from, to, match = input:find('%["([^"]*)$')
+		before, after = "", '"]'
+	end
+	if not from then
+		from, to, match = input:find('%[')
+		before, after = '"', '"]'
+	end
+	if from then
+		table.insert(path, match or "")
+	else
+		before, after = "", ""
+	end
+	
+	-- Get container
 	local t = _G
 	for i = 1, #path-1 do
 		if type(t) == "table" and t[ path[i] ] then
@@ -38,28 +83,12 @@ local function autocomplete(input)
 		end
 	end
 	
-	local name = path[#path]
+	-- Match
 	local completions = {}
+	containercomplete(t, path[#path], before, after, completions)
 	
-	-- Find autocompletion
-	while t do
-		for k, v in pairs(t) do
-			if type(k) == "string" and k:sub( 1, #name ) == name then
-				local after = (type(v) == "table" and "." or (type(v) == "function" and "(" or ""))
-				table.insert(completions, k:sub(#name + 1)..after)
-			end
-		end
-		t = getmetatable(t) and getmetatable(t).__index or nil
-		if type(t) ~= "table" then break end
-	end
-	
-	-- Find keyword
 	if #path == 1 then
-		for _, keyword in ipairs(keywords) do
-			if keyword:sub( 1, #name )  == name then
-				table.insert(completions, keyword:sub(#name + 1))
-			end
-		end
+		keywordcomplete(path[#path], completions)
 	end
 	
 	return completions
@@ -130,7 +159,7 @@ prettyprint["function"] = function(x, long)
 		return str
 	end
 	
-	local file = io.open(d.short_src)
+	local file = io.open(d.source:sub(2))
 	local contents = {}
 	local i = 1
 	for line in file:lines() do
