@@ -116,8 +116,12 @@ function stream.string.new(source)
 	self.i = 1
 	
 	self.get = coroutine.wrap(function()
-		for i = 1, #self.source do
-			coroutine.yield(self.source:sub(i,i))
+		local i = 1
+		local sub = self.source:sub(i,i)
+		while sub ~= "" do
+			coroutine.yield(sub)
+			i = i+1
+			sub = self.source:sub(i,i)
 		end
 	end)
 	
@@ -197,7 +201,7 @@ stream.table.__call = stream.get
 -- 
 -- When `source` is a @{Stream}, reduces the stream to a table.
 -- Alias for
--- 	source:reduce(function(a, x) table.insert(a, x) return a end, {})
+-- 	source:collect({}, table.insert)
 -- 
 -- When `source` is a table, creates a @{Stream} from this table (or an empty table)
 -- @function table
@@ -207,15 +211,17 @@ stream.table.__call = stream.get
 -- @usage stream.string("hello"):table() --> {'h','e','l','l','o'}
 function stream.table.new(source)
 	if stream.is(source) then
-		return source:reduce(function(a, x) table.insert(a, x) return a end, {})
+		return source:collect({}, table.insert)
 	end
 	
 	local self = {}
 	self.source = source or {}
 	
 	self.get = coroutine.wrap(function()
-		for i = 1, #self.source do
+		local i = 1
+		while self.source[i] do
 			coroutine.yield(self.source[i])
+			i = i+1
 		end
 	end)
 	
@@ -250,8 +256,8 @@ function stream.generate.new(fn)
 	if type(fn) == "function" then
 		self.get = function() return fn() end
 	else
-		self.value = fn
-		self.get = function() return fn end
+		self.source = fn
+		self.get = function() return self.source end
 	end
 	
 	return setmetatable(self, stream.generate)
@@ -692,6 +698,19 @@ function stream.reduce(source, fn, acc)
 		acc = fn(acc, x)
 	end
 	return acc
+end
+
+--- Collect the stream values into a container.
+-- @function collect
+-- @param container
+-- @tparam function accumulator
+-- @return container
+-- @usage stream.string("hey"):collect({}, table.insert) --> {'h','e','y'}
+function stream.collect(source, container, accumulator)
+	for x in source do
+		accumulator(container, x)
+	end
+	return container
 end
 
 --- Get the stream length.
