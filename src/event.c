@@ -314,7 +314,7 @@ int event_on(lua_State *L){
 /***
  * Deregister event callback.
  * @function off
- * @tparam number id the callback id, as returned by @{event.on}
+ * @tparam number id the callback id, as returned by @{on}
  * @treturn boolean whether the callback was successfully removed
  */
 int event_off(lua_State *L){
@@ -367,7 +367,7 @@ int event_startTimer(lua_State *L){
 /***
  * Stop a timer.
  * @function stopTimer
- * @tparam number id the timer id, as returned by @{event.startTimer}
+ * @tparam number id the timer id, as returned by @{startTimer}
  * @treturn boolean whether the timer was successfully stopped
  */
 int event_stopTimer(lua_State *L){
@@ -430,7 +430,7 @@ int event_addTimer(lua_State *L){
 /***
  * Deregister timer callback.
  * @function removeTimer
- * @tparam number id the callback id, as returned by @{event.addTimer}
+ * @tparam number id the callback id, as returned by @{addTimer}
  * @treturn boolean whether the timer was successfully removed
  */
 int event_removeTimer(lua_State *L){
