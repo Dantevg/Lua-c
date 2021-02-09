@@ -7,5 +7,6 @@
 		"/usr/local/include/SDL2",
 		"./lib",
 		"C:/Program Files/Lua53/include",
+		"C:/Users/dante/Documents/mingw/include",
 	]
 }
