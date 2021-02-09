@@ -482,17 +482,60 @@ setmetatable(stream.take, stream)
 -- @see take
 stream.head = stream.take
 
+--- Alias for @{take}.
+-- @function limit
+-- @see take
+stream.limit = stream.take
+
+
+
+stream.drop = {}
+
+stream.drop.__index = stream.drop
+stream.drop.__tostring = function(self)
+	return string.format("%s -> Drop %s", self.source, self.n)
+end
+stream.drop.__call = stream.get
+
+--- Drop the first `n` values.
+-- @function drop
+-- @tparam[opt=1] number n
+-- @treturn Stream
+function stream.drop.new(source, n)
+	local self = {}
+	self.source = source
+	self.n = n or 1
+	
+	self.get = coroutine.wrap(function()
+		for i = 1, self.n do
+			if not self.source:get() then return end
+		end
+		for x in self.source do
+			coroutine.yield(x)
+		end
+	end)
+	
+	return setmetatable(self, stream.drop)
+end
+
+setmetatable(stream.drop, stream)
+
+--- Alias for @{drop}.
+-- @function skip
+-- @see drop
+stream.skip = stream.drop
+
 
 
 --- Take the last `n` values.
--- This is an alias for `reverse():head(n):reverse()`,
+-- This is an alias for `reverse():take(n):reverse()`,
 -- and as such also doesn't work for infinite streams.
 -- @function tail
 -- @tparam[opt=1] number n
 -- @treturn Stream
--- @see reverse, head
+-- @see reverse, take
 function stream.tail(source, n)
-	return setmetatable(source:reverse():head(n):reverse(), {
+	return setmetatable(source:reverse():take(n):reverse(), {
 		__index = stream.reverse,
 		__tostring = function(self)
 			return string.format("%s -> Tail %d", source, n)
@@ -591,6 +634,40 @@ setmetatable(stream.group, stream)
 
 
 
+stream.concat = {}
+
+stream.concat.__index = stream.concat
+stream.concat.__tostring = function(self)
+	return string.format("%s -> Concat", self.source)
+end
+stream.concat.__call = stream.get
+
+--- Concatenate another stream to the end of the current one
+-- @function concat
+-- @tparam Stream stream
+-- @tparam[opt] Stream ...
+-- @treturn Stream
+function stream.concat.new(...)
+	local self = {}
+	self.sources = {...}
+	
+	self.get = coroutine.wrap(function()
+		local i = 1
+		while self.sources[i] do
+			for x in self.sources[i] do
+				coroutine.yield(x)
+			end
+			i = i+1
+		end
+	end)
+	
+	return setmetatable(self, stream.concat)
+end
+
+setmetatable(stream.concat, stream)
+
+
+
 --- Pass all values until the value `at` is reached.
 -- Alias for `takeWhile(function(x) return x ~= at end)`
 -- @function stopAt
@@ -658,6 +735,8 @@ function stream.mapRange(source, min1, max1, min2, max2)
 	})
 end
 
+
+
 --- Map table or string indices to values.
 -- @function mapIndex
 -- @tparam table|string t
@@ -677,6 +756,26 @@ function stream.mapIndex(source, t)
 		__index = stream.map,
 		__tostring = function()
 			return string.format("%s -> MapIndex", source)
+		end,
+		__call = stream.get,
+	})
+end
+
+
+--- Filter out repeated elements.
+-- @function distinct
+-- @treturn Stream
+-- @see filter
+function stream.distinct(source)
+	local t = {}
+	return setmetatable(source:filter(function(x)
+		local has = (t[x] == true)
+		t[x] = true
+		return not has
+	end), {
+		__index = stream.map,
+		__tostring = function()
+			return string.format("%s -> Distinct", source)
 		end,
 		__call = stream.get,
 	})
