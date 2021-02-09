@@ -164,7 +164,7 @@ prettyprint["function"] = function(x, long)
 	local i = 1
 	for line in file:lines() do
 		if i >= d.linedefined then
-			if i > d.lastlinedefined then break end
+			if i > d.linedefined then break end
 			table.insert(contents, line)
 		end
 		i = i+1
