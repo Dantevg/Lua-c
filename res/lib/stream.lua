@@ -69,11 +69,11 @@ stream.null.__call = stream.get
 -- @treturn nil|Stream
 function stream.null.new(source)
 	if stream.is(source) then
-		return source:forAll(function() end)
+		return source:forAll(stream.util.nop)
 	end
 	
 	local self = {}
-	self.get = function() end
+	self.get = stream.util.nop
 	
 	return setmetatable(self, stream.null)
 end
@@ -327,7 +327,7 @@ stream.map.__call = stream.get
 function stream.map.new(source, fn)
 	local self = {}
 	self.source = source
-	self.fn = fn or function(...) return ... end
+	self.fn = fn or stream.util.id
 	
 	self.get = coroutine.wrap(function()
 		for x in self.source do
@@ -339,6 +339,76 @@ function stream.map.new(source, fn)
 end
 
 setmetatable(stream.map, stream)
+
+
+
+stream.flatMap = {}
+
+stream.flatMap.__index = stream.flatMap
+stream.flatMap.__tostring = function(self)
+	return string.format("%s -> FlatMap", self.source)
+end
+stream.flatMap.__call = stream.get
+
+--- Perform a function on every value, and flatten the result.
+-- The function will be called with every value from the source,
+-- the results of the stream returned by this function will be passed on.
+-- @function flatMap
+-- @tparam function fn
+-- @treturn Stream
+-- @usage stream({{1,2},{},{3,4},{5}}):flatMap(stream.new):table() --> {1,2,3,4,5}
+function stream.flatMap.new(source, fn)
+	local self = {}
+	self.source = source
+	self.fn = fn or function(x) return stream.generate(x) end
+	
+	self.get = coroutine.wrap(function()
+		for x in self.source do
+			local s = self.fn(x)
+			if not stream.is(s) then error("Not a stream of streams") end
+			for y in s do
+				coroutine.yield(y)
+			end
+		end
+	end)
+	
+	return setmetatable(self, stream.flatMap)
+end
+
+setmetatable(stream.flatMap, stream)
+
+
+
+stream.flat = {}
+
+stream.flat.__index = stream.flat
+stream.flat.__tostring = function(self)
+	return string.format("%s -> Flat", self.source)
+end
+stream.flat.__call = stream.get
+
+--- Flatten the stream one level.
+-- Receives a stream of streams,
+-- returns a stream of the values in the inner streams
+-- @function flat
+-- @treturn Stream
+function stream.flat.new(source)
+	local self = {}
+	self.source = source
+	
+	self.get = coroutine.wrap(function()
+		for x in self.source do
+			if not stream.is(x) then error("Not a stream of streams") end
+			for y in x do
+				coroutine.yield(y)
+			end
+		end
+	end)
+	
+	return setmetatable(self, stream.flat)
+end
+
+setmetatable(stream.flat, stream)
 
 
 
@@ -361,7 +431,7 @@ stream.forEach.__call = stream.get
 function stream.forEach.new(source, fn)
 	local self = {}
 	self.source = source
-	self.fn = fn or function() end
+	self.fn = fn or stream.util.nop
 	
 	self.get = coroutine.wrap(function()
 		for x in self.source do
@@ -708,6 +778,11 @@ function stream.splitAt(source, at)
 	})
 end
 
+--- Alias for @{splitAt}.
+-- @function groupBy
+-- @see splitAt
+stream.groupBy = stream.splitAt
+
 
 
 --- Map numbers from (`min1`,`max1`) to (`min2`,`max2`).
@@ -766,6 +841,7 @@ end
 -- @function distinct
 -- @treturn Stream
 -- @see filter
+-- @usage stream("hello world"):distinct():string() --> "helo wrd"
 function stream.distinct(source)
 	local t = {}
 	return setmetatable(source:filter(function(x)
@@ -773,7 +849,7 @@ function stream.distinct(source)
 		t[x] = true
 		return not has
 	end), {
-		__index = stream.map,
+		__index = stream.filter,
 		__tostring = function()
 			return string.format("%s -> Distinct", source)
 		end,
@@ -875,6 +951,16 @@ end
 -- @section stream.util
 
 stream.util = {}
+
+--- Identity function.
+-- Returns input parameters
+-- @param[opt] ...
+-- @return ...
+function stream.util.id(...) return ... end
+
+--- Nop function.
+-- Returns nothing
+function stream.util.nop() end
 
 --- Wrapper for `string.match`.
 -- @usage
