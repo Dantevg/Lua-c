@@ -4,6 +4,7 @@
  */
 
 #include <string.h>
+#include <stdint.h> // For uint8_t
 
 #include <lua.h>
 #include <lualib.h>
