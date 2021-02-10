@@ -82,4 +82,17 @@ console.bg.gray = console.bg.grey
 console.fg.color = console.fg.colour
 console.bg.color = console.bg.colour
 
+-- Input keys
+console.keys = {}
+console.keys.up     = s.."A"
+console.keys.down   = s.."B"
+console.keys.right  = s.."C"
+console.keys.left   = s.."D"
+console.keys["end"] = s.."F"
+console.keys.home   = s.."H"
+
+for k, v in pairs(console.keys) do
+	console.keys[v] = k
+end
+
 return console
