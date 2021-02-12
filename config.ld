@@ -1,5 +1,5 @@
 -- LDoc configuration file
-file = {"src/", "res/lib/image.lua", "res/lib/thread.lua", "res/lib/stream.lua", "res/lib/base64.lua"}
+file = {"src/", "res/lib/image.lua", "res/lib/thread.lua", "res/lib/stream.lua", "res/lib/base64.lua", "res/lib/luacomplete.lua"}
 dir = "/mnt/c/Users/dante/Documents/ldoc/"
 project = "MoonBox"
 title = "MoonBox reference"
