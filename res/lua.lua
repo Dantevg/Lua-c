@@ -1,6 +1,8 @@
 local terminal = require "terminal"
 local tc = require "terminalcolours"
 
+local historyPath = "res/.luahistory.txt"
+
 local trace = {}
 local dotrace = false
 
@@ -322,12 +324,17 @@ end
 
 terminal.autocomplete = autocomplete
 terminal.history.setSize(100)
+terminal.history.load(historyPath)
 setmetatable(_G, {__index = env})
 print(tc(tc.fg.yellow).._MB_VERSION..tc(tc.reset).." for "..tc(tc.fg.yellow).._VERSION..tc(tc.reset))
 
 while true do
-	local input = terminal.read("> ")
-	if not input then io.write(tc(tc.reset)) os.exit() end
+	local input = terminal.read(tc(tc.reset).."> ")
+	if not input then
+		terminal.history.save(historyPath)
+		io.write(tc(tc.reset))
+		os.exit()
+	end
 	local command, args = input:match("^:(%S+)%s*(.*)$")
 	if command and commands[command] then
 		commands[command](args)
