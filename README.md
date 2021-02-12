@@ -20,8 +20,12 @@ though - I especially like my interactive Lua command-line interface.
 
 ### Ideas
 These are (in no particular order) some big ideas I have planned for this
-project.
+project. (Also includes some notes)
 - Packages (zip format for easy downloading/sharing)
+	- [libarchive](https://github.com/libarchive/libarchive) /
+		[lua-archive](https://github.com/brimworks/lua-archive),
+		[zziplib](https://github.com/gdraheim/zziplib) /
+		[luazip](https://github.com/mpeterv/luazip)
 	- Sandboxing (just like my other
 		[quite similarly named project](https://github.com/Dantevg/MoonBox))
 	- Permissions (writing to file system, loading other modules, etc.)
