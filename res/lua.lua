@@ -1,4 +1,5 @@
-local console = require "console"
+local terminal = require "terminal"
+local tc = require "terminalcolours"
 
 local trace = {}
 local dotrace = false
@@ -27,7 +28,7 @@ local function containercomplete(t, name, before, after, completions)
 	while t do
 		for k, v in pairs(t) do
 			if type(k) == "string" and k:sub( 1, #name ) == name and (after ~= "" or k:match("[%a_][%w_]*")) then
-				local after = after..(type(v) == "table" and "." or (type(v) == "function" and "(" or ""))
+				-- after = after..(type(v) == "table" and "." or (type(v) == "function" and "(" or ""))
 				table.insert(completions, before..k:sub(#name + 1)..after)
 			end
 		end
@@ -36,7 +37,7 @@ local function containercomplete(t, name, before, after, completions)
 	end
 end
 
-local function autocomplete(input)
+function autocomplete(input)
 	local path = {}
 	
 	local from, to, match = input:find("^([%a_][%w_]*)")
@@ -98,19 +99,19 @@ end
 
 local prettyprint = {}
 
-local resultstyle = console.reset..console.bright
-local function nop(x) return resultstyle..tostring(x) end
+local resultstyle = {tc.reset, tc.bright}
+local function nop(x) return tc(resultstyle)..tostring(x) end
 local function special(x)
 	return string.format("%s[%s]",
-		console.bright..console.fg.magenta, tostring(x))
+		tc(tc.bright, tc.fg.magenta), tostring(x))
 end
 local function pretty(x, long)
 	local t = type(x)
 	
 	if prettyprint[t] and not (getmetatable(x) or {}).__tostring then
-		return prettyprint[t](x, long)..resultstyle
+		return prettyprint[t](x, long)..tc(resultstyle)
 	else
-		return nop(x)..resultstyle
+		return nop(x)..tc(resultstyle)
 	end
 end
 local function prettykey(x)
@@ -121,10 +122,10 @@ local function prettykey(x)
 	end
 end
 
-prettyprint["nil"] = function(x) return console.reset..console.fg.grey..tostring(x) end
-prettyprint["number"] = function(x) return console.reset..console.fg.cyan..tostring(x) end
-prettyprint["string"] = function(x) return console.reset..console.fg.green..'"'..x..'"' end
-prettyprint["boolean"] = function(x) return console.reset..console.fg.yellow..tostring(x) end
+prettyprint["nil"] = function(x) return tc(tc.reset, tc.fg.grey)..tostring(x) end
+prettyprint["number"] = function(x) return tc(tc.reset, tc.fg.cyan)..tostring(x) end
+prettyprint["string"] = function(x) return tc(tc.reset, tc.fg.green)..'"'..x..'"' end
+prettyprint["boolean"] = function(x) return tc(tc.reset, tc.fg.yellow)..tostring(x) end
 prettyprint["table"] = function(x, long)
 	if type(x) ~= "table" and not (getmetatable(x) or {}).__pairs then
 		return prettyprint.error("not a table")
@@ -145,15 +146,15 @@ prettyprint["table"] = function(x, long)
 		end
 	end
 	
-	return resultstyle.."{ "..table.concat(contents, ", ").." }"
-		..(getmetatable(x) and console.fg.grey.." + mt" or "")
+	return tc(resultstyle).."{ "..table.concat(contents, ", ").." }"
+		..(getmetatable(x) and tc(tc.fg.grey).." + mt" or "")
 end
 prettyprint["function"] = function(x, long)
 	if type(x) ~= "function" then return prettyprint.error("not a function") end
 	local d = debug.getinfo(x, "S")
 	local filename = d.short_src:match("([^/]+)$")
 	local str = string.format("%s[%s @ %s:%d]",
-		console.bright..console.fg.magenta, tostring(x), filename, d.linedefined)
+		tc(tc.bright, tc.fg.magenta), tostring(x), filename, d.linedefined)
 		
 	if not long or d.source:sub(1,1) ~= "@" or d.source == "@stdin" then
 		return str
@@ -170,18 +171,18 @@ prettyprint["function"] = function(x, long)
 		i = i+1
 	end
 	file:close()
-	return str..resultstyle.."\n"..table.concat(contents, "\n")
+	return str..tc(resultstyle).."\n"..table.concat(contents, "\n")
 end
 prettyprint["thread"] = special
 prettyprint["userdata"] = special
 
 prettyprint["error"] = function(x)
-	return console.bright..console.fg.red..tostring(x)
+	return tc(tc.bright, tc.fg.red)..tostring(x)
 end
 
 prettyprint["trace"] = function(x)
 	return string.format("%s (%s%s%s) %s",
-		x.name or x.source, console.fg.cyan, x.namewhat, resultstyle,
+		x.name or x.source, tc(tc.fg.cyan), x.namewhat, tc(resultstyle),
 		prettyprint["function"](x.func))
 end
 
@@ -238,7 +239,7 @@ end
 function commands.complete(arg)
 	local completions = autocomplete(arg or "")
 	for _, completion in ipairs(completions) do
-		print(console.fg.grey..arg..resultstyle..completion)
+		print(tc(tc.fg.grey)..arg..tc(resultstyle)..completion)
 	end
 end
 
@@ -293,7 +294,7 @@ local function result(success, ...)
 		if trace[i].type == "return" then
 			level = level-1
 		elseif trace[i].type == "call" then
-			print(resultstyle
+			print(tc(resultstyle)
 				..string.rep("\u{2502} ", level).."\u{251c}\u{2574}"
 				..prettyprint.trace(trace[i]))
 			level = level+1
@@ -304,7 +305,7 @@ end
 local function multiline(input)
 	local fn, err = load(input, "=stdin", "t")
 	while not fn and string.match(err, "<eof>$") do
-		io.write(console.reset, "... ")
+		io.write(tc(tc.reset), "... ")
 		local newinput = io.read()
 		if not newinput then break end
 		input = input.."\n"..newinput
@@ -319,13 +320,14 @@ local function hook(type)
 	table.insert(trace, d)
 end
 
+terminal.autocomplete = autocomplete
+terminal.history.setSize(100)
 setmetatable(_G, {__index = env})
-print(console.fg.yellow.._MB_VERSION..console.reset.." for "..console.fg.yellow.._VERSION)
+print(tc(tc.fg.yellow).._MB_VERSION..tc(tc.reset).." for "..tc(tc.fg.yellow).._VERSION..tc(tc.reset))
 
 while true do
-	io.write(console.reset, "> ")
-	local input = io.read()
-	if not input then print() os.exit() end
+	local input = terminal.read("> ")
+	if not input then io.write(tc(tc.reset)) os.exit() end
 	local command, args = input:match("^:(%S+)%s*(.*)$")
 	if command and commands[command] then
 		commands[command](args)
