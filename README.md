@@ -25,7 +25,8 @@ project. (Also includes some notes)
 	- [libarchive](https://github.com/libarchive/libarchive) /
 		[lua-archive](https://github.com/brimworks/lua-archive),
 		[zziplib](https://github.com/gdraheim/zziplib) /
-		[luazip](https://github.com/mpeterv/luazip)
+		[luazip](https://github.com/mpeterv/luazip),
+		[libzip](https://github.com/nih-at/libzip)
 	- Sandboxing (just like my other
 		[quite similarly named project](https://github.com/Dantevg/MoonBox))
 	- Permissions (writing to file system, loading other modules, etc.)
@@ -37,6 +38,7 @@ project. (Also includes some notes)
 	- Processes / threads / multiple Lua states (threads are already
 		half-implemented)
 	- Custom file systems? Might be nice to play around with
+- Display: SDL2 (currently), OpenGL, Cairo with SDL2/OpenGL?
 
 ### Contributing
 I don't expect anybody to be interested, but if you want to contribute,
