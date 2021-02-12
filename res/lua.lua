@@ -323,7 +323,7 @@ local function hook(type)
 end
 
 terminal.autocomplete = autocomplete
-terminal.history.setSize(100)
+terminal.history.setLength(100)
 terminal.history.load(historyPath)
 setmetatable(_G, {__index = env})
 print(tc(tc.fg.yellow).._MB_VERSION..tc(tc.reset).." for "..tc(tc.fg.yellow).._VERSION..tc(tc.reset))

@@ -17,59 +17,70 @@
 
 static lua_State *terminal_L = NULL;
 
+// Autocomplete callback
 void terminal_completion(const char *input, linenoiseCompletions *lc){
 	if(terminal_L == NULL) return;
-	if(lua_getfield(terminal_L, lua_upvalueindex(1), "autocomplete") == LUA_TFUNCTION){
-		lua_pushstring(terminal_L, input);
-		if(lua_pcall(terminal_L, 1, 1, 0) == LUA_OK && lua_istable(terminal_L, -1)){
-			int n = luaL_len(terminal_L, -1);
-			for(int i = 1; i <= n; i++){
-				lua_pushstring(terminal_L, input);
-				if(lua_geti(terminal_L, -2, i) == LUA_TSTRING){
-					lua_concat(terminal_L, 2);
-					linenoiseAddCompletion(lc, lua_tostring(terminal_L, -1));
-				}else{
-					lua_pop(terminal_L, 1);
-				}
-				lua_pop(terminal_L, 1);
-			}
-		}
+	if(lua_getfield(terminal_L, lua_upvalueindex(1), "autocomplete") != LUA_TFUNCTION){
 		lua_pop(terminal_L, 1);
+		return;
+	} // stack: {autocomplete}
+	
+	lua_pushstring(terminal_L, input); // stack: {input, autocomplete}
+	if(lua_pcall(terminal_L, 1, 1, 0) != LUA_OK || !lua_istable(terminal_L, -1)){
+		lua_pop(terminal_L, 1);
+		return;
+	} // stack: {completions}
+	
+	int n = luaL_len(terminal_L, -1);
+	for(int i = 1; i <= n; i++){
+		lua_pushstring(terminal_L, input); // stack: {input, completions}
+		if(lua_geti(terminal_L, -2, i) == LUA_TSTRING){ // stack: {completion, input, completions}
+			lua_concat(terminal_L, 2); // stack: {output, completions}
+			linenoiseAddCompletion(lc, lua_tostring(terminal_L, -1));
+		}else{
+			lua_pop(terminal_L, 1); // stack: {input, completions}
+		}
+		lua_pop(terminal_L, 1); // stack: {completions}
 	}
+	
+	lua_pop(terminal_L, 1); // stack: {}
 }
 
+// Copy the string from lua to the heap
+char *copy_hint(lua_State *L, int hint_idx){
+	size_t hintlen;
+	const char *hint = lua_tolstring(L, hint_idx, &hintlen);
+	char *hint_ = (char*)malloc((hintlen+1) * sizeof(char));
+	return strncpy(hint_, hint, hintlen+1);
+}
+
+// Hints callback
 char *terminal_hints(const char *input, int *colour, int *bold){
 	if(terminal_L == NULL) return NULL;
 	if(lua_getfield(terminal_L, lua_upvalueindex(1), "hints") == LUA_TFUNCTION){
 		lua_pushstring(terminal_L, input);
+		char *hint = NULL;
 		if(lua_pcall(terminal_L, 1, 3, 0) == LUA_OK){
-			size_t hintlen;
-			const char *hint = lua_tolstring(terminal_L, -3, &hintlen);
+			hint = copy_hint(terminal_L, -3);
 			*colour = luaL_optinteger(terminal_L, -2, 90);
-			if(lua_isboolean(terminal_L, -1)) *bold = lua_toboolean(terminal_L, -1);
-			lua_pop(terminal_L, 3);
-			char *hint_ = (char*)malloc((hintlen+1) * sizeof(char));
-			return strncpy(hint_, hint, hintlen);
-		}else{
-			lua_pop(terminal_L, 3);
-			return NULL;
+			*bold = lua_toboolean(terminal_L, -1);
 		}
+		lua_pop(terminal_L, 3);
+		return hint;
 	}else if(lua_getfield(terminal_L, lua_upvalueindex(1), "autocomplete") == LUA_TFUNCTION){
 		lua_getfield(terminal_L, lua_upvalueindex(1), "autohints");
 		if(lua_toboolean(terminal_L, -1)){
 			lua_pop(terminal_L, 1);
 			lua_pushstring(terminal_L, input);
+			char *hint = NULL;
 			if(lua_pcall(terminal_L, 1, 1, 0) == LUA_OK && lua_istable(terminal_L, -1)
 					&& lua_geti(terminal_L, -1, 1) == LUA_TSTRING){
-				size_t hintlen;
-				const char *hint = lua_tolstring(terminal_L, -1, &hintlen);
+				hint = copy_hint(terminal_L, -1);
 				*colour = 90;
 				*bold = 0;
-				lua_pop(terminal_L, 1);
-				char *hint_ = (char*)malloc((hintlen+1) * sizeof(char));
-				return strncpy(hint_, hint, hintlen+1);
 			}
 			lua_pop(terminal_L, 1);
+			return hint;
 		}
 	}
 	
@@ -80,7 +91,7 @@ char *terminal_hints(const char *input, int *colour, int *bold){
 
 /***
  * Read input from the user, displaying `prompt` before it.
- * Just like `io.read`, returns nil when no input was given.
+ * Just like `io.read`, returns `nil` when no input was given.
  * @function read
  * @tparam[opt] string prompt
  * @treturn string|nil
@@ -91,8 +102,7 @@ int terminal_read(lua_State *L){
 	lua_pushstring(L, input);
 	
 	/* Auto add to history if wanted (and input was present) */
-	if(lua_getfield(L, lua_upvalueindex(1), "history") == LUA_TTABLE
-			&& input != NULL){
+	if(lua_getfield(L, lua_upvalueindex(1), "history") == LUA_TTABLE && input != NULL){
 		lua_getfield(L, -1, "auto");
 		if(lua_toboolean(L, -1)){
 			linenoiseHistoryAdd(input);
@@ -149,22 +159,22 @@ int terminal_history_load(lua_State *L){
 }
 
 /***
- * Set the history buffer size.
- * Pass 0 (or nil) to this function to disable the history buffer.
- * @function history.setSize
+ * Set the history buffer length.
+ * Pass 0 (or `nil`) to this function to disable the history buffer.
+ * @function history.setLength
  * @tparam[opt=0] int length
  */
-int terminal_history_setSize(lua_State *L){
+int terminal_history_setLength(lua_State *L){
 	linenoiseHistorySetMaxLen(luaL_optinteger(L, 1, 0));
 	return 0;
 }
 
 /***
- * Get the history buffer size.
- * @function history.getSize
+ * Get the history buffer length.
+ * @function history.getLength
  * @treturn int length
  */
-int terminal_history_getSize(lua_State *L){
+int terminal_history_getLength(lua_State *L){
 	lua_pushinteger(L, linenoiseHistoryGetMaxLen());
 	return 1;
 }
@@ -206,28 +216,29 @@ static const struct luaL_Reg terminal_history_f[] = {
 	{"add", terminal_history_add},
 	{"save", terminal_history_save},
 	{"load", terminal_history_load},
-	{"setSize", terminal_history_setSize},
-	{"getSize", terminal_history_getSize},
+	{"setLength", terminal_history_setLength},
+	{"getLength", terminal_history_getLength},
 	{NULL, NULL}
 };
 
 LUAMOD_API int luaopen_terminal(lua_State *L){
 	luaL_newlibtable(L, terminal_f); // stack: {terminal}
-	lua_pushvalue(L, -1); // stack: {terminal, terminal}
-	luaL_setfuncs(L, terminal_f, 1); // stack: {terminal}
+	lua_pushvalue(L, -1);
+	luaL_setfuncs(L, terminal_f, 1);
 	
 	lua_pushboolean(L, 1);
 	lua_setfield(L, -2, "autohints");
 	
 	luaL_newlibtable(L, terminal_history_f); // stack: {terminal.history, terminal}
-	lua_pushvalue(L, -1); // stack: {terminal.history, terminal.history, terminal}
-	luaL_setfuncs(L, terminal_history_f, 1); // stack: {terminal.history, terminal}
+	lua_pushvalue(L, -1);
+	luaL_setfuncs(L, terminal_history_f, 1);
 	
 	lua_pushboolean(L, 1);
 	lua_setfield(L, -2, "auto");
 	
 	lua_setfield(L, -2, "history"); // stack: {terminal}
 	
+	// Need to store this for linenoise callbacks to find the Lua state
 	terminal_L = L;
 	
 	linenoiseSetCompletionCallback(terminal_completion);
