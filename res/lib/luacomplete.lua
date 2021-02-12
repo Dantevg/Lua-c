@@ -5,10 +5,13 @@ local autocomplete = {}
 -- HELPER FUNCTIONS
 
 local function concat(a, ...)
+	if type(a) ~= "table" then a = {} end
 	local args = {...}
 	for _, t in ipairs(args) do
-		for _, v in ipairs(t) do
-			table.insert(a, v)
+		if type(t) == "table" then
+			for _, v in ipairs(t) do
+				table.insert(a, v)
+			end
 		end
 	end
 	return a
@@ -50,11 +53,20 @@ end
 
 function autocomplete.completeListK(input, list, after)
 	local completions = {}
-	for name, _ in pairs(list or {}) do
-		if name:sub(1, #input) == input then
-			table.insert(completions, name:sub(#input + 1)..(after or ""))
+	if type(list) == "table" then
+		for name, _ in pairs(list) do
+			if name:sub(1, #input) == input then
+				table.insert(completions, name:sub(#input + 1)..(after or ""))
+			end
 		end
 	end
+	
+	-- Traverse __index
+	local mt = getmetatable(list)
+	if type(mt) == "table" and type(mt.__index) == "table" and mt.__index ~= list then
+		concat(completions, autocomplete.completeListK(input, mt.__index, after))
+	end
+	
 	return completions
 end
 
@@ -110,13 +122,16 @@ end
 function autocomplete.completeKey(input)
 	return autocomplete.completeKeyBracket(input)
 		or autocomplete.completeKeyDot(input)
+		or {}
 end
 
 function autocomplete.complete(input)
-	local keyword = autocomplete.completeKeyword(input)
-	local global = autocomplete.completeGlobal(input)
 	local key = autocomplete.completeKey(input)
-	return concat(keyword, global, key)
+	local global = autocomplete.completeGlobal(input)
+	local keyword = autocomplete.completeKeyword(input)
+	local completions = concat(key, global, keyword)
+	table.sort(completions)
+	return completions
 end
 
 
