@@ -223,8 +223,7 @@ end
 local function multiline(input)
 	local fn, err = load(input, "=stdin", "t")
 	while not fn and string.match(err, "<eof>$") do
-		io.write(tc(tc.reset), "... ")
-		local newinput = io.read()
+		local newinput = terminal.read(tc(tc.reset).."... ")
 		if not newinput then break end
 		input = input.."\n"..newinput
 		fn, err = load(input, "=stdin", "t")
