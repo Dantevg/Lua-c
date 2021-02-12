@@ -1,5 +1,6 @@
 local terminal = require "terminal"
 local tc = require "terminalcolours"
+local autocomplete = require "luacomplete"
 
 local historyPath = "res/.luahistory.txt"
 
@@ -7,95 +8,6 @@ local trace = {}
 local dotrace = false
 
 local env = {}
-
-
-
--- Autocompletion modified from https://github.com/Dantevg/MoonBox/blob/master/rom/lib/luasyntax.lua#L67
-local keywords = {
-	"and", "break", "do", "else", "elseif",
-	"end", "false", "for", "function", "if",
-	"in", "local", "nil", "not", "or",
-	"repeat", "return", "then", "true", "until", "while",
-}
-
-local function keywordcomplete(name, completions)
-	for _, keyword in ipairs(keywords) do
-		if keyword:sub( 1, #name )  == name then
-			table.insert(completions, keyword:sub(#name + 1))
-		end
-	end
-end
-
-local function containercomplete(t, name, before, after, completions)
-	while t do
-		for k, v in pairs(t) do
-			if type(k) == "string" and k:sub( 1, #name ) == name and (after ~= "" or k:match("[%a_][%w_]*")) then
-				-- after = after..(type(v) == "table" and "." or (type(v) == "function" and "(" or ""))
-				table.insert(completions, before..k:sub(#name + 1)..after)
-			end
-		end
-		t = getmetatable(t) and getmetatable(t).__index or nil
-		if type(t) ~= "table" then break end
-	end
-end
-
-function autocomplete(input)
-	local path = {}
-	
-	local from, to, match = input:find("^([%a_][%w_]*)")
-	while input and to do
-		table.insert(path, match)
-		input = input:sub(to+1)
-		from, to, match = input:find("^%.([%a_][%w_]*)")
-		if not from then
-			from, to, match = input:find("%['([^']*)'%]")
-		end
-		if not from then
-			from, to, match = input:find('%["([^"]*)"%]')
-		end
-	end
-	
-	-- Last part
-	from, to, match = input:find("^%.")
-	local before, after = "", ""
-	if not from then
-		from, to, match = input:find("%['([^']*)$")
-		before, after = "", "']"
-	end
-	if not from then
-		from, to, match = input:find('%["([^"]*)$')
-		before, after = "", '"]'
-	end
-	if not from then
-		from, to, match = input:find('%[')
-		before, after = '"', '"]'
-	end
-	if from then
-		table.insert(path, match or "")
-	else
-		before, after = "", ""
-	end
-	
-	-- Get container
-	local t = _G
-	for i = 1, #path-1 do
-		if type(t) == "table" and t[ path[i] ] then
-			t = t[ path[i] ]
-		else
-			return {}
-		end
-	end
-	
-	-- Match
-	local completions = {}
-	containercomplete(t, path[#path], before, after, completions)
-	
-	if #path == 1 then
-		keywordcomplete(path[#path], completions)
-	end
-	
-	return completions
-end
 
 
 
@@ -183,8 +95,12 @@ prettyprint["error"] = function(x)
 end
 
 prettyprint["trace"] = function(x)
-	return string.format("%s (%s%s%s) %s",
-		x.name or x.source, tc(tc.fg.cyan), x.namewhat, tc(resultstyle),
+	local args = {}
+	for _, arg in ipairs(x.args) do
+		table.insert(args, tc(tc.reset)..tostring(arg[1])..": "..pretty(arg[2]))
+	end
+	return string.format("%s(%s%s) %s",
+		x.name or x.source, table.concat(args, ", "), tc(resultstyle),
 		prettyprint["function"](x.func))
 end
 
@@ -319,10 +235,15 @@ end
 local function hook(type)
 	local d = debug.getinfo(2)
 	d.type = type
+	d.args = {}
+	for i = 1, d.nparams do
+		table.insert(d.args, {debug.getlocal(2, i)})
+	end
 	table.insert(trace, d)
 end
 
-terminal.autocomplete = autocomplete
+terminal.autocomplete = autocomplete.complete
+terminal.hints = autocomplete.hint
 terminal.history.setLength(100)
 terminal.history.load(historyPath)
 setmetatable(_G, {__index = env})
