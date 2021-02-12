@@ -16,7 +16,6 @@
 /* C library definitions */
 
 static lua_State *terminal_L = NULL;
-static int terminal_history_max_length = 0;
 
 void terminal_completion(const char *input, linenoiseCompletions *lc){
 	if(terminal_L == NULL) return;
@@ -91,9 +90,9 @@ int terminal_read(lua_State *L){
 	char *input = linenoise(prompt);
 	lua_pushstring(L, input);
 	
-	/* Auto add to history if wanted (and history is not disabled, and input was present) */
+	/* Auto add to history if wanted (and input was present) */
 	if(lua_getfield(L, lua_upvalueindex(1), "history") == LUA_TTABLE
-			&& input != NULL && terminal_history_max_length > 0){
+			&& input != NULL){
 		lua_getfield(L, -1, "auto");
 		if(lua_toboolean(L, -1)){
 			linenoiseHistoryAdd(input);
@@ -156,8 +155,7 @@ int terminal_history_load(lua_State *L){
  * @tparam[opt=0] int length
  */
 int terminal_history_setSize(lua_State *L){
-	terminal_history_max_length = luaL_optinteger(L, 1, 0);
-	linenoiseHistorySetMaxLen(terminal_history_max_length);
+	linenoiseHistorySetMaxLen(luaL_optinteger(L, 1, 0));
 	return 0;
 }
 
@@ -167,7 +165,7 @@ int terminal_history_setSize(lua_State *L){
  * @treturn int length
  */
 int terminal_history_getSize(lua_State *L){
-	lua_pushinteger(L, terminal_history_max_length);
+	lua_pushinteger(L, linenoiseHistoryGetMaxLen());
 	return 1;
 }
 
