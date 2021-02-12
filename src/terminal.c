@@ -50,13 +50,14 @@ void terminal_completion(const char *input, linenoiseCompletions *lc){
 char *copy_hint(lua_State *L, int hint_idx){
 	size_t hintlen;
 	const char *hint = lua_tolstring(L, hint_idx, &hintlen);
+	if(hint == NULL) return NULL;
 	char *hint_ = (char*)malloc((hintlen+1) * sizeof(char));
 	return strncpy(hint_, hint, hintlen+1);
 }
 
 // Hints callback
 char *terminal_hints(const char *input, int *colour, int *bold){
-	if(terminal_L == NULL) return NULL;
+	if(terminal_L == NULL || input == NULL || input[0] == '\0') return NULL;
 	if(lua_getfield(terminal_L, lua_upvalueindex(1), "hints") == LUA_TFUNCTION){
 		lua_pushstring(terminal_L, input);
 		char *hint = NULL;
