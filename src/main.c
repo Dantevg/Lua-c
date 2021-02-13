@@ -5,9 +5,11 @@
  * Execute FILE, or the default boot file
  * 
  * Options:
- *   -v, --version  print version
- *   -h, --help     print this help message
- *   -              stop handling options and execute stdin
+ *   -v, --version      print version
+ *   -h, --help         print this help message
+ *   -m, --module name  require library 'name'. Pass '*' to load all available
+ *   -e chunk           execute 'chunk'
+ *   -                  stop handling options and execute stdin
  */
 
 #include <unistd.h> // For chdir
@@ -39,6 +41,7 @@ void print_usage(){
 	printf("  -v, --version\t\tprint version\n");
 	printf("  -h, --help\t\tprint this help message\n");
 	printf("  -m, --module name\trequire library 'name'. Pass '*' to load all available\n");
+	printf("  -e chunk\t\texecute 'chunk'\n");
 	printf("  -\t\t\tstop handling options and execute stdin\n");
 }
 
@@ -69,16 +72,18 @@ void init_lua(lua_State *L){
 }
 
 void parse_cmdline_args(int argc, char *argv[], char **file, int *lua_arg_start, lua_State *L){
+	int stop = 0;
 	for(int i = 1; i < argc; i++){
 		if(strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0){
 			/* Print version and return */
 			printf("MoonBox " VERSION "\n");
-			exit(EXIT_SUCCESS);
+			stop = 1;
 		}else if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0){
 			/* Print usage and return */
 			print_usage();
-			exit(EXIT_SUCCESS);
+			stop = 1;
 		}else if(strcmp(argv[i], "-m") == 0 || strcmp(argv[i], "--module") == 0){
+			/* Load module */
 			if(i >= argc){
 				fprintf(stderr, "Option --module expects an argument");
 				exit(EXIT_FAILURE);
@@ -91,6 +96,20 @@ void parse_cmdline_args(int argc, char *argv[], char **file, int *lua_arg_start,
 				exit(EXIT_FAILURE);
 			}
 			lua_setglobal(L, module); // TODO: Set better name for submodules
+		}else if(strcmp(argv[i], "-e") == 0){
+			/* Execute command-line argument */
+			if(i >= argc){
+				fprintf(stderr, "Option -e expects an argument");
+				exit(EXIT_FAILURE);
+			}
+			char *code = argv[++i];
+			if(luaL_loadstring(L, code) == LUA_OK){
+				lua_pcall(L, 0, 0, 1);
+				stop = 1;
+			}else{
+				fprintf(stderr, "[C] Could not load Lua code: %s\n", lua_tostring(L, -1));
+				exit(EXIT_FAILURE);
+			}
 		}else if(strcmp(argv[i], "-") == 0){
 			/* Execute stdin */
 			*file = NULL;
@@ -107,17 +126,17 @@ void parse_cmdline_args(int argc, char *argv[], char **file, int *lua_arg_start,
 			return;
 		}
 	}
+	
+	if(stop){
+		lua_close(L);
+		exit(EXIT_SUCCESS);
+	}
 }
 
 int main(int argc, char *argv[]){
 	/* Init Lua */
 	lua_State *L = luaL_newstate();
 	init_lua(L);
-	
-	/* Parse command-line arguments */
-	char *file = BASE_PATH "res/main.lua";
-	int lua_arg_start = argc;
-	parse_cmdline_args(argc, argv, &file, &lua_arg_start, L);
 	
 	/* Run init file */
 	if(luaL_loadfile(L, BASE_PATH "res/init.lua") == LUA_OK){
@@ -126,6 +145,11 @@ int main(int argc, char *argv[]){
 		fprintf(stderr, "%s\n", lua_tostring(L, -1));
 		return -1;
 	}
+	
+	/* Parse command-line arguments */
+	char *file = BASE_PATH "res/main.lua";
+	int lua_arg_start = argc;
+	parse_cmdline_args(argc, argv, &file, &lua_arg_start, L);
 	
 	/* Load main file */
 	if(luaL_loadfile(L, file) == LUA_OK){
