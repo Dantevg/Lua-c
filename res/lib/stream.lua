@@ -267,27 +267,33 @@ setmetatable(stream.generate, stream)
 
 
 
---- Stream number source.
--- Generates all integers counting up from `num`.
--- Alias for
--- 	generate(function()
--- 		num = num+1
--- 		return num-1
--- 	end)
--- @function from
--- @tparam number num
+--- Generate a range of numbers.
+-- @function range
+-- @tparam number from
+-- @tparam[opt] number to
 -- @treturn Stream
 -- @see generate
--- @usage stream.from(1):take(5):table() --> {1,2,3,4,5}
-function stream.from(v)
-	return setmetatable(stream.generate(function() v = v+1 return v-1 end), {
+function stream.range(from, to)
+	return setmetatable(stream.generate(function()
+			from = from+1
+			return (not to or from-1 <= to) and from-1 or nil
+		end), {
 		__index = stream.generate,
 		__tostring = function()
-			return string.format("%s From %q", stream, v)
+			if to then
+				return string.format("%s Range (%d,%d)", stream, from, to)
+			else
+				return string.format("%s From %d", stream, from)
+			end
 		end,
 		__call = stream.get,
 	})
 end
+
+--- Alias for @{range}.
+-- @function from
+-- @see range
+stream.from = stream.range
 
 
 
