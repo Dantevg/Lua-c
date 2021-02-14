@@ -1,6 +1,10 @@
 --[[--
 	
-	Arbitrary data streams.
+	Arbitrary data streams. Most of these functions are inspired by Java's
+[streams](https://docs.oracle.com/javase/8/docs/api/java/util/stream/Stream.html)
+and Javascript's stream-like
+[array functions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#instance_methods).
+Some functions might not do what you think they do based on other languages, though.
 	
 	@module stream
 	@author RedPolygon
@@ -264,6 +268,39 @@ function stream.generate.new(fn)
 end
 
 setmetatable(stream.generate, stream)
+
+
+
+stream.iterate = {}
+
+stream.iterate.__index = stream.iterate
+stream.iterate.__tostring = function(self)
+	return string.format("%s Iterate", stream)
+end
+stream.iterate.__call = stream.get
+
+--- Generate an iterative stream.
+-- The first result will be `seed`. Next, `fn` will be called with the seed,
+-- and the result will be stored as the seed.
+-- @function iterate
+-- @param seed
+-- @tparam function fn
+-- @treturn Stream
+function stream.iterate.new(seed, fn)
+	local self = {}
+	self.seed = seed
+	self.fn = fn or stream.util.id
+	
+	self.get = function()
+		local x = self.seed
+		self.seed = self.fn(self.seed)
+		return x
+	end
+	
+	return setmetatable(self, stream.iterate)
+end
+
+setmetatable(stream.iterate, stream)
 
 
 
