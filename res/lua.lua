@@ -1,6 +1,6 @@
-local terminal = require "terminal"
-local tc = require "terminalcolours"
-local autocomplete = require "luacomplete"
+local terminal = require "prequire" "terminal" -- Advanced terminal features may not be available
+local tc = require "prequire" "terminalcolours" -- Can do without colours
+local autocomplete = require "prequire" "luacomplete" -- Don't *need* autocompletion
 
 local historyPath = "res/.luahistory.txt"
 
@@ -8,6 +8,28 @@ local trace = {}
 local dotrace = false
 
 local env = {}
+
+
+
+-- Module replacements
+
+if not tc then
+	-- So that the program will still run without terminalcolours
+	tc = setmetatable(
+		{fg = {}, bg = {}, cursor = {}},
+		{__call = function() return "" end}
+	)
+end
+
+local read
+if terminal then
+	read = terminal.read
+else
+	read = function(prompt)
+		io.write(prompt)
+		return io.read()
+	end
+end
 
 
 
@@ -155,6 +177,8 @@ function commands.use(arg)
 end
 
 function commands.complete(arg)
+	-- Now we do really need luacomplete module
+	if not autocomplete then autocomplete = require "luacomplete" end
 	local completions = autocomplete(arg or "")
 	for _, completion in ipairs(completions) do
 		print(tc(tc.fg.grey)..arg..tc(resultstyle)..completion)
@@ -223,7 +247,7 @@ end
 local function multiline(input)
 	local fn, err = load(input, "=stdin", "t")
 	while not fn and string.match(err, "<eof>$") do
-		local newinput = terminal.read(tc(tc.reset).."... ")
+		local newinput = read(tc(tc.reset).."... ")
 		if not newinput then break end
 		input = input.."\n"..newinput
 		fn, err = load(input, "=stdin", "t")
@@ -241,17 +265,21 @@ local function hook(type)
 	table.insert(trace, d)
 end
 
-terminal.autocomplete = autocomplete.complete
-terminal.hints = autocomplete.hint
-terminal.history.setLength(100)
-terminal.history.load(historyPath)
+if terminal then
+	if autocomplete then
+		terminal.autocomplete = autocomplete.complete
+		terminal.hints = autocomplete.hint
+	end
+	terminal.history.setLength(100)
+	terminal.history.load(historyPath)
+end
 setmetatable(_G, {__index = env})
 print(tc(tc.fg.yellow).._MB_VERSION..tc(tc.reset).." for "..tc(tc.fg.yellow).._VERSION..tc(tc.reset))
 
 while true do
-	local input = terminal.read(tc(tc.reset).."> ")
+	local input = read(tc(tc.reset).."> ")
 	if not input then
-		terminal.history.save(historyPath)
+		if terminal then terminal.history.save(historyPath) end
 		io.write(tc(tc.reset))
 		os.exit()
 	end
