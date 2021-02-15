@@ -15,10 +15,10 @@ libs = bin/event.$(SO)\
 	bin/mouse.$(SO)\
 	bin/kb.$(SO)\
 	bin/data.$(SO)\
-	bin/terminal.$(SO)\
 	bin/screen/terminal.$(SO)
 
-libs_posix = bin/thread/posix.$(SO)
+libs_posix = bin/thread/posix.$(SO)\
+	bin/terminal.$(SO)
 
 libs_win = bin/thread/win.$(SO)
 
@@ -87,7 +87,7 @@ bin/value.$(SO): build/value.o
 build/value.o: src/value.c src/value.h
 
 bin/terminal.$(SO): src/terminal.c lib/linenoise.c lib/linenoise.h
-	$(CC) $(CFLAGS) -std=gnu99 $(INCLUDE) -llua5.3 -shared -fpic -o $@ lib/linenoise.c src/terminal.c
+	$(CC) $(CFLAGS) -std=gnu99 $(INCLUDE) -shared -fpic -o $@ lib/linenoise.c src/terminal.c
 
 bin/screen/terminal.$(SO): build/screen/terminal.o lib/libtg.a build/event.o build/util.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO) -shared -lncursesw
