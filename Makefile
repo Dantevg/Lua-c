@@ -14,10 +14,10 @@ libs = bin/event.$(SO)\
 	bin/sys.$(SO)\
 	bin/mouse.$(SO)\
 	bin/kb.$(SO)\
-	bin/data.$(SO)\
-	bin/screen/terminal.$(SO)
+	bin/data.$(SO)
 
 libs_posix = bin/thread/posix.$(SO)\
+	bin/screen/terminal.$(SO)\
 	bin/terminal.$(SO)
 
 libs_win = bin/thread/win.$(SO)
