@@ -14,7 +14,9 @@ libs = bin/event.$(SO)\
 	bin/sys.$(SO)\
 	bin/mouse.$(SO)\
 	bin/kb.$(SO)\
-	bin/data.$(SO)
+	bin/data.$(SO)\
+	bin/fs.$(SO)\
+	bin/fs/std.$(SO)
 
 libs_posix = bin/thread/posix.$(SO)\
 	bin/screen/terminal.$(SO)\
@@ -39,7 +41,7 @@ endif
 all: main libraries
 init:
 	mkdir -p build bin
-	mkdir -p build/image bin/image build/thread bin/thread build/screen bin/screen
+	mkdir -p build/image bin/image build/thread bin/thread build/screen bin/screen build/fs bin/fs
 main: bin/MoonBox
 libraries: $(libs)
 
@@ -88,6 +90,12 @@ build/value.o: src/value.c src/value.h
 
 bin/terminal.$(SO): src/terminal.c lib/linenoise.c lib/linenoise.h
 	$(CC) $(CFLAGS) -std=gnu99 $(INCLUDE) -shared -fpic -o $@ lib/linenoise.c src/terminal.c
+
+bin/fs.$(SO): build/fs.o
+build/fs.o: src/fs.c src/fs.h
+
+bin/fs/std.$(SO): build/fs/std.o build/fs.o
+build/fs/std.o: src/fs/std.c src/fs/std.h src/fs.c src/fs.h
 
 bin/screen/terminal.$(SO): build/screen/terminal.o lib/libtg.a build/event.o build/util.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO) -shared -lncursesw
