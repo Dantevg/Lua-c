@@ -23,15 +23,15 @@ static void *fs_std_open(const char *path, const char *mode){
 	return fopen(path, mode);
 }
 
-static void fs_std_close(void *file){
-	fclose(file);
+static int fs_std_close(void *file){
+	return fclose(file);
 }
 
-static void fs_std_flush(void *file){
-	fflush(file);
+static int fs_std_flush(void *file){
+	return fflush(file);
 }
 
-static int fs_std_read(void *file, char *buffer, int n){
+static size_t fs_std_read(void *file, char *buffer, int n){
 	return fread(buffer, sizeof(char), n, file);
 }
 
@@ -39,17 +39,20 @@ static char fs_std_getc(void *file){
 	return getc(file);
 }
 
-static int fs_std_seek(void *file, int base, int amount){
-	int status = fseek(file, amount, base);
-	return (status == 0) ? ftell(file) : -1;
+static int fs_std_seek(void *file, long offset, int whence){
+	return fseek(file, offset, whence);
 }
 
-static void fs_std_setvbuf(void *file, int mode, int size){
-	setvbuf(file, NULL, mode, size);
+static long fs_std_tell(void *file){
+	return ftell(file);
 }
 
-static void fs_std_write(void *file, const char *content){
-	fwrite(content, sizeof(char), strlen(content), file);
+static int fs_std_setvbuf(void *file, int mode, size_t size){
+	return setvbuf(file, NULL, mode, size);
+}
+
+static size_t fs_std_write(void *file, const char *content){
+	return fwrite(content, sizeof(char), strlen(content), file);
 }
 
 FS fs_std = {
@@ -59,6 +62,7 @@ FS fs_std = {
 	.read = fs_std_read,
 	.getc = fs_std_getc,
 	.seek = fs_std_seek,
+	.tell = fs_std_tell,
 	.setvbuf = fs_std_setvbuf,
 	.write = fs_std_write,
 };

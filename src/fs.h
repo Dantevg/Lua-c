@@ -8,20 +8,22 @@
 typedef struct FS FS;
 
 typedef struct FS_File {
+	int opened;
 	void *fd;
 	FS *fs;
 } FS_File;
 
 typedef struct FS {
-	void* (*open)(const char*, const char*);
+	void* (*open)(const char *path, const char *mode);
 	
-	void (*close)(void*);
-	void (*flush)(void*);
-	int (*read)(void*, char*, int);
-	char (*getc)(void*);
-	int (*seek)(void*, int, int);
-	void (*setvbuf)(void*, int, int);
-	void (*write)(void*, const char*);
+	int (*close)(void *file);
+	int (*flush)(void *file);
+	size_t (*read)(void *file, char *buffer, int n);
+	char (*getc)(void *file);
+	int (*seek)(void *file, long offset, int whence);
+	long (*tell)(void *file);
+	int (*setvbuf)(void *file, int mode, size_t size);
+	size_t (*write)(void *file, const char *content);
 } FS;
 
 /* Lua API definitions */
