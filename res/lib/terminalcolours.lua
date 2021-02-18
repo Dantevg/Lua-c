@@ -56,7 +56,7 @@ tc.fg.white   = 37
 tc.fg.grey    = 90
 
 tc.fg.rgb = function(r, g, b)
-	return s..string.format("38;2;%d;%d;%dm", r, g, b)
+	return 38, 2, r, g, b
 end
 
 -- Background colour
@@ -72,7 +72,7 @@ tc.bg.white   = 47
 tc.bg.grey    = 100
 
 tc.bg.rgb = function(r, g, b)
-	return s..string.format("48;2;%d;%d;%dm", r, g, b)
+	return 48, 2, r, g, b
 end
 
 -- Aliases
