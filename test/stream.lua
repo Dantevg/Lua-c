@@ -3,8 +3,6 @@ local value = require "value"
 local op = require "operator"
 local base64 = require "base64"
 
-math.randomseed(os.time())
-
 function rot(n)
 	return function(c)
 		local x = value.of(c)
@@ -37,15 +35,26 @@ local alpha = stream.from(32)
 	:table()
 print(table.concat(alpha))
 
+-- Fibonacci
+local fib = stream.iterate({1,1}, function(t) return {t[2], t[1] + t[2]} end)
+	:map(function(t) return t[1] end):take(10):table()
+print(table.concat(fib, ", "))
+
 -- Base64
 -- local enc = stream{250,251,252,253}:base64encode():string()
-local enc = stream("Lorem ipsum dolor sit amet, consectetur adipiscing elit"):base64encode(true):string()
+local enc = stream("Lorem ipsum dolor sit amet, consectetur adipiscing elit")
+	:base64encode(true):string()
 local dec = stream(enc):base64decode(true):string()
 print(enc)
 print(dec)
 
 -- Random hex
-print(stream(math.random):mapRange(0,1,1,16):mapIndex("0123456789abcdef"):take(5):string())
+local hex = stream(math.random)
+	:mapRange(0,1,1,16)
+	:mapIndex("0123456789abcdef")
+	:take(5)
+	:string()
+print(hex)
 
 -- String parsing (pretty long code in comparison to plain Lua)
 local t = stream("hello=world,foo=bar")
