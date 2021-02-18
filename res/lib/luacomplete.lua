@@ -93,7 +93,7 @@ function luacomplete.completeListK(input, list, after)
 	
 	-- Traverse __index
 	local mt = getmetatable(list)
-	if type(mt) == "table" and type(mt.__index) == "table" and mt.__index ~= list then
+	if type(mt) == "table" and type(rawget(mt, "__index")) == "table" and mt.__index ~= list then
 		concat(completions, luacomplete.completeListK(input, mt.__index, after))
 	end
 	

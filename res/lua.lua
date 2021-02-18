@@ -44,7 +44,7 @@ end
 local function pretty(x, long)
 	local t = type(x)
 	
-	if prettyprint[t] and not (getmetatable(x) or {}).__tostring then
+	if prettyprint[t] and not rawget(getmetatable(x) or {}, "__tostring") then
 		return prettyprint[t](x, long)..tc(resultstyle)
 	else
 		return nop(x)..tc(resultstyle)
@@ -63,7 +63,7 @@ prettyprint["number"] = function(x) return tc(tc.reset, tc.fg.cyan)..tostring(x)
 prettyprint["string"] = function(x) return tc(tc.reset, tc.fg.green)..'"'..x..'"' end
 prettyprint["boolean"] = function(x) return tc(tc.reset, tc.fg.yellow)..tostring(x) end
 prettyprint["table"] = function(x, long)
-	if type(x) ~= "table" and not (getmetatable(x) or {}).__pairs then
+	if type(x) ~= "table" and not rawget(getmetatable(x) or {}, "__pairs") then
 		return prettyprint.error("not a table")
 	end
 	if not long then return special(x) end
