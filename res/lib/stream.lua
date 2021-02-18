@@ -117,7 +117,6 @@ function stream.string.new(source)
 	
 	local self = {}
 	self.source = source or ""
-	self.i = 1
 	
 	self.get = coroutine.wrap(function()
 		local i = 1
@@ -139,7 +138,7 @@ setmetatable(stream.string, stream)
 stream.file = {}
 
 stream.file.__index = stream.file
-stream.file.__tostring = function(self) 
+stream.file.__tostring = function(self)
 	if self.file == io.stdin then
 		return string.format("%s File (stdin)", stream)
 	elseif self.path then
@@ -178,7 +177,6 @@ function stream.file.new(source, file, mode)
 	
 	local self = {}
 	if type(source) == "string" then
-		self.path = source
 		self.source = io.open(source, file or "rb")
 	else
 		self.source = source or io.stdin
@@ -510,8 +508,6 @@ function stream.filter.new(source, fn)
 	local self = {}
 	self.source = source
 	self.fn = fn or function() return true end
-	self.buffer = nil
-	self.started = false
 	
 	self.get = coroutine.wrap(function()
 		for x in self.source do
@@ -543,10 +539,9 @@ stream.reverse.__call = stream.get
 function stream.reverse.new(source)
 	local self = {}
 	self.source = source
-	self.data = nil
+	self.data = {}
 	
 	self.get = coroutine.wrap(function()
-		self.data = {}
 		for x in self.source do
 			table.insert(self.data, x)
 		end
