@@ -27,6 +27,15 @@ local function concat(a, ...)
 	return a
 end
 
+local function tryfind(str, ...)
+	local patterns = {...}
+	local from, to, match
+	while not from and #patterns >= 1 do
+		from, to, match = string.find(str, table.remove(patterns, 1))
+	end
+	return from, to, match
+end
+
 
 
 -- FINDING
@@ -44,10 +53,7 @@ end
 -- @tparam string input
 -- @return value
 function luacomplete.findKeyBracket(input)
-	local from, _, match = input:find("%['([^']*)'%]$")
-	if not from then
-		from, _, match = input:find('%["([^"]*)"%]$')
-	end
+	local from, _, match = tryfind(input, "%['([^']*)'%]$", '%["([^"]*)"%]$')
 	if not match then return end
 	return (luacomplete.find(input:sub(1, from-1)) or {})[match]
 end
@@ -56,7 +62,7 @@ end
 -- @tparam string input
 -- @return value
 function luacomplete.findKeyDot(input)
-	local from, _, match = input:find("%.([%a_][%w_]*)$")
+	local from, _, match = tryfind(input, "%.([%a_][%w_]*)$", "%:([%a_][%w_]*)$")
 	if not match then return end
 	return (luacomplete.find(input:sub(1, from-1)) or {})[match]
 end
@@ -159,12 +165,9 @@ end
 -- @tparam string input
 -- @treturn table completions
 function luacomplete.completeKeyDot(input)
-	local from, _, match = input:find("%.([%a_][%w_]*)$")
-	if not match then
-		from, _, match = input:find("%.$")
-		if from then match = "" end
-	end
-	if not match then return end
+	local from, _, match = tryfind(input, "%.([%a_][%w_]*)$", ":([%a_][%w_]*)$", "%.$", ":$")
+	if not from then return end
+	match = match or ""
 	return luacomplete.completeListK(match, luacomplete.find(input:sub(1, from-1)))
 end
 
