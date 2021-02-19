@@ -16,4 +16,4 @@ int thread_wait(lua_State *L);
 // Immediately stop a thread
 int thread_kill(lua_State *L);
 
-// No luaopen_thread function, this header is generic but the implementations aren't
+LUAMOD_API int luaopen_thread(lua_State *L);

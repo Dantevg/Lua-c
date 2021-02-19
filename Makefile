@@ -15,14 +15,14 @@ libs = bin/event.$(SO)\
 	bin/mouse.$(SO)\
 	bin/kb.$(SO)\
 	bin/data.$(SO)\
+	bin/thread.$(SO)\
 	bin/fs.$(SO)\
 	bin/fs/std.$(SO)
 
-libs_posix = bin/thread/posix.$(SO)\
-	bin/screen/terminal.$(SO)\
+libs_posix = bin/screen/terminal.$(SO)\
 	bin/terminal.$(SO)
 
-libs_win = bin/thread/win.$(SO)
+libs_win = 
 
 ifeq ($(OS),Windows_NT)
 	CFLAGS += -DLUA_LIB -DLUA_BUILD_AS_DLL
@@ -66,12 +66,8 @@ build/SDLWindow.o: src/SDLWindow.c src/SDLWindow.h
 bin/image/SDLImage.$(SO): build/image/SDLImage.o build/font.o build/util.o
 build/image/SDLImage.o: src/image/SDLImage.c src/image/SDLImage.h
 
-bin/thread/posix.$(SO): build/thread/posix.o
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO) -shared -pthread
-build/thread/posix.o: src/thread/posix.c src/thread/thread.h
-
-bin/thread/win.$(SO): build/thread/win.o
-build/thread/win.o: src/thread/win.c src/thread/thread.h
+bin/thread.$(SO): build/thread.o
+build/thread.o: src/thread.c src/thread.h
 
 bin/sys.$(SO): build/sys.o
 build/sys.o: src/sys.c
@@ -89,7 +85,7 @@ bin/value.$(SO): build/value.o
 build/value.o: src/value.c src/value.h
 
 bin/terminal.$(SO): src/terminal.c lib/linenoise.c lib/linenoise.h
-	$(CC) $(CFLAGS) -std=gnu99 $(INCLUDE) -shared -fpic -o $@ lib/linenoise.c src/terminal.c
+	$(CC) $(CFLAGS) -std=gnu99 $(INCLUDE) -shared -fpic -o $@ lib/linenoise.c src/terminal.c $(LIBS_MAIN)
 
 bin/fs.$(SO): build/fs.o
 build/fs.o: src/fs.c src/fs.h
