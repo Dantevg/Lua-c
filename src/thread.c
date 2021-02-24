@@ -6,10 +6,12 @@
 
 #if defined(_WIN32) || defined(__WIN32__)
 	#include <windows.h>
+	#define THREAD_T HANDLE
 #else
 	#define _REENTRANT // needed for pthread_kill
 	#include <pthread.h>
 	#include <signal.h> // for SIGINT
+	#define THREAD_T pthread_t
 #endif
 
 #include <lua.h>
@@ -23,14 +25,8 @@
 typedef struct Thread {
 	lua_State *Lthread;
 	int state;
-#if defined(_WIN32) || defined(__WIN32__)
-	DWORD tid;
-	HANDLE thandle;
-#else
-	pthread_t tid;
-#endif
+	THREAD_T thread;
 } Thread;
-
 
 // Gets called in the new thread
 #if defined(_WIN32) || defined(__WIN32__)
@@ -77,9 +73,9 @@ int thread_new(lua_State *L){
 	
 	/* Create hardware thread */
 #if defined(_WIN32) || defined(__WIN32__)
-	t->thandle = CreateThread(NULL, 0, thread_run, t->Lthread, 0, &t->tid);
+	t->thread = CreateThread(NULL, 0, thread_run, t->Lthread, 0, NULL);
 #else
-	pthread_create(&t->tid, NULL, thread_run, t->Lthread);
+	pthread_create(&t->thread, NULL, thread_run, t->Lthread);
 #endif
 	
 	luaL_setmetatable(L, "Thread");
@@ -100,10 +96,10 @@ int thread_wait(lua_State *L){
 	
 	/* Wait for thread and get its return values */
 #if defined(_WIN32) || defined(__WIN32__)
-	WaitForSingleObject(t->thandle, INFINITE);
-	CloseHandle(t->thandle);
+	WaitForSingleObject(t->thread, INFINITE);
+	CloseHandle(t->thread);
 #else
-	pthread_join(t->tid, NULL);
+	pthread_join(t->thread, NULL);
 #endif
 	int n_return_values = lua_gettop(t->Lthread);
 	lua_xmove(t->Lthread, L, n_return_values);
@@ -123,10 +119,10 @@ int thread_kill(lua_State *L){
 	
 	/* Send SIGINT to thread */
 #if defined(_WIN32) || defined(__WIN32__)
-	WaitForSingleObject(t->thandle, 0);
-	CloseHandle(t->thandle);
+	WaitForSingleObject(t->thread, 0);
+	CloseHandle(t->thread);
 #else
-	pthread_kill(t->tid, SIGINT);
+	pthread_kill(t->thread, SIGINT);
 #endif
 	t->state = 0; // Inactive
 	
