@@ -758,7 +758,7 @@ stream.concat.__tostring = function(self)
 end
 stream.concat.__call = stream.get
 
---- Concatenate another stream to the end of the current one
+--- Concatenate another stream to the end of the current one.
 -- @function concat
 -- @tparam Stream stream
 -- @tparam[opt] Stream ...
@@ -781,6 +781,55 @@ function stream.concat.new(...)
 end
 
 setmetatable(stream.concat, stream)
+
+
+
+stream.zip = {}
+
+stream.zip.__index = stream.zip
+stream.zip.__tostring = function(self)
+	local names = {}
+	for i = 1, #self.sources do names[i] = tostring(self.sources[i]) end
+	return string.format("%s (%s) -> Zip", stream, table.concat(names, ", "))
+end
+stream.zip.__call = stream.get
+
+--- Zip this stream with `n` other streams, creating a stream of n-length tables.
+-- @function zip
+-- @tparam Stream stream
+-- @tparam[opt] Stream ...
+-- @treturn Stream
+function stream.zip.new(...)
+	local self = {}
+	self.sources = {...}
+	self.nAlive = #self.sources
+	
+	self.get = coroutine.wrap(function()
+		while self.nAlive > 0 do
+			local buffer = {}
+			local empty = true
+			for i = 1, #self.sources do
+				if self.sources[i] then
+					local x = self.sources[i]()
+					if x == nil then
+						self.sources[i] = nil
+						self.nAlive = self.nAlive-1
+					else
+						buffer[i] = x
+						empty = false
+					end
+				end
+			end
+			if not empty then
+				coroutine.yield(buffer)
+			end
+		end
+	end)
+	
+	return setmetatable(self, stream.zip)
+end
+
+setmetatable(stream.zip, stream)
 
 
 
