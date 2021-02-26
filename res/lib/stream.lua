@@ -23,7 +23,11 @@ stream.__index = stream
 stream.__call = function(x, ...) return x.new(...) end
 
 function stream:get()
-	return self.get()
+	local x = self.get()
+	-- Replace dead coroutine with nop function,
+	-- to prevent "cannot resume dead coroutine" errors
+	if x == nil then self.get = stream.util.nop end
+	return x
 end
 
 
@@ -251,12 +255,14 @@ stream.generate.__call = stream.get
 -- Otherwise, yields `data` repeatedly.
 -- @function generate
 -- @tparam function|any data
+-- @tparam[opt] boolean coro when `fn` is a function, wrap it in a coroutine
 -- @treturn Stream
 -- @usage stream.generate(math.random):take(2):table() --> {0.84018771676347, 0.39438292663544}
-function stream.generate.new(fn)
+function stream.generate.new(fn, coro)
 	local self = {}
 	if type(fn) == "function" then
 		self.get = function() return fn() end
+		if coro then self.get = coroutine.wrap(self.get) end
 	else
 		self.source = fn
 		self.get = function() return self.source end
@@ -576,7 +582,7 @@ function stream.take.new(source, n)
 	
 	self.get = coroutine.wrap(function()
 		for i = 1, self.n do
-			coroutine.yield(self.source:get())
+			coroutine.yield(self.source())
 		end
 	end)
 	
@@ -616,7 +622,7 @@ function stream.drop.new(source, n)
 	
 	self.get = coroutine.wrap(function()
 		for i = 1, self.n do
-			if not self.source:get() then return end
+			if not self.source() then return end
 		end
 		for x in self.source do
 			coroutine.yield(x)
@@ -746,7 +752,9 @@ stream.concat = {}
 
 stream.concat.__index = stream.concat
 stream.concat.__tostring = function(self)
-	return string.format("%s -> Concat", self.source)
+	local names = {}
+	for i = 1, #self.sources do names[i] = tostring(self.sources[i]) end
+	return string.format("%s (%s) -> Concat", stream, table.concat(names, ", "))
 end
 stream.concat.__call = stream.get
 
