@@ -290,17 +290,18 @@ stream.iterate.__call = stream.get
 -- and the result will be stored as the seed.
 -- @function iterate
 -- @param seed
+-- @param[opt] ... the rest of the seed values
 -- @tparam function fn
 -- @treturn Stream
-function stream.iterate.new(seed, fn)
+function stream.iterate.new(...)
 	local self = {}
-	self.seed = seed
-	self.fn = fn or stream.util.id
+	self.seeds = {...}
+	self.fn = table.remove(self.seeds) or stream.util.id
 	
 	self.get = function()
-		local x = self.seed
+		local x = self.seeds[1]
 		if x == nil then return end
-		self.seed = self.fn(self.seed)
+		self.seeds = {self.fn(table.unpack(self.seeds))}
 		return x
 	end
 	

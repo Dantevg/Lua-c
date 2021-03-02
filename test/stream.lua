@@ -36,8 +36,8 @@ local alpha = stream.from(32)
 print(table.concat(alpha))
 
 -- Fibonacci
-local fib = stream.iterate({1,1}, function(t) return {t[2], t[1] + t[2]} end)
-	:map(function(t) return t[1] end):take(10):table()
+local fib = stream.iterate(1, 1, function(a, b) return b, a+b end)
+	:take(10):table()
 print(table.concat(fib, ", "))
 
 -- Base64
