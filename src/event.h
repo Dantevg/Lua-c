@@ -10,7 +10,7 @@
 typedef struct Timer {
 	int delay;     // The delay in ms
 	int repeat;    // 1 = repeat, 0 = don't repeat
-	uint32_t time; // The time at which the timer started (or restarted)
+	uint32_t time; // The time at which the timer started (so time+delay is next fire)
 } Timer;
 
 typedef struct Callback {
