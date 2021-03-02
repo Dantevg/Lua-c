@@ -186,6 +186,8 @@ function stream.file.new(source, file, mode)
 		self.source = source or io.stdin
 	end
 	
+	if not self.source then error "Could not open file" end
+	
 	self.get = function() return self.source:read(1) end
 	
 	return setmetatable(self, stream.file)
@@ -297,6 +299,7 @@ function stream.iterate.new(seed, fn)
 	
 	self.get = function()
 		local x = self.seed
+		if x == nil then return end
 		self.seed = self.fn(self.seed)
 		return x
 	end
