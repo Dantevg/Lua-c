@@ -6,6 +6,7 @@ local historyPath = "res/.luahistory.txt"
 
 local trace = {}
 local dotrace = false
+local unicode = (...) ~= "--no-unicode"
 
 local env = {}
 
@@ -237,7 +238,8 @@ local function result(success, ...)
 			level = level-1
 		elseif trace[i].type == "call" then
 			print(tc(resultstyle)
-				..string.rep("\u{2502} ", level).."\u{251c}\u{2574}"
+				..string.rep(unicode and "\u{2502} " or "| ", level)
+				..(unicode and "\u{251c}\u{2574}" or "|-")
 				..prettyprint.trace(trace[i]))
 			level = level+1
 		end
