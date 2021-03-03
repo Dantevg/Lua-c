@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Wextra -Wshadow -Wno-unused-parameter -std=c99 -DBASE_PATH=\"$(CURDIR)/\" -g
+CFLAGS = -Wall -Wextra -Wshadow -Wno-unused-parameter -std=gnu99 -DBASE_PATH=\"$(CURDIR)/\" -g
 LUA_VERSION = 5.3
 INCLUDE = -I/usr/include/lua$(LUA_VERSION) -I/usr/local/include/lua$(LUA_VERSION) -isystem lib
 LIBS_MAIN = -llua$(LUA_VERSION)

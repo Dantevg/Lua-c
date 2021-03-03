@@ -15,6 +15,7 @@
 #include <unistd.h> // For chdir
 #include <string.h> // for strcmp
 #include <stdlib.h> // for exit
+#include <time.h>   // for clock_gettime, compile with -std=gnu99
 
 #include <lua.h>
 #include <lualib.h>
@@ -34,6 +35,8 @@
 	#define SO_EXT "so"
 #endif
 
+static struct timespec lua_os_clock_base;
+
 void print_usage(){
 	printf("Usage: moonbox [options] [file [args]]\n");
 	printf("Execute 'file', or the default boot file\n\n");
@@ -52,6 +55,15 @@ int lua_error_handler(lua_State *L){
 	return 1;
 }
 
+int lua_os_clock(lua_State *L){
+	struct timespec t;
+	clock_gettime(CLOCK_MONOTONIC, &t);
+	time_t diff_sec = t.tv_sec - lua_os_clock_base.tv_sec;
+	time_t diff_nsec = (t.tv_nsec - lua_os_clock_base.tv_nsec);
+	lua_pushnumber(L, diff_sec + (double)diff_nsec*1e-9);
+	return 1;
+}
+
 void init_lua(lua_State *L){
 	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
 	
@@ -67,8 +79,17 @@ void init_lua(lua_State *L){
 	lua_pushstring(L, "MoonBox " VERSION);
 	lua_setglobal(L, "_MB_VERSION");
 	
+	/* Push new os.clock */
+	lua_getglobal(L, "os");
+	lua_pushcfunction(L, lua_os_clock);
+	lua_setfield(L, -2, "clock");
+	lua_pop(L, 1);
+	
 	/* Push Lua error handler */
 	lua_pushcfunction(L, lua_error_handler);
+	
+	/* Set clock start time */
+	clock_gettime(CLOCK_MONOTONIC, &lua_os_clock_base);
 }
 
 void parse_cmdline_args(int argc, char *argv[], char **file, int *lua_arg_start, lua_State *L){
