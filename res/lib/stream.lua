@@ -312,6 +312,41 @@ setmetatable(stream.iterate, stream)
 
 
 
+stream.loop = {}
+
+stream.loop.__index = stream.loop
+stream.loop.__tostring = function(self)
+	return string.format("%s Loop", stream)
+end
+stream.loop.__call = stream.get
+
+--- Generate stream as if it were a generic for-loop.
+-- The resulting stream will be of tables of the results of `fn`.
+-- @function loop
+-- @tparam function fn
+-- @tparam table t
+-- @param var
+-- @treturn Stream
+function stream.loop.new(fn, t, var)
+	local self = {}
+	self.fn = fn
+	self.t = t
+	self.var = var
+	
+	self.get = function()
+		local vars = {self.fn(self.t, self.var)}
+		if vars[1] == nil then return end
+		self.var = vars[1]
+		return vars
+	end
+	
+	return setmetatable(self, stream.loop)
+end
+
+setmetatable(stream.loop, stream)
+
+
+
 --- Generate a range of numbers.
 -- @function range
 -- @tparam number from
