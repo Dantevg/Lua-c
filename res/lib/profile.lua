@@ -49,12 +49,16 @@ setmetatable(Call, {
 local Fn = {}
 Fn.__index = Fn
 
-Fn.sortBy = "nCalls"
+Fn.sortBy = "selfTime"
 
 function Fn.new(d)
 	local self = {}
 	self.d = d
-	self.id = (d.name or "(no name)").." "..d.source..":"..d.linedefined
+	if d.what == "C" then
+		self.id = (d.name or "(no name)").." "..tostring(d.func)
+	else
+		self.id = (d.name or "(no name)").." "..d.source..":"..d.linedefined
+	end
 	self.calls = {}
 	
 	return setmetatable(self, Fn)
@@ -86,7 +90,7 @@ end
 
 function Fn.__lt(a, b)
 	if getmetatable(a) == Fn and getmetatable(b) == Fn then
-		if Fn.sortBy == "selfTime" then
+		if Fn.sortBy == "time" then
 			return a:getTime() < b:getTime()
 		elseif Fn.sortBy == "selfTime" then
 			return a:getSelfTime() < b:getSelfTime()
@@ -99,7 +103,11 @@ function Fn.__lt(a, b)
 end
 
 function Fn:__tostring()
-	return (self.d.name or "(no name)").."\t"..self.d.source..":"..self.d.linedefined
+	if self.d.what == "C" then
+		return (self.d.name or "(no name)").."\t"..tostring(self.d.func)
+	else
+		return (self.d.name or "(no name)").."\t"..self.d.source..":"..self.d.linedefined
+	end
 end
 
 setmetatable(Fn, {
@@ -125,18 +133,21 @@ function profile.hook(type)
 		end
 		
 		profile.current = Call(fn, profile.current)
-		profile.root = profile.root or profile.current
+		if not profile.current.parent then
+			table.insert(profile.root, profile.current)
+		end
 	elseif type == "return" and profile.current then
 		profile.current = profile.current:stop()
 	end
 end
 
 function profile.start()
-	profile.functions = {}
-	profile.root = nil
+	profile.root = {}
 	profile.current = nil
-	profile.sorted = {}
-	profile.table = {}
+	profile.functions = {}
+	profile.callstack = {}
+	profile.functionsSorted = {}
+	profile.functionsTable = {}
 	debug.sethook(profile.hook, "cr")
 end
 
@@ -147,25 +158,40 @@ function profile.stop()
 		profile.current = profile.current:stop()
 	end
 	
-	profile.sorted = {}
-	
+	profile.functionsSorted = {}
 	for _, f in pairs(profile.functions) do
-		table.insert(profile.sorted, f)
+		table.insert(profile.functionsSorted, f)
 	end
 	
 	-- Sort descending
-	table.sort(profile.sorted, function(a, b) return b < a end)
+	table.sort(profile.functionsSorted, function(a, b) return b < a end)
 	
-	-- Make display table
-	profile.table = {"Time\tSelf-time\t# Calls\tName\tSource"}
-	for i = 1, #profile.sorted do
-		local f = profile.sorted[i]
-		table.insert(profile.table, string.format("%f\t%f\t%d\t%s",
+	-- Make functions display table
+	profile.functionsTable = {"Time\tSelf-time\t# Calls\tName\tSource"}
+	for i = 1, #profile.functionsSorted do
+		local f = profile.functionsSorted[i]
+		table.insert(profile.functionsTable, string.format("%f\t%f\t%d\t%s",
 			f:getTime(), f:getSelfTime(), #f.calls, tostring(f)))
 	end
-	require("tabularise")(profile.table)
+	require("tabularise")(profile.functionsTable)
 	
-	return profile.functions, profile.sorted
+	-- Make call stack display table
+	profile.callstackTable = {"Time\tSelf-time\tName\tSource"}
+	local calls = profile.root
+	for level = 1, 500 do
+		if #calls == 0 then break end
+		local c = calls[1]
+		for i = 2, #calls do
+			c = math.max(c, calls[i])
+		end
+		table.insert(profile.callstackTable, string.format("%f\t%f\t%s",
+			c.time, c.selfTime, tostring(c.fn)))
+		calls = c.calls
+		if not calls then break end
+	end
+	require("tabularise")(profile.callstackTable)
+	
+	return profile.functions, profile.functionsSorted
 end
 
 function profile.profile(fn, ...)
@@ -174,12 +200,32 @@ function profile.profile(fn, ...)
 	profile.stop()
 end
 
-function profile.save(path)
+function profile.save(path, what)
 	local file = io.open(path, "w")
-	for _, line in ipairs(profile.table) do
+	for _, line in ipairs(what) do
 		file:write(line.."\n")
 	end
 	file:close()
+end
+
+function profile.saveAll(path)
+	local file = io.open(path, "w")
+	for _, line in ipairs(profile.functionsTable) do
+		file:write(line.."\n")
+	end
+	file:write("\n")
+	for _, line in ipairs(profile.callstackTable) do
+		file:write(line.."\n")
+	end
+	file:close()
+end
+
+function profile.saveFunctions(path)
+	profile.save(path, profile.functionsTable)
+end
+
+function profile.saveCallstack(path)
+	profile.save(path, profile.callstackTable)
 end
 
 return setmetatable(profile, {
