@@ -244,8 +244,8 @@ stream.generate = {}
 
 stream.generate.__index = stream.generate
 stream.generate.__tostring = function(self)
-	if self.value then
-		return string.format("%s Generate %q", stream, self.value)
+	if self.source then
+		return string.format("%s Generate %q", stream, self.source)
 	else
 		return string.format("%s Generate", stream)
 	end
@@ -337,13 +337,49 @@ function stream.loop.new(fn, t, var)
 		local vars = {self.fn(self.t, self.var)}
 		if vars[1] == nil then return end
 		self.var = vars[1]
-		return vars
+		return stream.table(vars)
 	end
 	
 	return setmetatable(self, stream.loop)
 end
 
 setmetatable(stream.loop, stream)
+
+
+
+--- Pairwise loop over the table.
+-- Alias for `loop(pairs(t))`
+-- @function pairs
+-- @tparam table t
+-- @treturn Stream
+-- @see loop
+function stream.pairs(t)
+	return setmetatable(stream.loop(pairs(t)), {
+		__index = stream.loop,
+		__tostring = function()
+			return string.format("%s Pairs", stream)
+		end,
+		__call = stream.get,
+	})
+end
+
+
+
+--- Pairwise loop over the numerical indices of the table.
+-- Alias for `loop(ipairs(t))`
+-- @function ipairs
+-- @tparam table t
+-- @treturn Stream
+-- @see loop
+function stream.ipairs(t)
+	return setmetatable(stream.loop(ipairs(t)), {
+		__index = stream.loop,
+		__tostring = function()
+			return string.format("%s Ipairs", stream)
+		end,
+		__call = stream.get,
+	})
+end
 
 
 
@@ -1031,6 +1067,36 @@ end
 -- @usage stream.string("hello world"):stopAt("r"):length() --> 8
 function stream.length(source)
 	return source:reduce(function(a) return a+1 end, 0)
+end
+
+--- Get the n-th item in the stream.
+-- Alias for `drop(n-1)()`
+-- @function idx
+-- @tparam number n
+-- @return x
+-- @see drop
+-- @usage stream.string("hello world"):idx(2) --> "e"
+function stream.idx(source, n)
+	return source:drop(n-1)()
+end
+
+--- Get the first item in the stream.
+-- Alias for just calling the stream
+-- @function fst
+-- @return x
+-- @usage stream.string("hello world"):groupBy(" "):map(stream.fst):string() --> "hw"
+function stream.fst(source)
+	return source()
+end
+
+--- Get the second item in the stream.
+-- Alias for `drop(1)()`
+-- @function snd
+-- @return x
+-- @see drop
+-- @usage stream.string("hello world"):snd() --> "e"
+function stream.snd(source)
+	return source:drop(1)()
 end
 
 --- Perform `fn` on all values, but ignore the stream result.
