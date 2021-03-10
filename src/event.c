@@ -16,6 +16,8 @@ The available events are:
 @see kb, mouse
 */
 
+#include <string.h>
+
 #include <SDL2/SDL.h>
 
 #include <lua.h>
@@ -24,24 +26,9 @@ The available events are:
 
 #include "util.h"
 #include "event.h"
+#include "table.h"
 
 /* C library definitions */
-
-static int get_table_n(lua_State *L, int idx){
-	lua_getfield(L, idx, "n"); // stack: {n, table, ...}
-	int n = lua_tointeger(L, -1);
-	lua_pop(L, 1); // stack: {table, ...}
-	return n;
-}
-
-static int insert_table(lua_State *L){
-	// stack: {element, table, ...}
-	int idx = get_table_n(L, -2) + 1;
-	lua_seti(L, -2, idx); // stack: {table, ...}
-	lua_pushinteger(L, idx);
-	lua_setfield(L, -2, "n"); // stack: {table, ...}
-	return idx;
-}
 
 // Get the callback struct from the registry
 Callback *event_get_callback(lua_State *L, int idx){
@@ -58,26 +45,18 @@ Callback *event_get_callback(lua_State *L, int idx){
 Callback *event_add_callback(lua_State *L, int filter_id, int callback_id, void *data){
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, ...}
 	
-	/* Increment n */
-	lua_getfield(L, -1, "n"); // stack: {n, callbacks, ...}
-	int n = lua_tointeger(L, -1);
-	lua_pushinteger(L, ++n); // stack: {n+1, n, callbacks, ...}
-	lua_replace(L, -2); // stack: {n+1, callbacks, ...}
-	lua_setfield(L, -2, "n"); // stack: {callbacks, ...}
-	
 	/* Create callback struct */
 	Callback *callback = lua_newuserdata(L, sizeof(Callback)); // stack: {callback userdata, callbacks, ...}
 	callback->filter_id = filter_id;
 	callback->fn_id = callback_id;
-	callback->n = n;
 	callback->data = data;
 	
 	/* Add callback userdata to callback table */
-	lua_rawseti(L, -2, n); // stack: {callbacks, ...}
+	callback->n = table_insert(L, -2);
 	
 	lua_pop(L, 1); // stack: {...}
-	lua_pushinteger(L, n); // stack: {n, ...}
-	fprintf(stderr, "[C] Registered callback %d, fn %d\n", n, callback->fn_id);
+	lua_pushinteger(L, callback->n); // stack: {n, ...}
+	fprintf(stderr, "[C] Registered callback %d, fn %d\n", callback->n, callback->fn_id);
 	return callback;
 }
 
@@ -136,9 +115,7 @@ void event_dispatch_callbacks(lua_State *L){
 	// stack: {event, ...}
 	/* Get callbacks table */
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, event, ...}
-	lua_getfield(L, -1, "n"); // stack: {n, callbacks, event, ...}
-	int n = lua_tointeger(L, -1);
-	lua_pop(L, 1); // stack: {callbacks, event, ...}
+	int n = table_getn(L, -1);
 	
 	/* Loop through all registered callbacks */
 	for(int i = 1; i <= n; i++){
@@ -160,7 +137,7 @@ void event_poll(lua_State *L){
 	/* Poll for timers */
 	uint32_t tick = SDL_GetTicks();
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_timers"); // stack: {timers, ...}
-	int n = get_table_n(L, -1);
+	int n = table_getn(L, -1);
 	for(int i = 1; i <= n; i++){
 		if(lua_geti(L, -1, i) == LUA_TNIL){ // stack: {Timer, timers, ...}
 			lua_pop(L, 1); // stack: {timers, ...}
@@ -272,8 +249,7 @@ int event_loop(lua_State *L){
 	for(int i = 1; i <= luaL_len(L, -1); i++){
 		lua_geti(L, -1, i); // stack: {event, queue}
 		event_dispatch_callbacks(L); // stack: {queue}
-		lua_pushnil(L);
-		lua_seti(L, -2, i);
+		table_remove(L, -2, i);
 	}
 	lua_pop(L, 1); // stack: {}
 	
@@ -360,7 +336,7 @@ int event_startTimer(lua_State *L){
 	/* Add Timer struct to event_timers table */
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_timers"); // stack: {timers, (repeat?), delay}
 	lua_pushlightuserdata(L, timer); // stack: {timer, timers, (repeat?), delay}
-	int timer_id = insert_table(L); // stack: {timers, (repeat?), delay}
+	int timer_id = table_insert(L, -2); // stack: {timers, (repeat?), delay}
 	
 	lua_pushinteger(L, timer_id); // stack: {timer_id, timers, (repeat?), delay}
 	return 1;
@@ -387,8 +363,7 @@ int event_stopTimer(lua_State *L){
 	Timer *timer = lua_touserdata(L, -1);
 	if(timer != NULL) free(timer); // malloc'd by event_startTimer
 	
-	lua_pushnil(L);
-	lua_seti(L, -3, id);
+	table_remove(L, -3, id);
 	
 	lua_pushboolean(L, 1);
 	return 1;
@@ -466,7 +441,40 @@ int event_push(lua_State *L){
 	for(int i = 1; i <= n_args; i++){
 		lua_seti(L, 2, n_args-i+1);
 	} // stack: {event, queue}
-	lua_seti(L, 1, luaL_len(L, 1)+1); // stack: {queue}
+	table_insert(L, 1); // stack: {queue}
+	return 0;
+}
+
+int event_print_queue(lua_State *L){
+	if(lua_getfield(L, LUA_REGISTRYINDEX, "event_queue") == LUA_TNIL) return 0; // stack: {queue}
+	int len = table_getn(L, -1);
+	printf("%d events:\t", len);
+	
+	for(int i = 1; i <= len; i++){
+		lua_geti(L, -1, i); // stack: {event, queue}
+		if(!lua_istable(L, -1)){
+			lua_pop(L, 1); // stack: {queue}
+			continue;
+		}
+		for(int j = 1; j < luaL_len(L, -1); j++){
+			lua_geti(L, -1, j); // stack: {event[j], event, queue}
+			if(lua_isinteger(L, -1)){
+				printf("%d, ", (int)lua_tointeger(L, -1));
+			}else if(lua_isnumber(L, -1)){
+				printf("%f, ", lua_tonumber(L, -1));
+			}else if(lua_isstring(L, -1)){
+				printf("%s, ", lua_tostring(L, -1));
+			}else{
+				printf("%p, ", lua_topointer(L, -1));
+			}
+			lua_pop(L, 1); // stack: {event, queue}
+		}
+		lua_pop(L, 1); // stack: {queue}
+		printf("\t");
+	}
+	lua_pop(L, 1); // stack: {}
+	printf("\n");
+	
 	return 0;
 }
 
@@ -478,6 +486,7 @@ static const struct luaL_Reg event_f[] = {
 	{"addTimer", event_addTimer},
 	{"removeTimer", event_removeTimer},
 	{"push", event_push},
+	{"printQueue", event_print_queue},
 	{NULL, NULL}
 };
 
@@ -486,19 +495,15 @@ LUAMOD_API int luaopen_event(lua_State *L){
 	luaL_setfuncs(L, event_f, 0);
 	
 	/* Register callbacks table */
-	lua_newtable(L); // stack: {tbl, ...}
-	lua_pushinteger(L, 0); // stack: {0, tbl, ...}
-	lua_setfield(L, -2, "n"); // stack: {tbl, ...}
-	lua_setfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {, ...}
+	table_create(L, 1);
+	lua_setfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {...}
 	
 	/* Register event queue */
-	lua_newtable(L);
-	lua_setfield(L, LUA_REGISTRYINDEX, "event_queue");
+	table_create(L, 1);
+	lua_setfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {...}
 	
 	/* Register timer table */
-	lua_newtable(L);
-	lua_pushinteger(L, 0);
-	lua_setfield(L, -2, "n");
+	table_create(L, 0);
 	lua_setfield(L, LUA_REGISTRYINDEX, "event_timers");
 	
 	if(SDL_InitSubSystem(SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0){
