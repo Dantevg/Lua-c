@@ -177,6 +177,7 @@ function stream.file.new(source, file, mode)
 		local f = (type(file) == "string") and io.open(file, mode or "ab") or file or io.stdout
 		for x in source do f:write(x) end
 		f:close()
+		return
 	end
 	
 	local self = {}
@@ -185,10 +186,13 @@ function stream.file.new(source, file, mode)
 	else
 		self.source = source or io.stdin
 	end
-	
 	if not self.source then error "Could not open file" end
 	
-	self.get = function() return self.source:read(1) end
+	self.get = function()
+		local x = self.source:read(1)
+		if x == nil then self.source:close() end
+		return x
+	end
 	
 	return setmetatable(self, stream.file)
 end
