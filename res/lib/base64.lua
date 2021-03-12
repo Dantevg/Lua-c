@@ -167,12 +167,13 @@ end
 function stream.base64decode.new(source, toString)
 	local self = {}
 	self.source = source
+	self.allowedChars = table.concat(stream.base64encode.charmap)..base64.c62..base64.c63
 	
 	self.get = coroutine.wrap(function()
 		self.source:map(tostring):filter(stream.op.neq "\n"):filter(stream.op.neq "\r")
 			:filter(function(x)
 				if not base64.strictNonencoding then
-					return string.find(table.concat(stream.base64encode.charmap)..base64.c62..base64.c63, x, 1, true)
+					return string.find(self.allowedChars, x, 1, true)
 				else return true end
 			end)
 			:groupBySize(4):map(stream.table)
