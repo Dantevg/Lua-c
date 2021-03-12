@@ -26,7 +26,7 @@ function stream:get()
 	local x = self.get()
 	-- Replace dead coroutine with nop function,
 	-- to prevent "cannot resume dead coroutine" errors
-	if x == nil then self.get = stream.util.nop end
+	if x == nil then self.get = op.nop end
 	return x
 end
 
@@ -77,11 +77,11 @@ stream.null.__call = stream.get
 -- @treturn nil|Stream
 function stream.null.new(source)
 	if stream.is(source) then
-		return source:forAll(stream.util.nop)
+		return source:forAll(op.nop)
 	end
 	
 	local self = {}
-	self.get = stream.util.nop
+	self.get = op.nop
 	
 	return setmetatable(self, stream.null)
 end
@@ -296,7 +296,7 @@ stream.iterate.__call = stream.get
 function stream.iterate.new(...)
 	local self = {}
 	self.seeds = {...}
-	self.fn = table.remove(self.seeds) or stream.util.id
+	self.fn = table.remove(self.seeds) or op.id
 	
 	self.get = function()
 		local x = self.seeds[1]
@@ -449,7 +449,7 @@ stream.map.__call = stream.get
 function stream.map.new(source, fn)
 	local self = {}
 	self.source = source
-	self.fn = fn or stream.util.id
+	self.fn = fn or op.id
 	
 	self.get = coroutine.wrap(function()
 		for x in self.source do
@@ -553,7 +553,7 @@ stream.forEach.__call = stream.get
 function stream.forEach.new(source, fn)
 	local self = {}
 	self.source = source
-	self.fn = fn or stream.util.nop
+	self.fn = fn or op.nop
 	
 	self.get = coroutine.wrap(function()
 		for x in self.source do
@@ -1175,16 +1175,6 @@ end
 
 stream.util = {}
 
---- Identity function.
--- Returns input parameters
--- @param[opt] ...
--- @return ...
-function stream.util.id(...) return ... end
-
---- Nop function.
--- Returns nothing
-function stream.util.nop() end
-
 --- Wrapper for `string.match`.
 -- @usage
 -- filter(stream.util.match("%l"))
@@ -1221,13 +1211,6 @@ end
 --- Operators
 -- @section op
 
-local flipped = {
-	lt = true, ["<"] = true,
-	gt = true, [">"] = true,
-	leq = true, le = true, ["<="] = true,
-	geq = true, ge = true, [">="] = true,
-}
-
 --- Curried `operator` library proxy.
 -- The curried comparison functions (`lt`, `gt`, `leq`/`le`, `geq`/`ge` and their symbols)
 -- have a logical order (use @{curry_}), so the first function specifies
@@ -1237,7 +1220,7 @@ local flipped = {
 -- stream.op.index({'a','b','c'})(2) --> 'b'  -- normal order, t[2]
 -- stream.op.lt(3)(1)                --> true -- reversed order, 1 < 3
 stream.op = setmetatable({}, {__index = function(t,k)
-	return flipped[k] and stream.util.curry_(op[k]) or stream.util.curry(op[k])
+	return op.comparison[k] and stream.util.curry_(op[k]) or stream.util.curry(op[k])
 end})
 
 
