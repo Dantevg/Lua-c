@@ -873,37 +873,30 @@ stream.zip.__tostring = function(self)
 end
 stream.zip.__call = stream.get
 
---- Zip this stream with `n` other streams, creating a stream of n-length tables.
+--- Zip multiple streams together.
+-- Zipping `n` streams results in a stream of `n`-length streams.
 -- @function zip
 -- @tparam Stream stream
 -- @tparam[opt] Stream ...
 -- @treturn Stream
+-- @usage
+-- a = stream.string("abc")
+-- b = stream.string("def")
+-- stream.zip(a, b):map(stream.string):table()
+-- --> {"ad", "be", "cf"}
 function stream.zip.new(...)
 	local self = {}
 	self.sources = {...}
-	self.nAlive = #self.sources
 	
-	self.get = coroutine.wrap(function()
-		while self.nAlive > 0 do
-			local buffer = {}
-			local empty = true
-			for i = 1, #self.sources do
-				if self.sources[i] then
-					local x = self.sources[i]()
-					if x == nil then
-						self.sources[i] = nil
-						self.nAlive = self.nAlive-1
-					else
-						buffer[i] = x
-						empty = false
-					end
-				end
-			end
-			if not empty then
-				coroutine.yield(buffer)
-			end
+	self.get = function()
+		local buffer = {}
+		for i = 1, #self.sources do
+			local x = self.sources[i]()
+			if x == nil then return end
+			buffer[i] = x
 		end
-	end)
+		return stream.table(buffer)
+	end
 	
 	return setmetatable(self, stream.zip)
 end
