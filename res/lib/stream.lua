@@ -955,6 +955,29 @@ stream.groupBy = stream.splitAt
 
 
 
+--- Group the stream in groups with length `size`.
+-- Alias for `group(function(_, _, s) return s < size end)`
+-- @function groupBySize
+-- @tparam number size
+-- @treturn Stream
+-- @see group
+-- @usage
+-- stream.string("hello world")
+-- 	:groupBySize(4)
+-- 	:map(stream.string)
+-- 	:table() --> {"hell", "o wo", "rld"}
+function stream.groupBySize(source, size)
+	return setmetatable(source:group(function(_, _, s) return s < size end), {
+		__index = stream.group,
+		__tostring = function(self)
+			return string.format("%s -> GroupBySize %q", source, size)
+		end,
+		__call = stream.get,
+	})
+end
+
+
+
 --- Map numbers from (`min1`,`max1`) to (`min2`,`max2`).
 -- Alias for
 -- 	map(function(x)
