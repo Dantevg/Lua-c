@@ -101,10 +101,8 @@ function stream.base64encode.new(source, isString)
 	
 	self.get = coroutine.wrap(function()
 		self.source:map(isString and string.byte or tonumber)
-			:group(function(_,_,len) return len < 3 end) -- Divide into groups of 3
-			:forAll(function(group)
-				local buf = group:table()
-				
+			:groupBySize(3):map(stream.table) -- Divide into groups of 3
+			:forAll(function(buf)
 				-- Convert
 				for _, v in ipairs(self:chunk(buf)) do
 					self.col = self.col+1
@@ -177,9 +175,8 @@ function stream.base64decode.new(source, toString)
 					return string.find(table.concat(stream.base64encode.charmap)..base64.c62..base64.c63, x, 1, true)
 				else return true end
 			end)
-			:group(function(_,_,len) return len < 4 end)
-			:forAll(function(group)
-				local buf = group:table()
+			:groupBySize(4):map(stream.table)
+			:forAll(function(buf)
 				if #buf ~= 4 and base64.strict then
 					error("Invalid base64 string: length is not a multiple of 4 (check padding options)")
 				end
