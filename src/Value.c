@@ -3,14 +3,11 @@
  * @module value
  */
 
-#include <string.h>
-#include <stdint.h> // For uint8_t
-
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "value.h"
+#include "Value.h"
 
 /* C library definitions */
 

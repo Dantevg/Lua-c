@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h> // For uint8_t etc
+
 #include <lua.h>
 #include <lauxlib.h>
 
