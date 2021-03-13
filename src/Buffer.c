@@ -82,6 +82,7 @@ int buffer_new(lua_State *L){
 	int size = luaL_checkinteger(L, 1);
 	Buffer *buffer = lua_newuserdata(L, sizeof(Buffer) + sizeof(uint8_t[size])); // stack: {Buffer, size}
 	buffer->size = size;
+	buffer->buffer = buffer->data;
 	
 	luaL_setmetatable(L, "Buffer");
 	return 1;
@@ -109,7 +110,7 @@ int buffer__call(lua_State *L){
  */
 int buffer_set(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	int position = luaL_checkinteger(L, 2) - 1;
+	int position = luaL_checkinteger(L, 2);
 	luaL_argcheck(L, buffer_within(buffer, position), 2, "position out of bounds");
 	
 	switch(lua_type(L, 3)){
@@ -137,7 +138,7 @@ int buffer_set(lua_State *L){
  */
 int buffer_get(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	int position = luaL_checkinteger(L, 2) - 1;
+	int position = luaL_checkinteger(L, 2);
 	if(!buffer_within(buffer, position)) return 0;
 	
 	lua_getfield(L, lua_upvalueindex(1), "new"); // Value.new
@@ -175,7 +176,7 @@ int buffer_stream__tostring(lua_State *L){
 /***
  * Create a stream from the bytes in this buffer.
  * @function stream
- * @treturn Stream
+ * @treturn Stream a `Stream` of `Value`s
  */
 int buffer_stream(lua_State *L){
 	/* Create buffer_stream_get closure */
@@ -201,6 +202,29 @@ int buffer_stream(lua_State *L){
 	/* Set metatable and return buffer_stream_get */
 	lua_setmetatable(L, -3);
 	lua_pushvalue(L, -2);
+	return 1;
+}
+
+/***
+ * Create a new view of a part of this buffer.
+ * @function view
+ * @tparam[opt=0] number from
+ * @tparam[optchain] number size defaults to the rest of the buffer
+ * @treturn Buffer
+ */
+int buffer_view(lua_State *L){
+	Buffer *source = luaL_checkudata(L, 1, "Buffer");
+	lua_Integer from = luaL_optinteger(L, 2, 0);
+	lua_Integer size = luaL_optinteger(L, 3, source->size - from);
+	luaL_argcheck(L, buffer_within(source, from), 2, "out of bounds");
+	luaL_argcheck(L, buffer_within(source, from+size), 3, "out of bounds");
+	luaL_argcheck(L, size > 0, 3, "size must be > 0");
+	
+	Buffer *buffer = lua_newuserdata(L, sizeof(Buffer));
+	buffer->size = size;
+	buffer->buffer = &source->buffer[from];
+	
+	luaL_setmetatable(L, "Buffer");
 	return 1;
 }
 
@@ -262,7 +286,7 @@ int buffer__newindex(lua_State *L){
  */
 int buffer__tostring(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	lua_pushstring(L, (char*)buffer->buffer);
+	lua_pushlstring(L, (char*)buffer->buffer, buffer->size);
 	return 1;
 }
 
@@ -283,6 +307,7 @@ static const struct luaL_Reg buffer_f[] = {
 	{"set", buffer_set},
 	{"get", buffer_get},
 	{"stream", buffer_stream},
+	{"view", buffer_view},
 	{"length", buffer__length},
 	{NULL, NULL}
 };
