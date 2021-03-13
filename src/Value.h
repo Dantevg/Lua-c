@@ -26,6 +26,7 @@ int value_new(lua_State *L);
 
 /* Lua metamethods */
 
+int value__call(lua_State *L);
 int value__tostring(lua_State *L);
 int value__eq(lua_State *L);
 int value__lt(lua_State *L);
@@ -45,4 +46,4 @@ int value__shr(lua_State *L);
 int value__unm(lua_State *L);
 int value__bnot(lua_State *L);
 
-LUAMOD_API int luaopen_value(lua_State *L);
+LUAMOD_API int luaopen_Value(lua_State *L);

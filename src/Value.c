@@ -203,6 +203,15 @@ int value_tobinary(lua_State *L){
 
 /// @type Value
 
+int value__call(lua_State *L){
+	lua_pushcfunction(L, value_new); // stack: {value_new, (size?), t}
+	lua_rotate(L, 1, -1); // stack: {t, value_new, (size?)}
+	lua_pop(L, 1); // stack: {value_new, (size?)}
+	lua_rotate(L, 1, -1); // stack: {(size?), value_new}
+	lua_call(L, lua_gettop(L)-1, 1);
+	return 1;
+}
+
 /***
  * __tostring metamethod, returns the string representation of the `Value`.
  * @function __tostring
@@ -268,9 +277,14 @@ static const struct luaL_Reg value_mt[] = {
 	{NULL, NULL}
 };
 
-LUAMOD_API int luaopen_value(lua_State *L){
+LUAMOD_API int luaopen_Value(lua_State *L){
 	lua_newtable(L);
 	luaL_setfuncs(L, value_f, 0);
+	
+	lua_newtable(L);
+	lua_pushcfunction(L, value__call);
+	lua_setfield(L, -2, "__call");
+	lua_setmetatable(L, -2);
 	
 	/* Create Value metatable */
 	if(!luaL_newmetatable(L, "Value")){ // stack: {metatable, table, ...}
