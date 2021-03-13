@@ -14,29 +14,63 @@
 
 /* C library definitions */
 
-int value_from(lua_State *L, int idx, uint8_t *data){
+int value_from(lua_State *L, int idx, Value *value){
 	switch(lua_type(L, idx)){
-		case LUA_TNUMBER:
-			*data = lua_tonumber(L, idx);
+		case LUA_TNUMBER: ;
+			value->size = sizeof(lua_Integer);
+			value->v64 = lua_tonumber(L, idx);
 			return 1;
 		case LUA_TSTRING:
-			*data = lua_tostring(L, idx)[0];
+			value->size = sizeof(uint8_t);
+			value->v8 = lua_tostring(L, idx)[0];
 			return 1;
 		case LUA_TUSERDATA: ;
-			uint8_t *ptr = luaL_testudata(L, idx, "Value");
+			Value *ptr = luaL_testudata(L, idx, "Value");
 			if(ptr != NULL){
-				*data = *ptr;
+				value->size = ptr->size;
+				value->v64 = ptr->v64;
 				return 1;
 			}
+			return 0;
+		default:
+			return 0;
 	}
-	return 0;
+}
+
+int value_setvalue(lua_State *L, int idx, Value *value){
+	switch(lua_type(L, idx)){
+		case LUA_TNUMBER: ;
+			value->v64 = lua_tonumber(L, idx);
+			return 1;
+		case LUA_TSTRING:
+			value->v8 = lua_tostring(L, idx)[0];
+			return 1;
+		case LUA_TUSERDATA: ;
+			Value *ptr = luaL_testudata(L, idx, "Value");
+			if(ptr != NULL){
+				value->v64 = ptr->v64;
+				return 1;
+			}
+			return 0;
+		default:
+			return 0;
+	}
+}
+
+void value_push(lua_State *L, Value *value){
+	switch(value->size){
+		case sizeof(uint8_t):  lua_pushinteger(L, value->v8);  break;
+		case sizeof(uint16_t): lua_pushinteger(L, value->v16); break;
+		case sizeof(uint32_t): lua_pushinteger(L, value->v32); break;
+		case sizeof(uint64_t): lua_pushinteger(L, value->v64); break;
+		default:               lua_pushinteger(L, 0);
+	}
 }
 
 int value_unop(lua_State *L, int op){
-	uint8_t a;
-	if(!value_from(L, 1, &a)) return 0;
+	Value *value = luaL_checkudata(L, 1, "Value");
 	lua_pushcfunction(L, value_of);
-	lua_pushinteger(L, a);
+	value_push(L, value);
 	lua_arith(L, op);
 	lua_call(L, 1, 1);
 	return 1;
@@ -44,14 +78,14 @@ int value_unop(lua_State *L, int op){
 
 int value_binop(lua_State *L, int op){
 	int correct = 0;
-	uint8_t a, b;
+	Value a, b;
 	correct += value_from(L, 1, &a);
 	correct += value_from(L, 2, &b);
-	
 	if(!correct) return 0;
+	
 	lua_pushcfunction(L, value_of);
-	lua_pushinteger(L, a);
-	lua_pushinteger(L, b);
+	value_push(L, &a);
+	value_push(L, &b);
 	lua_arith(L, op);
 	lua_call(L, 1, 1);
 	return 1;
@@ -59,13 +93,13 @@ int value_binop(lua_State *L, int op){
 
 int value_cmp(lua_State *L, int op){
 	int correct = 0;
-	uint8_t a, b;
+	Value a, b;
 	correct += value_from(L, 1, &a);
 	correct += value_from(L, 2, &b);
-	
 	if(!correct) return 0;
-	lua_pushinteger(L, a);
-	lua_pushinteger(L, b);
+	
+	value_push(L, &a);
+	value_push(L, &b);
 	lua_pushboolean(L, lua_compare(L, -2, -1, op));
 	return 1;
 }
@@ -77,20 +111,13 @@ int value_cmp(lua_State *L, int op){
 /***
  * Set the value.
  * @function set
- * @tparam number|string value
+ * @tparam number|string|Value value
  */
 int value_set(lua_State *L){
-	uint8_t *data = luaL_checkudata(L, 1, "Value");
+	Value *value = luaL_checkudata(L, 1, "Value");
 	
-	switch(lua_type(L, 3)){
-		case LUA_TNUMBER:
-			*data = lua_tointeger(L, 2);
-			break;
-		case LUA_TSTRING: ; // semicolon here because declaration after case is not allowed in C
-			*data = lua_tostring(L, 2)[0];
-			break;
-		default:
-			luaL_argerror(L, 2, "Only number or string supported");
+	if(!value_setvalue(L, 2, value)){
+		luaL_argerror(L, 2, "Only number, string or Value supported");
 	}
 	
 	return 0;
@@ -102,30 +129,24 @@ int value_set(lua_State *L){
  * @treturn number
  */
 int value_get(lua_State *L){
-	uint8_t *data = luaL_checkudata(L, 1, "Value");
-	lua_pushinteger(L, *data);
+	Value *value = luaL_checkudata(L, 1, "Value");
+	value_push(L, value);
 	return 1;
 }
 
 /// @section end
 
 /***
- * Create a new `Value` from a number or string.
+ * Create a new `Value` from a number, string or other Value.
  * @function of
- * @tparam number|string value the value
+ * @tparam number|string|Value value
  * @treturn Value
  */
 int value_of(lua_State *L){
-	uint8_t *data = lua_newuserdata(L, sizeof(uint8_t));
-	switch(lua_type(L, 1)){
-		case LUA_TNUMBER:
-			*data = lua_tointeger(L, 1);
-			break;
-		case LUA_TSTRING:
-			*data = lua_tostring(L, 1)[0];
-			break;
-		default:
-			luaL_error(L, "Only number or string supported");
+	Value *value = lua_newuserdata(L, sizeof(Value));
+	
+	if(!value_from(L, 1, value)){
+		luaL_argerror(L, 1, "Only number, string or Value supported");
 	}
 	
 	luaL_setmetatable(L, "Value");
@@ -133,13 +154,51 @@ int value_of(lua_State *L){
 }
 
 /***
- * Create a new empty `Value`.
+ * Create a new empty `Value` of `size` bytes.
  * @function new
+ * @tparam[opt=1] number size (1,2,4 or 8)
  * @treturn Value
  */
 int value_new(lua_State *L){
-	lua_newuserdata(L, sizeof(uint8_t));
+	size_t size = luaL_optinteger(L, 1, sizeof(uint8_t));
+	Value *value = lua_newuserdata(L, sizeof(Value));
+	value->size = size;
+	if(value->size != 1 && value->size != 2 && value->size != 4 && value->size != 8){
+		return luaL_argerror(L, 1, "invalid size (1,2,4 or 8 expected)");
+	}
 	luaL_setmetatable(L, "Value");
+	return 1;
+}
+
+/***
+ * Get the bits of the value.
+ * @function tobits
+ * @treturn table
+ */
+int value_tobits(lua_State *L){
+	Value *value = luaL_checkudata(L, 1, "Value");
+	lua_newtable(L);
+	int i = 1;
+	for(int bit = value->size*8 - 1; bit >= 0; bit--){
+		lua_pushboolean(L, (value->v64 >> bit) & 1);
+		lua_seti(L, -2, i);
+		i++;
+	}
+	return 1;
+}
+
+/***
+ * Display the value as its bits.
+ * @function tobinary
+ * @treturn string
+ */
+int value_tobinary(lua_State *L){
+	Value *value = luaL_checkudata(L, 1, "Value");
+	char binary[value->size*8];
+	for(int bit = value->size*8; bit >= 0; bit--){
+		binary[value->size*8 - bit - 1] = ((value->v64 >> bit) & 1) ? '1' : '0';
+	}
+	lua_pushlstring(L, binary, value->size*8);
 	return 1;
 }
 
@@ -152,62 +211,63 @@ int value_new(lua_State *L){
  * @function __tostring
  * @treturn string
  */
-int value_tostring(lua_State *L){
-	uint8_t *data = luaL_checkudata(L, 1, "Value");
-	const char str[] = {(char)*data, '\0'};
+int value__tostring(lua_State *L){
+	Value *value = luaL_checkudata(L, 1, "Value");
+	const char str[] = {(char)value->v8, '\0'};
 	lua_pushstring(L, str);
 	return 1;
 }
 
-int value_eq(lua_State *L){   return value_cmp(L, LUA_OPEQ);     }
-int value_lt(lua_State *L){   return value_cmp(L, LUA_OPLT);     }
-int value_le(lua_State *L){   return value_cmp(L, LUA_OPLE);     }
+int value__eq(lua_State *L){   return value_cmp(L, LUA_OPEQ);     }
+int value__lt(lua_State *L){   return value_cmp(L, LUA_OPLT);     }
+int value__le(lua_State *L){   return value_cmp(L, LUA_OPLE);     }
 
-int value_add(lua_State *L){  return value_binop(L, LUA_OPADD);  }
-int value_sub(lua_State *L){  return value_binop(L, LUA_OPSUB);  }
-int value_mul(lua_State *L){  return value_binop(L, LUA_OPMUL);  }
-int value_mod(lua_State *L){  return value_binop(L, LUA_OPMOD);  }
-int value_pow(lua_State *L){  return value_binop(L, LUA_OPPOW);  }
-int value_div(lua_State *L){  return value_binop(L, LUA_OPDIV);  }
-int value_idiv(lua_State *L){ return value_binop(L, LUA_OPIDIV); }
-int value_band(lua_State *L){ return value_binop(L, LUA_OPBAND); }
-int value_bor(lua_State *L){  return value_binop(L, LUA_OPBOR);  }
-int value_bxor(lua_State *L){ return value_binop(L, LUA_OPBXOR); }
-int value_shl(lua_State *L){  return value_binop(L, LUA_OPSHL);  }
-int value_shr(lua_State *L){  return value_binop(L, LUA_OPSHR);  }
-int value_unm(lua_State *L){  return value_unop(L, LUA_OPUNM);   }
-int value_bnot(lua_State *L){ return value_unop(L, LUA_OPBNOT);  }
+int value__add(lua_State *L){  return value_binop(L, LUA_OPADD);  }
+int value__sub(lua_State *L){  return value_binop(L, LUA_OPSUB);  }
+int value__mul(lua_State *L){  return value_binop(L, LUA_OPMUL);  }
+int value__mod(lua_State *L){  return value_binop(L, LUA_OPMOD);  }
+int value__pow(lua_State *L){  return value_binop(L, LUA_OPPOW);  }
+int value__div(lua_State *L){  return value_binop(L, LUA_OPDIV);  }
+int value__idiv(lua_State *L){ return value_binop(L, LUA_OPIDIV); }
+int value__band(lua_State *L){ return value_binop(L, LUA_OPBAND); }
+int value__bor(lua_State *L){  return value_binop(L, LUA_OPBOR);  }
+int value__bxor(lua_State *L){ return value_binop(L, LUA_OPBXOR); }
+int value__shl(lua_State *L){  return value_binop(L, LUA_OPSHL);  }
+int value__shr(lua_State *L){  return value_binop(L, LUA_OPSHR);  }
+int value__unm(lua_State *L){  return value_unop(L, LUA_OPUNM);   }
+int value__bnot(lua_State *L){ return value_unop(L, LUA_OPBNOT);  }
 
 static const struct luaL_Reg value_f[] = {
 	{"new", value_new},
 	{"of", value_of},
 	{"set", value_set},
 	{"get", value_get},
-	{"tostring", value_tostring},
+	{"tobits", value_tobits},
+	{"tobinary", value_tobinary},
 	{NULL, NULL}
 };
 
 static const struct luaL_Reg value_mt[] = {
-	{"__tostring", value_tostring},
+	{"__tostring", value__tostring},
 	
-	{"__eq", value_eq},
-	{"__lt", value_lt},
-	{"__le", value_le},
+	{"__eq", value__eq},
+	{"__lt", value__lt},
+	{"__le", value__le},
 
-	{"__add", value_add},
-	{"__sub", value_sub},
-	{"__mul", value_mul},
-	{"__mod", value_mod},
-	{"__pow", value_pow},
-	{"__div", value_div},
-	{"__idiv", value_idiv},
-	{"__band", value_band},
-	{"__bor", value_bor},
-	{"__bxor", value_bxor},
-	{"__shl", value_shl},
-	{"__shr", value_shr},
-	{"__unm", value_unm},
-	{"__bnot", value_bnot},
+	{"__add",  value__add},
+	{"__sub",  value__sub},
+	{"__mul",  value__mul},
+	{"__mod",  value__mod},
+	{"__pow",  value__pow},
+	{"__div",  value__div},
+	{"__idiv", value__idiv},
+	{"__band", value__band},
+	{"__bor",  value__bor},
+	{"__bxor", value__bxor},
+	{"__shl",  value__shl},
+	{"__shr",  value__shr},
+	{"__unm",  value__unm},
+	{"__bnot", value__bnot},
 	{NULL, NULL}
 };
 
@@ -221,10 +281,8 @@ LUAMOD_API int luaopen_value(lua_State *L){
 	}
 	
 	/* Set metatable */
-	lua_pushvalue(L, -2); // duplicate Value table for metamethod upvalue
-	luaL_setfuncs(L, value_mt, 1); // put data_mt functions into metatable,
-	// add Value table as upvalue
-	lua_pushvalue(L, -2);
+	luaL_setfuncs(L, value_mt, 0);
+	lua_pushvalue(L, -2); // set Value table as __index
 	lua_setfield(L, -2, "__index");
 	lua_pop(L, 1); // stack: {table, ...}
 	
