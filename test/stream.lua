@@ -1,11 +1,11 @@
 local stream = require "stream"
-local value = require "value"
+local Value = require "Value"
 local op = require "operator"
 local base64 = require "base64"
 
 function rot(n)
 	return function(c)
-		local x = value.of(c)
+		local x = Value.of(c)
 		if x >= "A" and x <= "Z" then
 			return (x-"A"+n) % 26 + "A"
 		elseif x >= "a" and x <= "z" then

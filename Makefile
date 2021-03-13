@@ -15,7 +15,7 @@ libs = bin/event.$(SO)\
 	bin/mouse.$(SO)\
 	bin/kb.$(SO)\
 	bin/Buffer.$(SO)\
-	bin/value.$(SO)\
+	bin/Value.$(SO)\
 	bin/thread.$(SO)\
 	bin/fs.$(SO)\
 	bin/fs/std.$(SO)
@@ -81,11 +81,11 @@ build/mouse.o: src/mouse.c src/mouse.h
 bin/kb.$(SO): build/kb.o
 build/kb.o: src/kb.c src/kb.h
 
-bin/Buffer.$(SO): build/Buffer.o
-build/Buffer.o: src/Buffer.c src/Buffer.h
+bin/Buffer.$(SO): build/Buffer.o build/Value.o
+build/Buffer.o: src/Buffer.c src/Buffer.h src/Value.h
 
-bin/value.$(SO): build/value.o
-build/value.o: src/value.c src/value.h
+bin/Value.$(SO): build/Value.o
+build/Value.o: src/Value.c src/Value.h
 
 bin/terminal.$(SO): src/terminal.c lib/linenoise.c lib/linenoise.h
 	$(CC) $(CFLAGS) -std=gnu99 $(INCLUDE) -shared -fpic -o $@ lib/linenoise.c src/terminal.c $(LIBS_MAIN)
