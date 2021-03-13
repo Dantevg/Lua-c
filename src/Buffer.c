@@ -1,5 +1,5 @@
 /***
- * The `Buffer` module provides raw binary buffer storage and conversion.
+ * The `Buffer` module provides raw binary data storage and conversion.
  * @module Buffer
  */
 
@@ -10,6 +10,7 @@
 #include <lauxlib.h>
 
 #include "Buffer.h"
+#include "Value.h"
 
 /* C library definitions */
 
@@ -49,7 +50,7 @@ int buffer__call(lua_State *L){
  */
 int buffer_set(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	int position = luaL_checkinteger(L, 2);
+	int position = luaL_checkinteger(L, 2) - 1;
 	luaL_argcheck(L, buffer_within(buffer, position), 2, "position out of bounds");
 	
 	switch(lua_type(L, 3)){
@@ -77,10 +78,16 @@ int buffer_set(lua_State *L){
  */
 int buffer_get(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	int position = luaL_checkinteger(L, 2);
+	int position = luaL_checkinteger(L, 2) - 1;
 	luaL_argcheck(L, buffer_within(buffer, position), 2, "position out of bounds");
 	
-	lua_pushinteger(L, buffer->buffer[position]);
+	lua_getfield(L, lua_upvalueindex(1), "new"); // Value.new
+	lua_pushinteger(L, 1); // stack: {1, Value.new, ...}
+	lua_call(L, 1, 1); // stack: {value, ...}
+	lua_getfield(L, lua_upvalueindex(1), "set"); // Value.set
+	lua_pushvalue(L, -2); // stack: {value, Value.set, value, ...}
+	lua_pushinteger(L, buffer->buffer[position]); // stack: {buf[pos], value, Value.set, value, ...}
+	lua_call(L, 2, 0); // stack: {value, ...}
 	return 1;
 }
 
@@ -163,7 +170,8 @@ int buffer__index(lua_State *L){
 	// stack: {k, t}
 	if(lua_type(L, 2) == LUA_TNUMBER){
 		/* Get element at position k */
-		lua_pushcfunction(L, buffer_get); // stack: {buffer_get, k, t}
+		lua_pushvalue(L, lua_upvalueindex(2)); // pass Value as upvalue
+		lua_pushcclosure(L, buffer_get, 1); // stack: {buffer_get, k, t}
 		lua_insert(L, 1); // stack: {k, t, buffer_get}
 		lua_call(L, 2, 1); // stack: {v}
 		return 1;
@@ -249,8 +257,11 @@ LUAMOD_API int luaopen_Buffer(lua_State *L){
 	}
 	
 	/* Set metatable */
-	luaL_setfuncs(L, buffer_mt, 0);
-	lua_pop(L, 1);
+	lua_pushvalue(L, -2); // duplicate Buffer table for metamethod upvalue
+	luaL_requiref(L, "Value", luaopen_Value, 0); // require Value
+	luaL_setfuncs(L, buffer_mt, 2); // put buffer_mt functions into metatable,
+	// add Buffer and Value table as upvalue
+	lua_pop(L, 1); // stack: {table, ...}
 	
 	return 1;
 }
