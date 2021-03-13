@@ -4,8 +4,12 @@ local function test(file)
 	if not success then print(err) end
 end
 
+print("Automatic tests")
+test("auto/buffer.lua")
+test("auto/require.lua")
+
+print("Manual tests")
 test("hello.lua")
-test("require.lua")
 test("file.write.lua")
 test("file.read.lua")
 test("image.create.lua")
