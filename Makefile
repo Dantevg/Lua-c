@@ -14,7 +14,8 @@ libs = bin/event.$(SO)\
 	bin/sys.$(SO)\
 	bin/mouse.$(SO)\
 	bin/kb.$(SO)\
-	bin/data.$(SO)\
+	bin/Buffer.$(SO)\
+	bin/value.$(SO)\
 	bin/thread.$(SO)\
 	bin/fs.$(SO)\
 	bin/fs/std.$(SO)
@@ -49,7 +50,7 @@ libraries: $(libs)
 
 # Dependency list
 
-bin/MoonBox: build/main.o build/event.o build/util.o
+bin/MoonBox: build/main.o build/event.o build/util.o build/table.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO)
 build/main.o: src/main.c src/event.c src/event.h src/util.c src/util.h
 
@@ -57,7 +58,9 @@ build/util.o: src/util.c src/util.h
 
 build/font.o: src/font.c src/font.h
 
-bin/event.$(SO): build/event.o build/util.o
+build/table.o: src/table.c src/table.h
+
+bin/event.$(SO): build/event.o build/util.o build/table.o
 build/event.o: src/event.c src/event.h
 
 bin/SDLWindow.$(SO): build/SDLWindow.o build/font.o build/util.o
@@ -67,7 +70,7 @@ bin/image/SDLImage.$(SO): build/image/SDLImage.o build/font.o build/util.o
 build/image/SDLImage.o: src/image/SDLImage.c src/image/SDLImage.h
 
 bin/thread.$(SO): build/thread.o
-build/thread.o: src/thread.c src/thread.h
+build/thread.o: src/thread.c src/thread.h src/threads.h
 
 bin/sys.$(SO): build/sys.o
 build/sys.o: src/sys.c
@@ -78,8 +81,8 @@ build/mouse.o: src/mouse.c src/mouse.h
 bin/kb.$(SO): build/kb.o
 build/kb.o: src/kb.c src/kb.h
 
-bin/data.$(SO): build/data.o
-build/data.o: src/data.c src/data.h
+bin/Buffer.$(SO): build/Buffer.o
+build/Buffer.o: src/Buffer.c src/Buffer.h
 
 bin/value.$(SO): build/value.o
 build/value.o: src/value.c src/value.h
