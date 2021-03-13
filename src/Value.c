@@ -1,6 +1,6 @@
 /***
- * The `value` module provides raw binary single value storage and conversion.
- * @module value
+ * The `Value` module provides raw binary single value storage and conversion.
+ * @module Value
  */
 
 #include <lua.h>
