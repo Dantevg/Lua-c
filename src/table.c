@@ -31,6 +31,7 @@ void table_setn(lua_State *L, int idx, int n){
 }
 
 int table_insert(lua_State *L, int idx){
+	idx = lua_absindex(L, idx);
 	int n = table_getn(L, idx) + 1;
 	lua_seti(L, idx, n);
 	table_setn(L, idx, n);
