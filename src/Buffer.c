@@ -28,71 +28,6 @@ int buffer_within(Buffer *buffer, int position){
 
 /* Lua API definitions */
 
-/// @type Buffer
-
-int buffer__call(lua_State *L){
-	lua_pushcfunction(L, buffer_new); // stack: {buffer_new, (size?), t}
-	lua_rotate(L, 1, -1); // stack: {t, buffer_new, (size?)}
-	lua_pop(L, 1); // stack: {buffer_new, (size?)}
-	lua_rotate(L, 1, -1); // stack: {(size?), buffer_new}
-	lua_call(L, lua_gettop(L)-1, 1);
-	return 1;
-}
-
-/***
- * Set the value starting from the given index.
- * When a string is given, the entire string (or until the end of the `Buffer`,
- * whichever is shortest) will be copied over, so this function can be used
- * for things like `buffer:set(1, "hello")`
- * @function set
- * @tparam number index
- * @tparam number|string value
- */
-int buffer_set(lua_State *L){
-	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	int position = luaL_checkinteger(L, 2) - 1;
-	luaL_argcheck(L, buffer_within(buffer, position), 2, "position out of bounds");
-	
-	switch(lua_type(L, 3)){
-		case LUA_TNUMBER:
-			buffer->buffer[position] = lua_tointeger(L, 3);
-			break;
-		case LUA_TSTRING: ; // semicolon here because declaration after case is not allowed in C
-			size_t len;
-			const char *str = lua_tolstring(L, 3, &len);
-			len = (len > buffer->size - position) ? (buffer->size - position) : len;
-			memcpy(&buffer->buffer[position], str, len);
-			break;
-		default:
-			luaL_argerror(L, 3, "only number or string elements supported");
-	}
-	
-	return 0;
-}
-
-/***
- * Get a value from a given index.
- * @function get
- * @tparam number index
- * @treturn number
- */
-int buffer_get(lua_State *L){
-	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	int position = luaL_checkinteger(L, 2) - 1;
-	luaL_argcheck(L, buffer_within(buffer, position), 2, "position out of bounds");
-	
-	lua_getfield(L, lua_upvalueindex(1), "new"); // Value.new
-	lua_pushinteger(L, 1); // stack: {1, Value.new, ...}
-	lua_call(L, 1, 1); // stack: {value, ...}
-	lua_getfield(L, lua_upvalueindex(1), "set"); // Value.set
-	lua_pushvalue(L, -2); // stack: {value, Value.set, value, ...}
-	lua_pushinteger(L, buffer->buffer[position]); // stack: {buf[pos], value, Value.set, value, ...}
-	lua_call(L, 2, 0); // stack: {value, ...}
-	return 1;
-}
-
-/// @section end
-
 /***
  * Create a new `Buffer` from one or more values.
  * accepts any number of strings or numbers, or a single table containing them
@@ -149,6 +84,123 @@ int buffer_new(lua_State *L){
 	buffer->size = size;
 	
 	luaL_setmetatable(L, "Buffer");
+	return 1;
+}
+
+int buffer__call(lua_State *L){
+	lua_pushcfunction(L, buffer_new); // stack: {buffer_new, (size?), t}
+	lua_rotate(L, 1, -1); // stack: {t, buffer_new, (size?)}
+	lua_pop(L, 1); // stack: {buffer_new, (size?)}
+	lua_rotate(L, 1, -1); // stack: {(size?), buffer_new}
+	lua_call(L, lua_gettop(L)-1, 1);
+	return 1;
+}
+
+/// @type Buffer
+
+/***
+ * Set the value starting from the given index.
+ * When a string is given, the entire string (or until the end of the `Buffer`,
+ * whichever is shortest) will be copied over, so this function can be used
+ * for things like `buffer:set(1, "hello")`
+ * @function set
+ * @tparam number index
+ * @tparam number|string value
+ */
+int buffer_set(lua_State *L){
+	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
+	int position = luaL_checkinteger(L, 2) - 1;
+	luaL_argcheck(L, buffer_within(buffer, position), 2, "position out of bounds");
+	
+	switch(lua_type(L, 3)){
+		case LUA_TNUMBER:
+			buffer->buffer[position] = lua_tointeger(L, 3);
+			break;
+		case LUA_TSTRING: ; // semicolon here because declaration after case is not allowed in C
+			size_t len;
+			const char *str = lua_tolstring(L, 3, &len);
+			len = (len > buffer->size - position) ? (buffer->size - position) : len;
+			memcpy(&buffer->buffer[position], str, len);
+			break;
+		default:
+			luaL_argerror(L, 3, "only number or string elements supported");
+	}
+	
+	return 0;
+}
+
+/***
+ * Get a value from a given index.
+ * @function get
+ * @tparam number index
+ * @treturn Value|nil
+ */
+int buffer_get(lua_State *L){
+	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
+	int position = luaL_checkinteger(L, 2) - 1;
+	if(!buffer_within(buffer, position)) return 0;
+	
+	lua_getfield(L, lua_upvalueindex(1), "new"); // Value.new
+	lua_pushinteger(L, 1); // stack: {1, Value.new, ...}
+	lua_call(L, 1, 1); // stack: {value, ...}
+	lua_getfield(L, lua_upvalueindex(1), "set"); // Value.set
+	lua_pushvalue(L, -2); // stack: {value, Value.set, value, ...}
+	lua_pushinteger(L, buffer->buffer[position]); // stack: {buf[pos], value, Value.set, value, ...}
+	lua_call(L, 2, 0); // stack: {value, ...}
+	return 1;
+}
+
+int buffer_stream_get(lua_State *L){
+	/* Increment counter */
+	lua_Integer index = lua_tointeger(L, lua_upvalueindex(3));
+	lua_pushinteger(L, index+1);
+	lua_replace(L, lua_upvalueindex(3));
+	
+	/* Get value at index */
+	lua_pushvalue(L, lua_upvalueindex(1));
+	lua_pushcclosure(L, buffer_get, 1);
+	lua_pushvalue(L, lua_upvalueindex(2));
+	lua_pushinteger(L, index);
+	lua_call(L, 2, 1);
+	return 1;
+}
+
+int buffer_stream__tostring(lua_State *L){
+	luaL_tolstring(L, lua_upvalueindex(1), NULL);
+	lua_pushstring(L, " Buffer");
+	lua_concat(L, 2);
+	return 1;
+}
+
+/***
+ * Create a stream from the bytes in this buffer.
+ * @function stream
+ * @treturn Stream
+ */
+int buffer_stream(lua_State *L){
+	/* Create buffer_stream_get closure */
+	luaL_checkudata(L, 1, "Buffer");
+	lua_pushvalue(L, lua_upvalueindex(1));
+	lua_pushvalue(L, 1);
+	lua_pushinteger(L, 1);
+	lua_pushcclosure(L, buffer_stream_get, 3); // stack: {buffer_stream_get, Buffer}
+	
+	/* Get stream module */
+	lua_getglobal(L, "require");
+	lua_pushstring(L, "stream");
+	lua_call(L, 1, 1); // stack: {stream, buffer_stream_get, Buffer}
+	
+	/* Create metatable */
+	lua_newtable(L); // stack: {mt, stream, buffer_stream_get, Buffer}
+	lua_pushvalue(L, -2);
+	lua_pushcclosure(L, buffer_stream__tostring, 1);
+	lua_setfield(L, -2, "__tostring");
+	lua_pushvalue(L, -2);
+	lua_setfield(L, -2, "__index"); // stack: {mt, stream, buffer_stream_get, Buffer}
+	
+	/* Set metatable and return buffer_stream_get */
+	lua_setmetatable(L, -3);
+	lua_pushvalue(L, -2);
 	return 1;
 }
 
@@ -230,6 +282,7 @@ static const struct luaL_Reg buffer_f[] = {
 	{"of", buffer_of},
 	{"set", buffer_set},
 	{"get", buffer_get},
+	{"stream", buffer_stream},
 	{"length", buffer__length},
 	{NULL, NULL}
 };
@@ -243,8 +296,11 @@ static const struct luaL_Reg buffer_mt[] = {
 };
 
 LUAMOD_API int luaopen_Buffer(lua_State *L){
+	luaL_requiref(L, "Value", luaopen_Value, 0); // require Value
+	int value_idx = lua_gettop(L);
 	lua_newtable(L);
-	luaL_setfuncs(L, buffer_f, 0);
+	lua_pushvalue(L, value_idx);
+	luaL_setfuncs(L, buffer_f, 1);
 	
 	lua_newtable(L);
 	lua_pushcfunction(L, buffer__call);
@@ -258,7 +314,7 @@ LUAMOD_API int luaopen_Buffer(lua_State *L){
 	
 	/* Set metatable */
 	lua_pushvalue(L, -2); // duplicate Buffer table for metamethod upvalue
-	luaL_requiref(L, "Value", luaopen_Value, 0); // require Value
+	lua_pushvalue(L, value_idx);
 	luaL_setfuncs(L, buffer_mt, 2); // put buffer_mt functions into metatable,
 	// add Buffer and Value table as upvalue
 	lua_pop(L, 1); // stack: {table, ...}
