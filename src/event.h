@@ -35,7 +35,7 @@ int event_match(lua_State *L, Callback *callback);
 void event_dispatch_callback(lua_State *L, Callback *callback, int i);
 
 // Dispatch event to Lua callbacks
-void event_dispatch_callbacks(lua_State *L);
+void event_dispatch_event(lua_State *L);
 
 // Poll for events
 void event_poll(lua_State *L);

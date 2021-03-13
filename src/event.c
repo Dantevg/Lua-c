@@ -98,11 +98,10 @@ void event_dispatch_callback(lua_State *L, Callback *callback, int i){
 		lua_geti(L, event_idx, j);
 	} // stack: {(eventdata...), fn, callbacks, event, ...}
 	
-	// TODO: maybe pass callback ID
-	if(lua_pcall(L, event_n - filter_n, 1, 0) != LUA_OK){ // stack: {error / continue, callbacks, event, ...}
-		fprintf(stderr, "Error calling callback: %s\n", lua_tostring(L, -1));
-	}else if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+	if(lua_pcall(L, event_n - filter_n, 1, 1) == LUA_OK
+		&& lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
 		/* Callback function returned false, remove callback */
+		// stack: {continue, callbacks, event, ...}
 		lua_pushcfunction(L, event_off);
 		lua_pushinteger(L, i);
 		lua_call(L, 1, 0);
@@ -111,7 +110,7 @@ void event_dispatch_callback(lua_State *L, Callback *callback, int i){
 }
 
 // Dispatches event to Lua callbacks
-void event_dispatch_callbacks(lua_State *L){
+void event_dispatch_event(lua_State *L){
 	// stack: {event, ...}
 	/* Get callbacks table */
 	lua_getfield(L, LUA_REGISTRYINDEX, "event_callbacks"); // stack: {callbacks, event, ...}
@@ -149,7 +148,7 @@ void event_poll(lua_State *L){
 			lua_pushstring(L, "timer");
 			lua_pushinteger(L, i);
 			lua_pushinteger(L, tick - (timer->time + timer->delay));
-			lua_pcall(L, 3, 0, 0);
+			lua_call(L, 3, 0);
 			
 			if(timer->repeat){
 				timer->time = timer->time + timer->delay;
@@ -160,7 +159,7 @@ void event_poll(lua_State *L){
 				// Stop non-repeating timer
 				lua_pushcfunction(L, event_stopTimer);
 				lua_pushinteger(L, i);
-				lua_pcall(L, 1, 0, 0);
+				lua_call(L, 1, 0);
 			}
 		}
 		lua_pop(L, 1); // stack: {timers, ...}
@@ -180,7 +179,7 @@ void event_poll(lua_State *L){
 			lower(key, keyLower, length);
 			lua_pushstring(L, "kb"); lua_pushstring(L, "down");
 			lua_pushstring(L, keyLower);
-			lua_pcall(L, 3, 0, 0);
+			lua_call(L, 3, 0);
 		}else if(e.type == SDL_KEYUP){
 			lua_pushcfunction(L, event_push);
 			const char *key = SDL_GetKeyName(e.key.keysym.sym);
@@ -189,12 +188,12 @@ void event_poll(lua_State *L){
 			lower(key, keyLower, length);
 			lua_pushstring(L, "kb"); lua_pushstring(L, "up");
 			lua_pushstring(L, keyLower);
-			lua_pcall(L, 3, 0, 0);
+			lua_call(L, 3, 0);
 		}else if(e.type == SDL_TEXTINPUT){
 			lua_pushcfunction(L, event_push);
 			lua_pushstring(L, "kb"); lua_pushstring(L, "input");
 			lua_pushstring(L, e.text.text);
-			lua_pcall(L, 3, 0, 0);
+			lua_call(L, 3, 0);
 		}else if(e.type == SDL_MOUSEMOTION){
 			lua_pushcfunction(L, event_push);
 			lua_pushstring(L, "mouse"); lua_pushstring(L, "move");
@@ -202,7 +201,7 @@ void event_poll(lua_State *L){
 			lua_pushinteger(L, e.motion.y);
 			lua_pushinteger(L, e.motion.xrel);
 			lua_pushinteger(L, e.motion.yrel);
-			lua_pcall(L, 6, 0, 0);
+			lua_call(L, 6, 0);
 		}else if(e.type == SDL_MOUSEBUTTONDOWN){
 			lua_pushcfunction(L, event_push);
 			lua_pushstring(L, "mouse"); lua_pushstring(L, "down");
@@ -210,7 +209,7 @@ void event_poll(lua_State *L){
 			lua_pushinteger(L, e.button.x);
 			lua_pushinteger(L, e.button.y);
 			lua_pushboolean(L, e.button.clicks-1);
-			lua_pcall(L, 6, 0, 0);
+			lua_call(L, 6, 0);
 		}else if(e.type == SDL_MOUSEBUTTONUP){
 			lua_pushcfunction(L, event_push);
 			lua_pushstring(L, "mouse"); lua_pushstring(L, "up");
@@ -218,20 +217,20 @@ void event_poll(lua_State *L){
 			lua_pushinteger(L, e.button.x);
 			lua_pushinteger(L, e.button.y);
 			lua_pushboolean(L, e.button.clicks-1);
-			lua_pcall(L, 6, 0, 0);
+			lua_call(L, 6, 0);
 		}else if(e.type == SDL_MOUSEWHEEL){
 			lua_pushcfunction(L, event_push);
 			lua_pushstring(L, "mouse"); lua_pushstring(L, "scroll");
 			lua_pushinteger(L, e.wheel.x);
 			lua_pushinteger(L, e.wheel.y);
 			lua_pushboolean(L, e.wheel.direction);
-			lua_pcall(L, 5, 0, 0);
+			lua_call(L, 5, 0);
 		}else if(e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED){
 			lua_pushcfunction(L, event_push);
 			lua_pushstring(L, "screen"); lua_pushstring(L, "resize");
 			lua_pushinteger(L, e.window.data1);
 			lua_pushinteger(L, e.window.data2);
-			lua_pcall(L, 4, 0, 0);
+			lua_call(L, 4, 0);
 		}
 	}
 }
@@ -247,9 +246,10 @@ int event_loop(lua_State *L){
 	
 	/* Handle Lua events */
 	for(int i = 1; i <= luaL_len(L, -1); i++){
-		lua_geti(L, -1, i); // stack: {event, queue}
-		event_dispatch_callbacks(L); // stack: {queue}
-		table_remove(L, -2, i);
+		lua_geti(L, -1, i); // stack: {event, queue, ...}
+		event_dispatch_event(L); // stack: {queue, ...}
+		table_remove(L, -1, i);
+		lua_pop(L, 1);
 	}
 	lua_pop(L, 1); // stack: {}
 	
@@ -387,7 +387,7 @@ int event_addTimer(lua_State *L){
 	lua_rotate(L, 2, 1); // stack: {(repeat?), delay, callback}
 	lua_pushcfunction(L, event_startTimer); // stack: {event_startTimer, (repeat?), delay, callback}
 	lua_rotate(L, 2, 1); // stack: {(repeat?), delay, event_startTimer, callback}
-	lua_pcall(L, has_repeat ? 2 : 1, 1, 0); // stack: {timer_id, callback}
+	lua_call(L, has_repeat ? 2 : 1, 1); // stack: {timer_id, callback}
 	
 	/* Create timer filter */
 	lua_createtable(L, 2, 0); // stack: {filter, timer_id, callback}
@@ -417,7 +417,7 @@ int event_removeTimer(lua_State *L){
 	lua_geti(L, LUA_REGISTRYINDEX, callback->filter_id); // stack: {filter, n}
 	lua_pushcfunction(L, event_stopTimer); // stack: {event_stopTimer, filter, n}
 	lua_geti(L, -1, 2); // stack: {timer_id, event_stopTimer, filter, n}
-	lua_pcall(L, 1, 1, 0); // stack: {success, filter, n}
+	lua_call(L, 1, 1); // stack: {success, filter, n}
 	if(!lua_toboolean(L, -1)){
 		return 1; // Timer not stopped, return false from event_stopTimer
 	}

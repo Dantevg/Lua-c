@@ -184,6 +184,7 @@ int main(int argc, char *argv[]){
 				lua_close(L);
 				return 0;
 			}
+			lua_pop(L, 1);
 		}else{
 			// Error message was already printed by lua_error_handler
 			return -1;
