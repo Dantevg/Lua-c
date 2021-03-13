@@ -13,7 +13,8 @@ typedef struct Buffer {
 	uint8_t data[];  // the actual data
 } Buffer;
 
-Buffer *buffer_newbuffer(lua_State *L, int size);
+Buffer *buffer_newbuffer(lua_State *L, lua_Integer size);
+int buffer_within(Buffer *buffer, lua_Integer position);
 
 /* Lua API definitions */
 

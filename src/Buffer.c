@@ -16,13 +16,15 @@
 
 static const struct luaL_Reg buffer_f[]; // forward-declare for __index
 
-Buffer *buffer_newdata(lua_State *L, int size){
+Buffer *buffer_newbuffer(lua_State *L, lua_Integer size){
 	Buffer *buffer = lua_newuserdata(L, sizeof(Buffer) + sizeof(uint8_t[size]));
 	buffer->size = size;
+	buffer->buffer = buffer->data;
+	luaL_setmetatable(L, "Buffer");
 	return buffer;
 }
 
-int buffer_within(Buffer *buffer, int position){
+int buffer_within(Buffer *buffer, lua_Integer position){
 	return position >= 0 && (size_t)position < buffer->size;
 }
 
@@ -40,7 +42,7 @@ int buffer_of(lua_State *L){
 	Buffer *buffer;
 	if(lua_gettop(L) > 1){
 		// Multiple values
-		buffer = buffer_newdata(L, lua_gettop(L)); // stack: {Buffer, item, item, ...}
+		buffer = buffer_newbuffer(L, lua_gettop(L)); // stack: {Buffer, item, item, ...}
 		for(size_t i = 0; i < buffer->size; i++){
 			buffer->buffer[i] = lua_tointeger(L, i+1);
 		}
@@ -48,15 +50,15 @@ int buffer_of(lua_State *L){
 		// Single value, stack: {item}
 		switch(lua_type(L, 1)){
 			case LUA_TNUMBER:
-				buffer = buffer_newdata(L, 1); // stack: {Buffer, item}
+				buffer = buffer_newbuffer(L, 1); // stack: {Buffer, item}
 				buffer->buffer[0] = lua_tointeger(L, 1);
 				break;
 			case LUA_TSTRING:
-				buffer = buffer_newdata(L, luaL_len(L, 1)); // stack: {Buffer, item}
+				buffer = buffer_newbuffer(L, luaL_len(L, 1)); // stack: {Buffer, item}
 				strcpy((char*)buffer->buffer, lua_tostring(L, 1));
 				break;
 			case LUA_TTABLE:
-				buffer = buffer_newdata(L, luaL_len(L, 1)); // stack: {Buffer, table}
+				buffer = buffer_newbuffer(L, luaL_len(L, 1)); // stack: {Buffer, table}
 				for(size_t i = 0; i < buffer->size; i++){
 					lua_geti(L, 1, i+1); // stack: {item, Buffer, table}
 					buffer->buffer[i] = lua_tointeger(L, 3);
@@ -68,7 +70,6 @@ int buffer_of(lua_State *L){
 		}
 	}
 	
-	luaL_setmetatable(L, "Buffer");
 	return 1;
 }
 
@@ -79,12 +80,8 @@ int buffer_of(lua_State *L){
  * @treturn Buffer
  */
 int buffer_new(lua_State *L){
-	int size = luaL_checkinteger(L, 1);
-	Buffer *buffer = lua_newuserdata(L, sizeof(Buffer) + sizeof(uint8_t[size])); // stack: {Buffer, size}
-	buffer->size = size;
-	buffer->buffer = buffer->data;
-	
-	luaL_setmetatable(L, "Buffer");
+	lua_Integer size = luaL_checkinteger(L, 1);
+	buffer_newbuffer(L, size);
 	return 1;
 }
 
@@ -110,7 +107,7 @@ int buffer__call(lua_State *L){
  */
 int buffer_set(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	int position = luaL_checkinteger(L, 2);
+	lua_Integer position = luaL_checkinteger(L, 2);
 	luaL_argcheck(L, buffer_within(buffer, position), 2, "position out of bounds");
 	
 	switch(lua_type(L, 3)){
@@ -138,7 +135,7 @@ int buffer_set(lua_State *L){
  */
 int buffer_get(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	int position = luaL_checkinteger(L, 2);
+	lua_Integer position = luaL_checkinteger(L, 2);
 	if(!buffer_within(buffer, position)) return 0;
 	
 	lua_getfield(L, lua_upvalueindex(1), "new"); // Value.new
