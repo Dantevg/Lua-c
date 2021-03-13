@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdint.h> // for uint8_t
+#include <stdint.h> // for uint8_t etc
 
 #include <lua.h>
 #include <lauxlib.h>

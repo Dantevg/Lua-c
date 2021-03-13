@@ -29,6 +29,15 @@ int buffer_within(Buffer *buffer, int position){
 
 /// @type Buffer
 
+int buffer__call(lua_State *L){
+	lua_pushcfunction(L, buffer_new); // stack: {buffer_new, (size?), t}
+	lua_rotate(L, 1, -1); // stack: {t, buffer_new, (size?)}
+	lua_pop(L, 1); // stack: {buffer_new, (size?)}
+	lua_rotate(L, 1, -1); // stack: {(size?), buffer_new}
+	lua_call(L, lua_gettop(L)-1, 1);
+	return 1;
+}
+
 /***
  * Set the value starting from the given index.
  * When a string is given, the entire string (or until the end of the `Buffer`,
@@ -150,7 +159,7 @@ int buffer_new(lua_State *L){
  * @tparam number|string key
  * @treturn number|function
  */
-int buffer_index(lua_State *L){
+int buffer__index(lua_State *L){
 	// stack: {k, t}
 	if(lua_type(L, 2) == LUA_TNUMBER){
 		/* Get element at position k */
@@ -175,7 +184,7 @@ int buffer_index(lua_State *L){
  * @param value
  * @treturn number|function
  */
-int buffer_newindex(lua_State *L){
+int buffer__newindex(lua_State *L){
 	// stack: {v, k, t}
 	if(lua_type(L, 2) == LUA_TNUMBER){
 		/* Set element at position k */
@@ -191,7 +200,7 @@ int buffer_newindex(lua_State *L){
  * @function __tostring
  * @treturn string
  */
-int buffer_tostring(lua_State *L){
+int buffer__tostring(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
 	lua_pushstring(L, (char*)buffer->buffer);
 	return 1;
@@ -202,7 +211,7 @@ int buffer_tostring(lua_State *L){
  * @function __len
  * @treturn number
  */
-int buffer_length(lua_State *L){
+int buffer__length(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
 	lua_pushinteger(L, buffer->size);
 	return 1;
@@ -213,16 +222,15 @@ static const struct luaL_Reg buffer_f[] = {
 	{"of", buffer_of},
 	{"set", buffer_set},
 	{"get", buffer_get},
-	{"tostring", buffer_tostring},
-	{"length", buffer_length},
+	{"length", buffer__length},
 	{NULL, NULL}
 };
 
 static const struct luaL_Reg buffer_mt[] = {
-	{"__index", buffer_index},
-	{"__newindex", buffer_newindex},
-	{"__tostring", buffer_tostring},
-	{"__len", buffer_length},
+	{"__index", buffer__index},
+	{"__newindex", buffer__newindex},
+	{"__tostring", buffer__tostring},
+	{"__len", buffer__length},
 	{NULL, NULL}
 };
 
@@ -230,16 +238,19 @@ LUAMOD_API int luaopen_Buffer(lua_State *L){
 	lua_newtable(L);
 	luaL_setfuncs(L, buffer_f, 0);
 	
+	lua_newtable(L);
+	lua_pushcfunction(L, buffer__call);
+	lua_setfield(L, -2, "__call");
+	lua_setmetatable(L, -2);
+	
 	/* Create Buffer metatable */
 	if(!luaL_newmetatable(L, "Buffer")){ // stack: {metatable, table, ...}
 		luaL_error(L, "couldn't create Buffer metatable");
 	}
 	
 	/* Set metatable */
-	lua_pushvalue(L, -2); // duplicate Buffer table for metamethod upvalue
-	luaL_setfuncs(L, buffer_mt, 1); // put buffer_mt functions into metatable,
-	// add Buffer table as upvalue
-	lua_pop(L, 1); // stack: {table, ...}
+	luaL_setfuncs(L, buffer_mt, 0);
+	lua_pop(L, 1);
 	
 	return 1;
 }
