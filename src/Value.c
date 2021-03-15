@@ -206,6 +206,28 @@ int value_tobinary(lua_State *L){
 	return 1;
 }
 
+/***
+ * Get the size of the value.
+ * @function size
+ * @treturn number
+ */
+int value_size(lua_State *L){
+	Value *value = luaL_checkudata(L, 1, "Value");
+	lua_pushinteger(L, value->size);
+	return 1;
+}
+
+/***
+ * Get whether the value is signed.
+ * @function signed
+ * @treturn number
+ */
+int value_signed(lua_State *L){
+	Value *value = luaL_checkudata(L, 1, "Value");
+	lua_pushboolean(L, value->isSigned);
+	return 1;
+}
+
 /* Lua metamethods */
 
 /// @type Value
@@ -257,6 +279,8 @@ static const struct luaL_Reg value_f[] = {
 	{"get", value_get},
 	{"tobits", value_tobits},
 	{"tobinary", value_tobinary},
+	{"size", value_size},
+	{"signed", value_signed},
 	{NULL, NULL}
 };
 
