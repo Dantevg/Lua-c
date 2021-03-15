@@ -24,8 +24,23 @@ Buffer *buffer_newbuffer(lua_State *L, lua_Integer size){
 	return buffer;
 }
 
-int buffer_within(Buffer *buffer, lua_Integer position){
-	return position >= 0 && (size_t)position < buffer->size;
+int buffer_within(Buffer *buffer, lua_Integer index){
+	return index >= 0 && (size_t)index < buffer->size;
+}
+
+void buffer_set_with_size(Buffer *buffer, lua_Integer index, lua_Integer value, size_t size, int littleEndian){
+	for(size_t i = 0; i < size; i++){
+		buffer->buffer[index + (littleEndian ? i : size-1-i)] = (uint8_t)(value >> i*8);
+	}
+}
+
+lua_Integer buffer_get_with_size(Buffer *buffer, lua_Integer index, size_t size, int littleEndian, int isSigned){
+	lua_Integer value = 0;
+	for(size_t i = 0; i < size; i++){
+		value |= (uint64_t)buffer->buffer[index + (littleEndian ? i : size-1-i)] << i*8;
+	}
+	if(isSigned && (value & (1 << (size*8-1)))) value -= 1 << size*8;
+	return value;
 }
 
 /* Lua API definitions */
@@ -104,21 +119,25 @@ int buffer__call(lua_State *L){
  * @function set
  * @tparam number index
  * @tparam number|string value
+ * @tparam[opt] number size
+ * @tparam[optchain] boolean littleEndian
  */
 int buffer_set(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	lua_Integer position = luaL_checkinteger(L, 2);
-	luaL_argcheck(L, buffer_within(buffer, position), 2, "position out of bounds");
+	lua_Integer index = luaL_checkinteger(L, 2);
+	luaL_argcheck(L, buffer_within(buffer, index), 2, "index out of bounds");
 	
 	switch(lua_type(L, 3)){
-		case LUA_TNUMBER:
-			buffer->buffer[position] = lua_tointeger(L, 3);
+		case LUA_TNUMBER: ;
+			lua_Integer size = luaL_optinteger(L, 4, sizeof(uint8_t));
+			int littleEndian = lua_toboolean(L, 5);
+			buffer_set_with_size(buffer, index, lua_tointeger(L, 3), size, littleEndian);
 			break;
 		case LUA_TSTRING: ; // semicolon here because declaration after case is not allowed in C
 			size_t len;
 			const char *str = lua_tolstring(L, 3, &len);
-			len = (len > buffer->size - position) ? (buffer->size - position) : len;
-			memcpy(&buffer->buffer[position], str, len);
+			len = (len > buffer->size - index) ? (buffer->size - index) : len;
+			memcpy(&buffer->buffer[index], str, len);
 			break;
 		default:
 			luaL_argerror(L, 3, "only number or string elements supported");
@@ -131,23 +150,211 @@ int buffer_set(lua_State *L){
  * Get a value from a given index.
  * @function get
  * @tparam number index
+ * @tparam[opt] number size
+ * @tparam[optchain] boolean littleEndian
+ * @tparam[optchain] boolean signed
  * @treturn Value|nil
  */
 int buffer_get(lua_State *L){
 	Buffer *buffer = luaL_checkudata(L, 1, "Buffer");
-	lua_Integer position = luaL_checkinteger(L, 2);
-	if(!buffer_within(buffer, position)) return 0;
+	lua_Integer index = luaL_checkinteger(L, 2);
+	if(!buffer_within(buffer, index)) return 0;
+	lua_Integer size = luaL_optinteger(L, 3, sizeof(uint8_t));
+	int littleEndian = lua_toboolean(L, 4);
+	int isSigned = lua_toboolean(L, 5);
 	
 	lua_getfield(L, lua_upvalueindex(1), "new"); // Value.new
-	lua_pushinteger(L, 1); // stack: {1, Value.new, ...}
-	lua_call(L, 1, 1); // stack: {value, ...}
+	lua_pushinteger(L, size); // stack: {size, Value.new, ...}
+	lua_pushboolean(L, isSigned); // stack: {signed, size, Value.new, ...}
+	lua_call(L, 2, 1); // stack: {value, ...}
 	lua_getfield(L, lua_upvalueindex(1), "set"); // Value.set
 	lua_pushvalue(L, -2); // stack: {value, Value.set, value, ...}
-	lua_pushinteger(L, buffer->buffer[position]); // stack: {buf[pos], value, Value.set, value, ...}
+	lua_pushinteger(L, buffer_get_with_size(buffer, index, size, littleEndian, isSigned)); // stack: {buf[pos], value, Value.set, value, ...}
 	lua_call(L, 2, 0); // stack: {value, ...}
 	return 1;
 }
 
+#define BUFFER_SET(type){ \
+	luaL_checkudata(L, 1, "Buffer"); \
+	luaL_checkinteger(L, 2); \
+	int littleEndian = lua_toboolean(L, 3); \
+	\
+	lua_pushvalue(L, lua_upvalueindex(1)); \
+	lua_pushcclosure(L, buffer_set, 1); \
+	lua_pushvalue(L, 1); \
+	lua_pushvalue(L, 2); \
+	lua_pushvalue(L, 3); \
+	lua_pushinteger(L, sizeof(type)); \
+	lua_pushboolean(L, littleEndian); \
+	lua_call(L, 5, 0); \
+}
+
+#define BUFFER_GET(type, isSigned){ \
+	luaL_checkudata(L, 1, "Buffer"); \
+	luaL_checkinteger(L, 2); \
+	int littleEndian = lua_toboolean(L, 3); \
+	\
+	lua_pushvalue(L, lua_upvalueindex(1)); \
+	lua_pushcclosure(L, buffer_get, 1); \
+	lua_pushvalue(L, 1); \
+	lua_pushvalue(L, 2); \
+	lua_pushinteger(L, sizeof(type)); \
+	lua_pushboolean(L, littleEndian); \
+	lua_pushboolean(L, (isSigned)); \
+	lua_call(L, 5, 1); \
+}
+
+/***
+ * Set an unsigned 8-bit value at a given index.
+ * @function setUint8
+ * @tparam number index
+ * @tparam number|string value
+ * @treturn Value|nil
+ */
+int buffer_setUint8(lua_State *L){ BUFFER_SET(uint8_t); return 0; }
+
+/***
+ * Set a signed 8-bit value at a given index.
+ * @function setInt8
+ * @tparam number index
+ * @tparam number|string value
+ * @treturn Value|nil
+ */
+int buffer_setInt8(lua_State *L){ BUFFER_SET(uint8_t); return 0; }
+
+/***
+ * Set an unsigned 16-bit value at a given index.
+ * @function setUint16
+ * @tparam number index
+ * @tparam number|string value
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_setUint16(lua_State *L){ BUFFER_SET(uint16_t); return 0; }
+
+/***
+ * Set a signed 16-bit value at a given index.
+ * @function setInt16
+ * @tparam number index
+ * @tparam number|string value
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_setInt16(lua_State *L){ BUFFER_SET(uint16_t); return 0; }
+
+/***
+ * Set an unsigned 32-bit value at a given index.
+ * @function setUint32
+ * @tparam number index
+ * @tparam number|string value
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_setUint32(lua_State *L){ BUFFER_SET(uint32_t); return 0; }
+
+/***
+ * Set a signed 32-bit value at a given index.
+ * @function setInt32
+ * @tparam number index
+ * @tparam number|string value
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_setInt32(lua_State *L){ BUFFER_SET(uint32_t); return 0; }
+
+/***
+ * Set an unsigned 64-bit value at a given index.
+ * @function setUint64
+ * @tparam number index
+ * @tparam number|string value
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_setUint64(lua_State *L){ BUFFER_SET(uint64_t); return 0; }
+
+/***
+ * Set a signed 64-bit value at a given index.
+ * @function setInt64
+ * @tparam number index
+ * @tparam number|string value
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_setInt64(lua_State *L){ BUFFER_SET(uint64_t); return 0; }
+
+/***
+ * Get an unsigned 8-bit value from a given index.
+ * @function getUint8
+ * @tparam number index
+ * @treturn Value|nil
+ */
+int buffer_getUint8(lua_State *L){ BUFFER_GET(uint8_t, 0); return 1; }
+
+/***
+ * Get a signed 8-bit value from a given index.
+ * @function getInt8
+ * @tparam number index
+ * @treturn Value|nil
+ */
+int buffer_getInt8(lua_State *L){ BUFFER_GET(uint8_t, 1); return 1; }
+
+/***
+ * Get an unsigned 16-bit value from a given index.
+ * @function getUint16
+ * @tparam number index
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_getUint16(lua_State *L){ BUFFER_GET(uint16_t, 0); return 1; }
+
+/***
+ * Get a signed 16-bit value from a given index.
+ * @function getInt16
+ * @tparam number index
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_getInt16(lua_State *L){ BUFFER_GET(uint16_t, 1); return 1; }
+
+/***
+ * Get an unsigned 32-bit value from a given index.
+ * @function getUint32
+ * @tparam number index
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_getUint32(lua_State *L){ BUFFER_GET(uint32_t, 0); return 1; }
+
+/***
+ * Get a signed 32-bit value from a given index.
+ * @function getInt32
+ * @tparam number index
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_getInt32(lua_State *L){ BUFFER_GET(uint32_t, 1); return 1; }
+
+/***
+ * Get an unsigned 64-bit value from a given index.
+ * @function getUint64
+ * @tparam number index
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_getUint64(lua_State *L){ BUFFER_GET(uint64_t, 0); return 1; }
+
+/***
+ * Get a signed 64-bit value from a given index.
+ * @function getInt64
+ * @tparam number index
+ * @tparam[opt] boolean littleEndian
+ * @treturn Value|nil
+ */
+int buffer_getInt64(lua_State *L){ BUFFER_GET(uint64_t, 1); return 1; }
+
+// upvalue 1: Value table
+// upvalue 2: buffer userdata
+// upvalue 3: index counter
 int buffer_stream_get(lua_State *L){
 	/* Increment counter */
 	lua_Integer index = lua_tointeger(L, lua_upvalueindex(3));
@@ -155,7 +362,7 @@ int buffer_stream_get(lua_State *L){
 	lua_replace(L, lua_upvalueindex(3));
 	
 	/* Get value at index */
-	lua_pushvalue(L, lua_upvalueindex(1));
+	lua_pushvalue(L, lua_upvalueindex(1)); // upvalue: Value
 	lua_pushcclosure(L, buffer_get, 1);
 	lua_pushvalue(L, lua_upvalueindex(2));
 	lua_pushinteger(L, index);
@@ -178,9 +385,9 @@ int buffer_stream__tostring(lua_State *L){
 int buffer_stream(lua_State *L){
 	/* Create buffer_stream_get closure */
 	luaL_checkudata(L, 1, "Buffer");
-	lua_pushvalue(L, lua_upvalueindex(1));
-	lua_pushvalue(L, 1);
-	lua_pushinteger(L, 1);
+	lua_pushvalue(L, lua_upvalueindex(1)); // 1st upvalue: Value
+	lua_pushvalue(L, 1); // 2nd upvalue: buffer
+	lua_pushinteger(L, 0); // 3rd upvalue: counter
 	lua_pushcclosure(L, buffer_stream_get, 3); // stack: {buffer_stream_get, Buffer}
 	
 	/* Get stream module */
@@ -242,7 +449,7 @@ int buffer_view(lua_State *L){
 int buffer__index(lua_State *L){
 	// stack: {k, t}
 	if(lua_type(L, 2) == LUA_TNUMBER){
-		/* Get element at position k */
+		/* Get element at index k */
 		lua_pushvalue(L, lua_upvalueindex(2)); // pass Value as upvalue
 		lua_pushcclosure(L, buffer_get, 1); // stack: {buffer_get, k, t}
 		lua_insert(L, 1); // stack: {k, t, buffer_get}
@@ -268,7 +475,7 @@ int buffer__index(lua_State *L){
 int buffer__newindex(lua_State *L){
 	// stack: {v, k, t}
 	if(lua_type(L, 2) == LUA_TNUMBER){
-		/* Set element at position k */
+		/* Set element at index k */
 		lua_pushcfunction(L, buffer_set); // stack: {buffer_set, v, k, t}
 		lua_insert(L, 1); // stack: {v, k, t, buffer_set}
 		lua_call(L, 3, 0); // stack: {v}
@@ -306,6 +513,22 @@ static const struct luaL_Reg buffer_f[] = {
 	{"stream", buffer_stream},
 	{"view", buffer_view},
 	{"length", buffer__length},
+	{"setUint8", buffer_setUint8},
+	{"setInt8", buffer_setInt8},
+	{"setUint16", buffer_setUint16},
+	{"setInt16", buffer_setInt16},
+	{"setUint32", buffer_setUint32},
+	{"setInt32", buffer_setInt32},
+	{"setUint64", buffer_setUint64},
+	{"setInt64", buffer_setInt64},
+	{"getUint8", buffer_getUint8},
+	{"getInt8", buffer_getInt8},
+	{"getUint16", buffer_getUint16},
+	{"getInt16", buffer_getInt16},
+	{"getUint32", buffer_getUint32},
+	{"getInt32", buffer_getInt32},
+	{"getUint64", buffer_getUint64},
+	{"getInt64", buffer_getInt64},
 	{NULL, NULL}
 };
 
