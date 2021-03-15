@@ -15,17 +15,21 @@ int value_from(lua_State *L, int idx, Value *value){
 	switch(lua_type(L, idx)){
 		case LUA_TNUMBER: ;
 			value->size = sizeof(lua_Integer);
-			value->v64 = lua_tonumber(L, idx);
+			lua_Integer v = lua_tonumber(L, idx);
+			value->v64 = v;
+			value->isSigned = (v < 0);
 			return 1;
 		case LUA_TSTRING:
 			value->size = sizeof(uint8_t);
 			value->v8 = lua_tostring(L, idx)[0];
+			value->isSigned = 0;
 			return 1;
 		case LUA_TUSERDATA: ;
 			Value *ptr = luaL_testudata(L, idx, "Value");
 			if(ptr != NULL){
 				value->size = ptr->size;
 				value->v64 = ptr->v64;
+				value->isSigned = ptr->isSigned;
 				return 1;
 			}
 			return 0;
@@ -37,7 +41,8 @@ int value_from(lua_State *L, int idx, Value *value){
 int value_setvalue(lua_State *L, int idx, Value *value){
 	switch(lua_type(L, idx)){
 		case LUA_TNUMBER: ;
-			value->v64 = lua_tonumber(L, idx);
+			lua_Integer v = lua_tonumber(L, idx);
+			value->v64 = v;
 			return 1;
 		case LUA_TSTRING:
 			value->v8 = lua_tostring(L, idx)[0];
@@ -56,10 +61,10 @@ int value_setvalue(lua_State *L, int idx, Value *value){
 
 void value_push(lua_State *L, Value *value){
 	switch(value->size){
-		case sizeof(uint8_t):  lua_pushinteger(L, value->v8);  break;
-		case sizeof(uint16_t): lua_pushinteger(L, value->v16); break;
-		case sizeof(uint32_t): lua_pushinteger(L, value->v32); break;
-		case sizeof(uint64_t): lua_pushinteger(L, value->v64); break;
+		case sizeof(uint8_t):  lua_pushinteger(L, value->isSigned ? (int8_t)value->v8 : value->v8);  break;
+		case sizeof(uint16_t): lua_pushinteger(L, value->isSigned ? (int16_t)value->v16 : value->v16); break;
+		case sizeof(uint32_t): lua_pushinteger(L, value->isSigned ? (int32_t)value->v32 : value->v32); break;
+		case sizeof(uint64_t): lua_pushinteger(L, value->isSigned ? (int64_t)value->v64 : value->v64); break;
 		default:               lua_pushinteger(L, 0);
 	}
 }
@@ -154,12 +159,14 @@ int value_of(lua_State *L){
  * Create a new empty `Value` of `size` bytes.
  * @function new
  * @tparam[opt=1] number size (1,2,4 or 8)
+ * @tparam[optchain=false] boolean signed
  * @treturn Value
  */
 int value_new(lua_State *L){
 	size_t size = luaL_optinteger(L, 1, sizeof(uint8_t));
 	Value *value = lua_newuserdata(L, sizeof(Value));
 	value->size = size;
+	value->isSigned = lua_toboolean(L, 2);
 	if(value->size != 1 && value->size != 2 && value->size != 4 && value->size != 8){
 		return luaL_argerror(L, 1, "invalid size (1,2,4 or 8 expected)");
 	}

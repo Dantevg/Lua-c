@@ -9,6 +9,7 @@
 
 typedef struct Value {
 	size_t size;
+	int isSigned;
 	union {
 		uint8_t v8;
 		uint16_t v16;
