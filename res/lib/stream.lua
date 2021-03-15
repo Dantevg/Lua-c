@@ -56,7 +56,8 @@ end
 -- @treturn boolean
 function stream.is(source)
 	local mt = getmetatable(source)
-	return mt and mt.__index and getmetatable(mt.__index) == stream
+	return mt and mt.__index
+		and (mt.__index == stream or getmetatable(mt.__index) == stream)
 end
 
 
