@@ -33,7 +33,7 @@ function filewatch.watch(path)
 	filewatch.watchers.n = filewatch.watchers.n+1
 	filewatch.watchers[filewatch.watchers.n] = {
 		path = path,
-		timestamp = 0,
+		timestamp = lfs.attributes(path, "modification"),
 	}
 	return filewatch.watchers.n
 end
