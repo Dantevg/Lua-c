@@ -88,6 +88,19 @@ int SDLWindow_rect(lua_State *L){
 	return 0;
 }
 
+// Draws a line
+int SDLWindow_line(lua_State *L){
+	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
+	int x1 = luaL_checkinteger(L, 2);
+	int y1 = luaL_checkinteger(L, 3);
+	int x2 = luaL_checkinteger(L, 4);
+	int y2 = luaL_checkinteger(L, 5);
+	
+	SDL_RenderDrawLine(window->renderer, x1, y1, x2, y2);
+	
+	return 0;
+}
+
 // Clears the SDLWindow canvas using the current colour
 int SDLWindow_clear(lua_State *L){
 	SDLWindow *window = luaL_checkudata(L, 1, "SDLWindow");
@@ -231,6 +244,7 @@ static const struct luaL_Reg SDLWindow_f[] = {
 	{"colour", SDLWindow_colour},
 	{"pixel", SDLWindow_pixel},
 	{"rect", SDLWindow_rect},
+	{"line", SDLWindow_line},
 	{"clear", SDLWindow_clear},
 	{"char", SDLWindow_char},
 	{"write", SDLWindow_write},

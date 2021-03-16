@@ -12,7 +12,6 @@ end
 local screen = window.new()
 
 function update()
-	print("update", path)
 	noError, chunk = pcall(dofile, path)
 	if not noError then print(chunk) end
 end

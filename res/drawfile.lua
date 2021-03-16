@@ -1,5 +1,5 @@
 local amplitude = 50
-local frequency = 1/100
+local frequency = 1/200
 local zoom = 1
 local timeshift = 1/2
 local thickness = 1
@@ -12,10 +12,10 @@ local lastFrame = 0
 local function drawLines(canvas)
 	canvas:colour(50)
 	for x = 0, canvas:getWidth(), 50 do
-		canvas:rect(x, 0, 1, canvas:getHeight())
+		canvas:line(x, 0, x, canvas:getHeight())
 	end
 	for y = canvas:getHeight()/2 - math.floor(canvas:getHeight()/2/50)*50, canvas:getHeight(), 50 do
-		canvas:rect(0, math.floor(y), canvas:getWidth(), 1)
+		canvas:line(0, math.floor(y), canvas:getWidth(), math.floor(y))
 	end
 end
 
