@@ -38,6 +38,21 @@ int table_insert(lua_State *L, int idx){
 	return n;
 }
 
+void table_autodecrement(lua_State *L, int idx){
+	idx = lua_absindex(L, idx);
+	int n = table_getn(L, idx);
+	for(int i = n; i > 0; i--){
+		if(lua_geti(L, idx, i) != LUA_TNIL){
+			// Non-nil table entry found
+			table_setn(L, idx, i);
+			lua_pop(L, 1);
+			return;
+		}
+		lua_pop(L, 1);
+	}
+	table_setn(L, idx, 0); // Traversed whole table, no entries found
+}
+
 void table_remove(lua_State *L, int idx, int n){
 	idx = lua_absindex(L, idx);
 	n = (n > 0) ? n : table_getn(L, idx) + n + 1;
@@ -45,6 +60,6 @@ void table_remove(lua_State *L, int idx, int n){
 	lua_pushnil(L);
 	lua_seti(L, idx, n);
 	if(n == table_getn(L, idx) && table_get_autodecrement(L, idx)){
-		table_setn(L, idx, n-1);
+		table_autodecrement(L, idx);
 	}
 }

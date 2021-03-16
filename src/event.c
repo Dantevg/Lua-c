@@ -147,7 +147,7 @@ void event_poll(lua_State *L){
 			lua_pushcfunction(L, event_push);
 			lua_pushstring(L, "timer");
 			lua_pushinteger(L, i);
-			lua_pushinteger(L, tick - (timer->time + timer->delay));
+			lua_pushinteger(L, tick - timer->time);
 			lua_call(L, 3, 0);
 			
 			if(timer->repeat){
@@ -245,7 +245,7 @@ int event_loop(lua_State *L){
 	event_poll(L);
 	
 	/* Handle Lua events */
-	for(int i = 1; i <= luaL_len(L, -1); i++){
+	for(int i = 1; i <= table_getn(L, -1); i++){
 		lua_geti(L, -1, i); // stack: {event, queue, ...}
 		event_dispatch_event(L); // stack: {queue, ...}
 		table_remove(L, -1, i);
