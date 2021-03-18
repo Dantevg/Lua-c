@@ -75,6 +75,9 @@ int value_unop(lua_State *L, int op){
 	value_push(L, value);
 	lua_arith(L, op);
 	lua_call(L, 1, 1);
+	Value *newvalue = lua_touserdata(L, -1);
+	newvalue->size = value->size;
+	newvalue->isSigned = value->isSigned;
 	return 1;
 }
 
@@ -90,6 +93,9 @@ int value_binop(lua_State *L, int op){
 	value_push(L, &b);
 	lua_arith(L, op);
 	lua_call(L, 1, 1);
+	Value *newvalue = lua_touserdata(L, -1);
+	newvalue->size = a.size;
+	newvalue->isSigned = a.isSigned;
 	return 1;
 }
 
