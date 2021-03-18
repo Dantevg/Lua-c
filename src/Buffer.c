@@ -128,19 +128,30 @@ int buffer_set(lua_State *L){
 	luaL_argcheck(L, buffer_within(buffer, index), 2, "index out of bounds");
 	
 	switch(lua_type(L, 3)){
-		case LUA_TNUMBER: ;
+		case LUA_TNUMBER: {
 			lua_Integer size = luaL_optinteger(L, 4, sizeof(uint8_t));
 			int littleEndian = lua_toboolean(L, 5);
 			buffer_set_with_size(buffer, index, lua_tointeger(L, 3), size, littleEndian);
 			break;
-		case LUA_TSTRING: ; // semicolon here because declaration after case is not allowed in C
+		}
+		case LUA_TSTRING: {
 			size_t len;
 			const char *str = lua_tolstring(L, 3, &len);
 			len = (len > buffer->size - index) ? (buffer->size - index) : len;
 			memcpy(&buffer->buffer[index], str, len);
 			break;
+		}
+		case LUA_TUSERDATA: {
+			Value *ptr = luaL_testudata(L, 3, "Value");
+			if(ptr != NULL){
+				lua_Integer size = luaL_optinteger(L, 4, ptr->size);
+				int littleEndian = lua_toboolean(L, 5);
+				buffer_set_with_size(buffer, index, ptr->v64, size, littleEndian);
+				break;
+			}
+		}
 		default:
-			luaL_argerror(L, 3, "only number or string elements supported");
+			luaL_argerror(L, 3, "only number, string or Value elements supported");
 	}
 	
 	return 0;
