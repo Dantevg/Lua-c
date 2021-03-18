@@ -17,8 +17,6 @@ libs = bin/event.$(SO)\
 	bin/Buffer.$(SO)\
 	bin/Value.$(SO)\
 	bin/thread.$(SO)\
-	bin/fs.$(SO)\
-	bin/fs/std.$(SO)
 
 libs_posix = bin/screen/terminal.$(SO)\
 	bin/terminal.$(SO)
@@ -50,9 +48,11 @@ libraries: $(libs)
 
 # Dependency list
 
-bin/MoonBox: build/main.o build/event.o build/util.o build/table.o
+bin/MoonBox: build/main.o build/MoonBox.o build/event.o build/util.o build/table.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_SO)
-build/main.o: src/main.c src/event.c src/event.h src/util.c src/util.h
+build/main.o: src/main.c src/MoonBox.c src/MoonBox.h src/event.c src/event.h src/util.c src/util.h
+
+build/MoonBox.o: src/MoonBox.c src/MoonBox.h src/event.c src/event.h src/util.c src/util.h
 
 build/util.o: src/util.c src/util.h
 

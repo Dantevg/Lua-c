@@ -12,30 +12,14 @@
  *   -                  stop handling options and execute stdin
  */
 
-#include <unistd.h> // For chdir
 #include <string.h> // for strcmp
 #include <stdlib.h> // for exit
-#include <time.h>   // for clock_gettime, compile with -std=gnu99
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "event.h"
-
-#define VERSION "0.3.0"
-
-#ifndef BASE_PATH
-	#define BASE_PATH "/"
-#endif
-
-#if defined(_WIN32)
-	#define SO_EXT "dll"
-#else
-	#define SO_EXT "so"
-#endif
-
-static struct timespec lua_os_clock_base;
+#include "MoonBox.h"
 
 void print_usage(){
 	printf("Usage: moonbox [options] [file [args]]\n");
@@ -46,50 +30,6 @@ void print_usage(){
 	printf("  -m, --module name\trequire library 'name'. Pass '*' to load all available\n");
 	printf("  -e chunk\t\texecute 'chunk'\n");
 	printf("  -\t\t\tstop handling options and execute stdin\n");
-}
-
-int lua_error_handler(lua_State *L){
-	luaL_traceback(L, L, lua_tostring(L, -1), 2);
-	fprintf(stderr, "%s\n", lua_tostring(L, -1));
-	lua_pop(L, 1);
-	return 1;
-}
-
-int lua_os_clock(lua_State *L){
-	struct timespec t;
-	clock_gettime(CLOCK_MONOTONIC, &t);
-	time_t diff_sec = t.tv_sec - lua_os_clock_base.tv_sec;
-	time_t diff_nsec = (t.tv_nsec - lua_os_clock_base.tv_nsec);
-	lua_pushnumber(L, diff_sec + (double)diff_nsec*1e-9);
-	return 1;
-}
-
-void init_lua(lua_State *L){
-	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
-	
-	/* Set cpath and path */
-	if(luaL_dostring(L, "package.cpath = package.cpath..';" BASE_PATH "bin/?." SO_EXT "'")){
-		fprintf(stderr, "[C] Could not set package.cpath:\n%s\n", lua_tostring(L, -1));
-	}
-	if(luaL_dostring(L, "package.path = package.path..';" BASE_PATH "res/lib/?.lua;" BASE_PATH "res/lib/?/init.lua'")){
-		fprintf(stderr, "[C] Could not set package.path:\n%s\n", lua_tostring(L, -1));
-	}
-	
-	/* Push MoonBox version */
-	lua_pushstring(L, "MoonBox " VERSION);
-	lua_setglobal(L, "_MB_VERSION");
-	
-	/* Push new os.clock */
-	lua_getglobal(L, "os");
-	lua_pushcfunction(L, lua_os_clock);
-	lua_setfield(L, -2, "clock");
-	lua_pop(L, 1);
-	
-	/* Push Lua error handler */
-	lua_pushcfunction(L, lua_error_handler);
-	
-	/* Set clock start time */
-	clock_gettime(CLOCK_MONOTONIC, &lua_os_clock_base);
 }
 
 void parse_cmdline_args(int argc, char *argv[], char **file, int *lua_arg_start, lua_State *L){
@@ -156,51 +96,19 @@ void parse_cmdline_args(int argc, char *argv[], char **file, int *lua_arg_start,
 
 int main(int argc, char *argv[]){
 	/* Init Lua */
-	lua_State *L = luaL_newstate();
-	init_lua(L);
-	
-	/* Run init file */
-	if(luaL_loadfile(L, BASE_PATH "res/init.lua") == LUA_OK){
-		if(lua_pcall(L, 0, 0, 1) != LUA_OK) return -1;
-	}else{
-		fprintf(stderr, "%s\n", lua_tostring(L, -1));
-		return -1;
-	}
+	lua_State *L = mb_init();
 	
 	/* Parse command-line arguments */
 	char *file = BASE_PATH "res/main.lua";
 	int lua_arg_start = argc;
 	parse_cmdline_args(argc, argv, &file, &lua_arg_start, L);
 	
-	/* Load main file */
-	if(luaL_loadfile(L, file) == LUA_OK){
-		/* Push lua args */
-		for(int i = lua_arg_start; i < argc; i++){
-			lua_pushstring(L, argv[i]);
-		}
-		if(lua_pcall(L, argc-lua_arg_start, 1, 1) == LUA_OK){
-			// Immediately stop execution when main chunk returns false
-			if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
-				lua_close(L);
-				return 0;
-			}
-			lua_pop(L, 1);
-		}else{
-			// Error message was already printed by lua_error_handler
-			return -1;
-		}
-	}else{
-		fprintf(stderr, "[C] Could not load Lua code: %s\n", lua_tostring(L, -1));
-		return -1;
+	/* Push lua args as strings and run */
+	for(int i = lua_arg_start; i < argc; i++){
+		lua_pushstring(L, argv[i]);
 	}
+	mb_main(L, file, argc-lua_arg_start);
 	
-	/* Main loop */
-	int quit = 0;
-	while(!quit){
-		quit = event_loop(L);
-	}
-	
-	/* Exit */
 	lua_close(L);
 	return 0;
 }
