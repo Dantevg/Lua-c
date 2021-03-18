@@ -69,23 +69,26 @@ lua_State *mb_init(){
 	return L;
 }
 
-void mb_main(lua_State *L, const char *file, int n_args){
-	/* Load main file */
+int mb_load(lua_State *L, const char *file){
 	if(luaL_loadfile(L, file) == LUA_OK){
-		lua_rotate(L, lua_gettop(L)-n_args, 1);
-		if(lua_pcall(L, n_args, 1, 1) == LUA_OK){
-			// Immediately stop execution when main chunk returns false
-			if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
-				lua_close(L);
-				return;
-			}
-			lua_pop(L, 1);
-		}else{
-			// Error message was already printed by mb_error_handler
-			return;
-		}
+		return 1;
 	}else{
 		fprintf(stderr, "[C] Could not load Lua code: %s\n", lua_tostring(L, -1));
+		return 0;
+	}
+}
+
+void mb_run(lua_State *L, int n_args){
+	lua_rotate(L, lua_gettop(L)-n_args, 1);
+	if(lua_pcall(L, n_args, 1, 1) == LUA_OK){
+		// Immediately stop execution when main chunk returns false
+		if(lua_isboolean(L, -1) && lua_toboolean(L, -1) == 0){
+			lua_close(L);
+			return;
+		}
+		lua_pop(L, 1);
+	}else{
+		// Error message was already printed by mb_error_handler
 		return;
 	}
 	
@@ -94,4 +97,15 @@ void mb_main(lua_State *L, const char *file, int n_args){
 	while(!quit){
 		quit = event_loop(L);
 	}
+}
+
+void mb_main(lua_State *L, const char *file, int n_args){
+	/* Load file */
+	if(!mb_load(L, file)){
+		lua_close(L);
+		return;
+	}
+	
+	/* Call chunk */
+	mb_run(L, n_args);
 }
