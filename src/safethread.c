@@ -106,6 +106,80 @@ int safethread_kill(lua_State *L){
 	return 0;
 }
 
+static int copy_value(lua_State *from, lua_State *to, int idx){
+	switch(lua_type(from, idx)){
+		case LUA_TNIL:
+			lua_pushnil(to); break;
+		case LUA_TBOOLEAN:
+			lua_pushboolean(to, lua_toboolean(from, idx)); break;
+		case LUA_TLIGHTUSERDATA:
+			lua_pushlightuserdata(to, lua_touserdata(from, idx)); break;
+		case LUA_TNUMBER:
+			lua_pushnumber(to, lua_tonumber(from, idx)); break;
+		case LUA_TSTRING:
+			lua_pushstring(to, lua_tostring(from, idx)); break;
+		case LUA_TFUNCTION:
+			if(lua_iscfunction(from, idx)){
+				lua_pushcfunction(to, lua_tocfunction(from, idx)); break;
+			}
+		case LUA_TTABLE:
+		case LUA_TUSERDATA:
+		case LUA_TTHREAD:
+		default:
+			return 0;
+	}
+	return 1;
+}
+
+static int move_value(lua_State *from, lua_State *to, int idx){
+	int success = copy_value(from, to, idx);
+	lua_pop(from, 1);
+	return success;
+}
+
+static void copy_values(lua_State *from, lua_State *to, int n){
+	int base = lua_absindex(from, lua_gettop(from)-n+1);
+	for(int i = base; i < base+n; i++){
+		if(!copy_value(from, to, i)){
+			luaL_argerror(from, i, "unsupported type");
+		}
+	}
+}
+
+static void move_values(lua_State *from, lua_State *to, int n){
+	copy_values(from, to, n);
+	lua_pop(from, n);
+}
+
+/*** Execute a function in a thread.
+ * @function pcall
+ * @tparam function fn
+ * @param[opt] ... args
+ */
+int safethread_pcall(lua_State *L){
+	/* Get Lua thread */
+	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {(args?), fn, t}
+	if(t->state == 0) return 0; // Thread has stopped
+	
+	luaL_argcheck(L, lua_iscfunction(L, 2), 2, "only C-functions allowed");
+	int n_args = lua_gettop(L)-2;
+	lock_mutex(&t->mutex);
+	move_values(L, t->L, n_args+1);
+	
+	int base = lua_gettop(t->L) - n_args - 1;
+	if(lua_pcall(t->L, n_args, LUA_MULTRET, 0) != LUA_OK){
+		lua_pushboolean(L, 0);
+		move_value(t->L, L, -1); // Error will be on top of thread stack
+		return 2;
+	}
+	
+	lua_pushboolean(L, 1);
+	int n_ret = lua_gettop(t->L) - base;
+	move_values(t->L, L, n_ret);
+	unlock_mutex(&t->mutex);
+	return n_ret + 1;
+}
+
 /***
  * Push an event on the queue in the thread.
  * @function pushEvent
@@ -130,6 +204,7 @@ static const struct luaL_Reg safethread_f[] = {
 	{"new", safethread_new},
 	{"wait", safethread_wait},
 	{"kill", safethread_kill},
+	{"pcall", safethread_pcall},
 	{"pushEvent", safethread_pushEvent},
 	{NULL, NULL}
 };
