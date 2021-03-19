@@ -106,6 +106,15 @@ int safethread_kill(lua_State *L){
 	return 0;
 }
 
+/*** Get the current thread.
+ * @function self
+ * @treturn Thread the current thread
+ */
+int safethread_self(lua_State *L){
+	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
+	return 1;
+}
+
 static int copy_value(lua_State *from, lua_State *to, int idx){
 	switch(lua_type(from, idx)){
 		case LUA_TNIL:
@@ -204,6 +213,7 @@ static const struct luaL_Reg safethread_f[] = {
 	{"new", safethread_new},
 	{"wait", safethread_wait},
 	{"kill", safethread_kill},
+	{"self", safethread_self},
 	{"pcall", safethread_pcall},
 	{"pushEvent", safethread_pushEvent},
 	{NULL, NULL}
