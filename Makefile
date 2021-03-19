@@ -17,6 +17,7 @@ libs = bin/event.$(SO)\
 	bin/Buffer.$(SO)\
 	bin/Value.$(SO)\
 	bin/thread.$(SO)\
+	bin/safethread.$(SO)\
 
 libs_posix = bin/screen/terminal.$(SO)\
 	bin/terminal.$(SO)
@@ -71,6 +72,9 @@ build/image/SDLImage.o: src/image/SDLImage.c src/image/SDLImage.h
 
 bin/thread.$(SO): build/thread.o
 build/thread.o: src/thread.c src/thread.h src/threads.h
+
+bin/safethread.$(SO): build/safethread.o build/MoonBox.o build/event.o build/util.o build/table.o
+build/safethread.o: src/safethread.c src/safethread.h src/threads.h src/MoonBox.c src/MoonBox.h
 
 bin/sys.$(SO): build/sys.o
 build/sys.o: src/sys.c

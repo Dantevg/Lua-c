@@ -17,6 +17,7 @@ The available events are:
 */
 
 #include <string.h>
+#include <sched.h> // for yielding in event_loop
 
 #include <SDL2/SDL.h>
 
@@ -27,6 +28,7 @@ The available events are:
 #include "util.h"
 #include "event.h"
 #include "table.h"
+#include "safethread.h"
 
 /* C library definitions */
 
@@ -253,7 +255,18 @@ int event_loop(lua_State *L){
 	}
 	lua_pop(L, 1); // stack: {}
 	
-	if(SDL_GetTicks() < loop_start + 1) SDL_Delay(1);
+	/* Prevent too high cpu usage (SDL_Delay), and let other threads (if any)
+	put events in the queue (unlock_mutex, sched_yield) */
+	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
+	Thread *t = lua_touserdata(L, -1);
+	lua_pop(L, 1);
+	if(t) unlock_mutex(&t->mutex); // unlock mutex for other threads
+	if(SDL_GetTicks() < loop_start + 1){
+		SDL_Delay(1);
+	}else{
+		sched_yield(); // move this thread to end of OS thread queue
+	}
+	if(t) lock_mutex(&t->mutex); // lock mutex again
 	
 	return 0;
 }
