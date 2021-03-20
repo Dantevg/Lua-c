@@ -26,6 +26,24 @@ int mb_os_clock(lua_State *L){
 	return 1;
 }
 
+// Returns the time difference in microseconds
+static time_t timediff(struct timespec *base){
+	struct timespec t;
+	clock_gettime(CLOCK_MONOTONIC, &t);
+	time_t diff_sec = t.tv_sec - base->tv_sec;
+	time_t diff_nsec = (t.tv_nsec - base->tv_nsec);
+	return diff_sec*1e6 + diff_nsec*0.001;
+}
+
+int mb_os_sleep(lua_State *L){
+	time_t microseconds = lua_tonumber(L, 1) * 1e6;
+	struct timespec base;
+	clock_gettime(CLOCK_MONOTONIC, &base);
+	while(timediff(&base) < microseconds){
+		event_loop(L);
+	}
+}
+
 lua_State *mb_init(){
 	lua_State *L = luaL_newstate();
 	luaL_openlibs(L); // Open standard libraries (math, string, table, ...)
@@ -42,10 +60,12 @@ lua_State *mb_init(){
 	lua_pushstring(L, "MoonBox " VERSION);
 	lua_setglobal(L, "_MB_VERSION");
 	
-	/* Push new os.clock */
+	/* Push new os.clock and os.sleep */
 	lua_getglobal(L, "os");
 	lua_pushcfunction(L, mb_os_clock);
 	lua_setfield(L, -2, "clock");
+	lua_pushcfunction(L, mb_os_sleep);
+	lua_setfield(L, -2, "sleep");
 	lua_pop(L, 1);
 	
 	/* Push Lua error handler */

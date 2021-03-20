@@ -4,6 +4,8 @@
  * @module safethread
  */
 
+#include <time.h> // for nanosleep
+
 #if !defined(_WIN32) && !defined(__WIN32__)
 	#define _REENTRANT // needed for pthread_kill
 	#include <signal.h> // for SIGINT
@@ -71,6 +73,32 @@ int safethread_new(lua_State *L){
 	return 1;
 }
 
+/*** Sleep the current thread for an amount of time.
+ * Unlike the `os.sleep` provided by MoonBox, this function does not
+ * call the event loop, and instead makes the thread idle.
+ * @function sleep
+ * @tparam number seconds
+ */
+int safethread_sleep(lua_State *L){
+	lua_Integer microseconds = lua_tonumber(L, 1) * 1e6;
+	struct timespec ts;
+	ts.tv_sec = microseconds * 1e-6;
+	ts.tv_nsec = (microseconds % 1000000) * 1000;
+	nanosleep(&ts, NULL);
+	
+	return 0;
+}
+
+/*** Get the current thread.
+ * @function self
+ * @treturn Thread the current thread
+ */
+int safethread_self(lua_State *L){
+	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
+	luaL_setmetatable(L, "Thread");
+	return 1;
+}
+
 /// @type Thread
 
 /*** Wait for a thread to complete.
@@ -105,15 +133,6 @@ int safethread_kill(lua_State *L){
 	t->state = 0; // Inactive
 	
 	return 0;
-}
-
-/*** Get the current thread.
- * @function self
- * @treturn Thread the current thread
- */
-int safethread_self(lua_State *L){
-	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
-	return 1;
 }
 
 static int copy_value(lua_State *from, lua_State *to, int idx){
@@ -212,9 +231,10 @@ int safethread_pushEvent(lua_State *L){
 
 static const struct luaL_Reg safethread_f[] = {
 	{"new", safethread_new},
+	{"self", safethread_self},
+	{"sleep", safethread_sleep},
 	{"wait", safethread_wait},
 	{"kill", safethread_kill},
-	{"self", safethread_self},
 	{"pcall", safethread_pcall},
 	{"pushEvent", safethread_pushEvent},
 	{NULL, NULL}
