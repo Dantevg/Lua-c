@@ -62,7 +62,7 @@ build/font.o: src/font.c src/font.h
 build/table.o: src/table.c src/table.h
 
 bin/event.$(SO): build/event.o build/util.o build/table.o
-build/event.o: src/event.c src/event.h
+build/event.o: src/event.c src/event.h src/threads.h
 
 bin/SDLWindow.$(SO): build/SDLWindow.o build/font.o build/util.o
 build/SDLWindow.o: src/SDLWindow.c src/SDLWindow.h

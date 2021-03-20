@@ -26,8 +26,10 @@ DWORD WINAPI safethread_run(LPVOID data){
 #else
 void *safethread_run(void *data){
 #endif
-	lua_State *L = (lua_State*)data;
-	mb_run(L, 0); // TODO: handle return values
+	Thread *t = (Thread*)data;
+	lock_mutex(t->mutex); // Immediately lock mutex
+	mb_run(t->L, 0); // TODO: handle return values
+	unlock_mutex(t->mutex);
 	return 0;
 }
 
@@ -62,9 +64,8 @@ int safethread_new(lua_State *L){
 	// TODO: handle arguments
 	
 	/* Create hardware thread and mutex */
-	create_thread(&t->thread, safethread_run, t->L);
-	create_mutex(&t->mutex);
-	lock_mutex(&t->mutex); // Immediately lock mutex
+	create_thread(t->thread, safethread_run, t);
+	create_mutex(t->mutex);
 	
 	luaL_setmetatable(L, "Thread");
 	return 1;
@@ -83,7 +84,7 @@ int safethread_wait(lua_State *L){
 	
 	/* Wait for thread and get its return values */
 	join_thread(t->thread);
-	destroy_mutex(&t->mutex);
+	destroy_mutex(t->mutex);
 	// TODO: handle return values
 	t->state = 0; // Inactive
 	
@@ -100,7 +101,7 @@ int safethread_kill(lua_State *L){
 	
 	/* Send SIGINT to thread */
 	kill_thread(t->thread);
-	destroy_mutex(&t->mutex);
+	destroy_mutex(t->mutex);
 	t->state = 0; // Inactive
 	
 	return 0;
@@ -172,7 +173,7 @@ int safethread_pcall(lua_State *L){
 	
 	luaL_argcheck(L, lua_iscfunction(L, 2), 2, "only C-functions allowed");
 	int n_args = lua_gettop(L)-2;
-	lock_mutex(&t->mutex);
+	lock_mutex(t->mutex);
 	move_values(L, t->L, n_args+1);
 	
 	int base = lua_gettop(t->L) - n_args - 1;
@@ -185,7 +186,7 @@ int safethread_pcall(lua_State *L){
 	lua_pushboolean(L, 1);
 	int n_ret = lua_gettop(t->L) - base;
 	move_values(t->L, L, n_ret);
-	unlock_mutex(&t->mutex);
+	unlock_mutex(t->mutex);
 	return n_ret + 1;
 }
 
@@ -200,12 +201,12 @@ int safethread_pushEvent(lua_State *L){
 	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {(args?), fn, t}
 	if(t->state == 0) return 0; // Thread has stopped
 	
-	lock_mutex(&t->mutex);
+	lock_mutex(t->mutex);
 	lua_pushcfunction(t->L, event_push);
 	int n_args = lua_gettop(L)-1;
 	move_values(L, t->L, n_args);
 	lua_call(t->L, n_args, 0);
-	unlock_mutex(&t->mutex);
+	unlock_mutex(t->mutex);
 	return 0;
 }
 

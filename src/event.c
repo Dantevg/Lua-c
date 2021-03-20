@@ -260,13 +260,13 @@ int event_loop(lua_State *L){
 	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
 	Thread *t = lua_touserdata(L, -1);
 	lua_pop(L, 1);
-	if(t) unlock_mutex(&t->mutex); // unlock mutex for other threads
+	if(t) unlock_mutex(t->mutex); // unlock mutex for other threads
 	if(SDL_GetTicks() < loop_start + 1){
 		SDL_Delay(1);
 	}else{
 		sched_yield(); // move this thread to end of OS thread queue
 	}
-	if(t) lock_mutex(&t->mutex); // lock mutex again
+	if(t) lock_mutex(t->mutex); // lock mutex again
 	
 	return 0;
 }
