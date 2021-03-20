@@ -42,6 +42,7 @@ int mb_os_sleep(lua_State *L){
 	while(timediff(&base) < microseconds){
 		event_loop(L);
 	}
+	return 0;
 }
 
 lua_State *mb_init(){
