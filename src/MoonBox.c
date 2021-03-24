@@ -99,7 +99,7 @@ int mb_load(lua_State *L, const char *file){
 	}
 }
 
-void mb_run(lua_State *L, int n_args){
+void mb_run(lua_State *L, int n_args, int loop){
 	lua_rotate(L, lua_gettop(L)-n_args, 1);
 	if(lua_pcall(L, n_args, 1, 1) == LUA_OK){
 		// Immediately stop execution when main chunk returns false
@@ -114,7 +114,7 @@ void mb_run(lua_State *L, int n_args){
 	}
 	
 	/* Main loop */
-	int quit = 0;
+	int quit = !loop;
 	while(!quit){
 		quit = event_loop(L);
 	}
@@ -128,5 +128,5 @@ void mb_main(lua_State *L, const char *file, int n_args){
 	}
 	
 	/* Call chunk */
-	mb_run(L, n_args);
+	mb_run(L, n_args, 1);
 }

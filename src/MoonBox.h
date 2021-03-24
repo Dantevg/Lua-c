@@ -21,5 +21,5 @@ int mb_error_handler(lua_State *L);
 int mb_os_clock(lua_State *L);
 lua_State *mb_init();
 int mb_load(lua_State *L, const char *file);
-void mb_run(lua_State *L, int n_args);
+void mb_run(lua_State *L, int n_args, int loop);
 void mb_main(lua_State *L, const char *file, int n_args);

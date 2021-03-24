@@ -1,23 +1,38 @@
 #pragma once
 
 #include <lua.h>
-#include <lauxlib.h>
 
 #include "threads.h"
 
 /* C library definitions */
 
+typedef enum ThreadState {
+	THREAD_INIT,
+	THREAD_ACTIVE,
+	THREAD_DEAD,
+} ThreadState;
+
 typedef struct Thread {
 	lua_State *L;
-	int state;
+	ThreadState state;
 	THREAD thread;
 	MUTEX mutex;
+	CONDITION cond;
 } Thread;
 
 /* Lua API definitions */
 
 // Create a new thread
 int safethread_new(lua_State *L);
+
+// Sleep the current thread for an amount of time
+int safethread_sleep(lua_State *L);
+
+// Exit the current thread
+int safethread_exit(lua_State *L);
+
+// Get the current thread
+int safethread_self(lua_State *L);
 
 // Wait for a thread to complete
 int safethread_wait(lua_State *L);
