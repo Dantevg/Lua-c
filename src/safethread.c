@@ -80,11 +80,19 @@ int safethread_new(lua_State *L){
  * @tparam number seconds
  */
 int safethread_sleep(lua_State *L){
+	/* Get self thread */
+	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
+	Thread *t = lua_touserdata(L, -1);
+	lua_pop(L, 1);
+	
 	lua_Integer microseconds = lua_tonumber(L, 1) * 1e6;
 	struct timespec ts;
 	ts.tv_sec = microseconds * 1e-6;
 	ts.tv_nsec = (microseconds % 1000000) * 1000;
+	
+	unlock_mutex(t->mutex);
 	nanosleep(&ts, NULL);
+	lock_mutex(t->mutex);
 	
 	return 0;
 }
@@ -136,23 +144,37 @@ int safethread_kill(lua_State *L){
 }
 
 static int copy_value(lua_State *from, lua_State *to, int idx){
+	idx = lua_absindex(from, idx);
 	switch(lua_type(from, idx)){
+		case LUA_TNONE:
 		case LUA_TNIL:
 			lua_pushnil(to); break;
 		case LUA_TBOOLEAN:
 			lua_pushboolean(to, lua_toboolean(from, idx)); break;
 		case LUA_TLIGHTUSERDATA:
+		case LUA_TUSERDATA:
 			lua_pushlightuserdata(to, lua_touserdata(from, idx)); break;
 		case LUA_TNUMBER:
 			lua_pushnumber(to, lua_tonumber(from, idx)); break;
 		case LUA_TSTRING:
 			lua_pushstring(to, lua_tostring(from, idx)); break;
-		case LUA_TFUNCTION:
-			if(lua_iscfunction(from, idx)){
-				lua_pushcfunction(to, lua_tocfunction(from, idx)); break;
-			}
 		case LUA_TTABLE:
-		case LUA_TUSERDATA:
+			lua_pushnil(from);
+			lua_newtable(to);
+			while(lua_next(from, idx) != 0){
+				if(copy_value(from, to, -2)){
+					if(copy_value(from, to, -1)){
+						lua_settable(to, -3);
+					}else{
+						lua_pop(to, 1);
+					}
+				}
+				lua_pop(from, 1);
+			}
+			break;
+		case LUA_TFUNCTION:
+			if(!lua_iscfunction(from, idx)) return 0;
+			lua_pushcfunction(to, lua_tocfunction(from, idx)); break;
 		case LUA_TTHREAD:
 		default:
 			return 0;
@@ -257,6 +279,22 @@ LUAMOD_API int luaopen_safethread(lua_State *L){
 	lua_pushcfunction(L, safethread_kill); // stack: {safethread_kill, mt, table}
 	lua_setfield(L, -2, "__gc"); // stack: {mt, table}
 	lua_pop(L, 1); // stack: {table}
+	
+	int type = lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
+	lua_pop(L, 1);
+	if(type == LUA_TNIL){
+		/* mb_thread does not exist in registry, so this thread must be
+		the main thread. Create main Thread struct / userdata */
+		Thread *t = lua_newuserdata(L, sizeof(Thread)); // stack: {t, table}
+		t->state = 1; // Active
+		t->L = L;
+		t->thread = self_thread();
+		create_mutex(t->mutex);
+		
+		/* Put Thread struct in registry */
+		luaL_setmetatable(L, "Thread");
+		lua_setfield(L, LUA_REGISTRYINDEX, "mb_thread"); // stack: {table}
+	}
 	
 	return 1;
 }
