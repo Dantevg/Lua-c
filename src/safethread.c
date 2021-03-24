@@ -97,6 +97,22 @@ int safethread_sleep(lua_State *L){
 	return 0;
 }
 
+/*** Exit the current thread.
+ * Like `os.exit`, but stops only this thread instead of the whole process.
+ * @function exit
+ */
+int safethread_exit(lua_State *L){
+	/* Get self thread */
+	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
+	Thread *t = lua_touserdata(L, -1);
+	lua_pop(L, 1);
+	
+	unlock_mutex(t->mutex);
+	exit_thread();
+	
+	return 0;
+}
+
 /*** Get the current thread.
  * @function self
  * @treturn Thread the current thread
@@ -255,6 +271,8 @@ static const struct luaL_Reg safethread_f[] = {
 	{"new", safethread_new},
 	{"self", safethread_self},
 	{"sleep", safethread_sleep},
+	{"exit", safethread_exit},
+	{"self", safethread_self},
 	{"wait", safethread_wait},
 	{"kill", safethread_kill},
 	{"pcall", safethread_pcall},

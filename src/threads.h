@@ -12,6 +12,7 @@
 	#define join_thread(thread) WaitForSingleObject((thread), INFINITE); CloseHandle(thread)
 	#define kill_thread(thread) WaitForSingleObject((thread), 0); CloseHandle(thread)
 	#define self_thread() GetCurrentThread()
+	#define exit_thread() ExitThread(0)
 #else
 	#include <pthread.h>
 	#define THREAD pthread_t
@@ -24,4 +25,5 @@
 	#define join_thread(thread) pthread_join((thread), NULL)
 	#define kill_thread(thread) pthread_kill((thread), SIGINT)
 	#define self_thread() pthread_self()
+	#define exit_thread() pthread_exit(NULL)
 #endif
