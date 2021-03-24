@@ -7,9 +7,9 @@
 /* C library definitions */
 
 typedef enum ThreadState {
-	THREAD_INIT,
-	THREAD_ACTIVE,
-	THREAD_DEAD,
+	THREAD_INIT,   // Thread has not yet run
+	THREAD_ACTIVE, // Thread is active
+	THREAD_DEAD,   // Thread has stopped
 } ThreadState;
 
 typedef struct Thread {

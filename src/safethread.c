@@ -30,13 +30,16 @@ void *safethread_run(void *data){
 #endif
 	Thread *t = (Thread*)data;
 	lock_mutex(t->mutex); // Immediately lock mutex
-	mb_run(t->L, 0, 0); // TODO: handle return values
-	t->state = THREAD_ACTIVE; // Active
+	int quit = !mb_run(t->L, 0, 0); // TODO: handle return values
+	if(quit){
+		t->state = THREAD_DEAD; // Lua state has closed
+		return 0;
+	}
+	t->state = THREAD_ACTIVE;
 	signal_cond(t->cond);
 	
-	int quit = 0;
 	while(!quit){
-		event_loop(t->L);
+		quit = event_loop(t->L);
 	}
 	
 	t->state = THREAD_DEAD;

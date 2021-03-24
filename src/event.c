@@ -241,7 +241,7 @@ void event_poll(lua_State *L){
 int event_loop(lua_State *L){
 	uint32_t loop_start = SDL_GetTicks();
 	
-	if(lua_getfield(L, LUA_REGISTRYINDEX, "event_queue") == LUA_TNIL) return 1; // stack: {queue}
+	if(lua_getfield(L, LUA_REGISTRYINDEX, "event_queue") != LUA_TTABLE) return 1; // stack: {queue}
 	
 	/* Poll for SDL events */
 	event_poll(L);
@@ -448,7 +448,7 @@ int event_removeTimer(lua_State *L){
  */
 int event_push(lua_State *L){
 	int n_args = lua_gettop(L); // stack: {(args...)}
-	lua_getfield(L, LUA_REGISTRYINDEX, "event_queue"); // stack: {queue, (args...)}
+	if(lua_getfield(L, LUA_REGISTRYINDEX, "event_queue") != LUA_TTABLE) return 0; // stack: {queue, (args...)}
 	lua_newtable(L); // stack: {event, queue, (args...)}
 	lua_rotate(L, 1, 2); // stack: {(args...), event, queue}
 	for(int i = 1; i <= n_args; i++){

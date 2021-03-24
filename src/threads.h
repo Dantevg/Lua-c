@@ -15,6 +15,8 @@
 	#define destroy_mutex(m) CloseHandle(m)
 	#define lock_mutex(m) WaitForSingleObject((m), INFINITE)
 	#define unlock_mutex(m) ReleaseMutex(m)
+	
+	// TODO: condition variables, kill_thread using TerminateThread?
 #else
 	#include <pthread.h>
 	#define THREAD pthread_t
@@ -23,7 +25,7 @@
 	
 	#define create_thread(thread, fn, arg) pthread_create(&(thread), NULL, (fn), (arg))
 	#define join_thread(thread) pthread_join((thread), NULL)
-	#define kill_thread(thread) pthread_kill((thread), SIGINT)
+	#define kill_thread(thread) pthread_cancel(thread)
 	#define self_thread() pthread_self()
 	#define exit_thread() pthread_exit(NULL)
 	
