@@ -159,7 +159,9 @@ int safethread_kill(lua_State *L){
 	return 0;
 }
 
-static int copy_value(lua_State *from, lua_State *to, int idx){
+static int move_value(lua_State*, lua_State*, int); // Forward-declare for copy_value_
+
+static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
 	idx = lua_absindex(from, idx);
 	switch(lua_type(from, idx)){
 		case LUA_TNONE:
@@ -175,11 +177,29 @@ static int copy_value(lua_State *from, lua_State *to, int idx){
 		case LUA_TSTRING:
 			lua_pushstring(to, lua_tostring(from, idx)); break;
 		case LUA_TTABLE:
-			lua_pushnil(from);
+			/* Check if the table has already been copied (recursive table) */
+			lua_pushvalue(from, idx);
+			if(lua_gettable(from, copiedfrom) != LUA_TNIL){
+				// Found the table, reference it instead of copying recursively
+				lua_rawgeti(to, copiedto, lua_tointeger(from, -1));
+				lua_pop(from, 1);
+				break;
+			}
+			lua_pop(from, 1);
+			
 			lua_newtable(to);
+
+			/* Store new table in "copied" table */
+			lua_pushvalue(from, idx);
+			lua_pushvalue(to, -1);
+			lua_pushinteger(from, luaL_ref(to, copiedto));
+			lua_settable(from, copiedfrom);
+			
+			/* Traverse table */
+			lua_pushnil(from);
 			while(lua_next(from, idx) != 0){
-				if(copy_value(from, to, -2)){
-					if(copy_value(from, to, -1)){
+				if(copy_value_(from, to, -2, copiedfrom, copiedto)){
+					if(copy_value_(from, to, -1, copiedfrom, copiedto)){
 						lua_settable(to, -3);
 					}else{
 						lua_pop(to, 1);
@@ -195,7 +215,28 @@ static int copy_value(lua_State *from, lua_State *to, int idx){
 		default:
 			return 0;
 	}
+	
+	/* Also copy its metatable (not for strings), but silently fail when that does not work */
+	if(lua_type(from, idx) != LUA_TSTRING && lua_getmetatable(from, idx)){
+		// TODO: check whether string metatable was really default (not modified with debug library)
+		if(copy_value_(from, to, -1, copiedfrom, copiedto)){
+			lua_setmetatable(to, -2);
+		}
+		lua_pop(from, 1);
+	}
 	return 1;
+}
+
+static int copy_value(lua_State *from, lua_State *to, int idx){
+	idx = lua_absindex(from, idx);
+	// Create tables to store already copied values
+	lua_newtable(from);
+	lua_newtable(to);
+	int success = copy_value_(from, to, idx, lua_gettop(from), lua_gettop(to));
+	// Remove the tables again
+	lua_pop(from, 1);
+	lua_replace(to, -2);
+	return success;
 }
 
 static int move_value(lua_State *from, lua_State *to, int idx){
@@ -219,9 +260,29 @@ static void move_values(lua_State *from, lua_State *to, int n){
 }
 
 /*** Execute a function in a thread.
+ * When the thread is no longer active, returns `nil`.
+ * Not all types of function arguments can be copied over. Copyable types are:
+ * 
+ * - `nil`
+ * - `boolean`
+ * - `number`
+ * - `userdata` (beware of thread synchronisation issues when using the same
+ * userdata in multiple threads!)
+ * - `string`
+ * - `table` (handles recursive / self-referential tables)
+ * - `function` (only C-functions)
+ * 
+ * Uncopyable types:
+ * 
+ * - `thread`
+ * - `function` defined in Lua
+ * 
  * @function pcall
  * @tparam function fn
  * @param[opt] ... args
+ * @treturn[1] boolean success
+ * @return[1] return values
+ * @treturn[2] nil
  */
 int safethread_pcall(lua_State *L){
 	/* Get Lua thread */
