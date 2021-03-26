@@ -6,6 +6,11 @@
 
 /* C library definitions */
 
+// Whether to copy the first upvalue (which is _ENV) when copying functions
+// When 0, skips copying _ENV so globals at time of function definition are invisible
+// When 1, copies _ENV so globals inside the thread are invisible
+#define SHOULD_COPY_FUNCTION_ENV 0
+
 typedef enum ThreadState {
 	THREAD_INIT,   // Thread has not yet run
 	THREAD_ACTIVE, // Thread is active

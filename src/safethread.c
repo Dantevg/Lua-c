@@ -246,8 +246,8 @@ static int copy_function(lua_State *from, lua_State *to, int idx, int copiedfrom
 		return 0;
 	}
 	
-	/* Copy upvalues */
-	for(unsigned char i = 1; i <= info.nups; i++){
+	/* Copy upvalues, optionally skip _ENV at upvalue-index 1 */
+	for(unsigned char i = 2 - SHOULD_COPY_FUNCTION_ENV; i <= info.nups; i++){
 		lua_getupvalue(from, idx, i);
 		if(!copy_value_(from, to, -1, copiedfrom, copiedto)) return 0;
 		lua_pop(from, 1);
