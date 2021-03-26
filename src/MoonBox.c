@@ -122,10 +122,7 @@ int mb_run(lua_State *L, int n_args, int loop){
 
 void mb_main(lua_State *L, const char *file, int n_args){
 	/* Load file */
-	if(!mb_load(L, file)){
-		lua_close(L);
-		return;
-	}
+	if(!mb_load(L, file)) return;
 	
 	/* Call chunk */
 	mb_run(L, n_args, 1);
