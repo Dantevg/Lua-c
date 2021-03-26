@@ -196,7 +196,6 @@ void *safethread_run(void *data){
 		while(!quit){
 			quit = event_loop(t->L);
 		}
-		lua_pop(t->L, 1);
 	}
 	
 	t->state = THREAD_DEAD;
