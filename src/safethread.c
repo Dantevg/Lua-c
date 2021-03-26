@@ -98,7 +98,7 @@ int safethread_sleep(lua_State *L){
 	Thread *t = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 	
-	lua_Integer microseconds = lua_tonumber(L, 1) * 1e6;
+	lua_Integer microseconds = lua_tonumber(L, 1) * 1000000;
 	struct timespec ts;
 	ts.tv_sec = microseconds * 1e-6;
 	ts.tv_nsec = (microseconds % 1000000) * 1000;
@@ -173,7 +173,89 @@ int safethread_kill(lua_State *L){
 	return 0;
 }
 
-static int move_value(lua_State*, lua_State*, int); // Forward-declare for copy_value_
+// Forward declarations
+static int move_value(lua_State*, lua_State*, int);
+static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto);
+
+static void copy_table(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
+	/* Check if the table has already been copied (recursive table) */
+	lua_pushvalue(from, idx);
+	if(lua_gettable(from, copiedfrom) != LUA_TNIL){
+		// Found the table, reference it instead of copying recursively
+		lua_rawgeti(to, copiedto, lua_tointeger(from, -1));
+		lua_pop(from, 1);
+		return;
+	}
+	lua_pop(from, 1);
+	
+	lua_newtable(to);
+
+	/* Store new table in "copied" table */
+	lua_pushvalue(from, idx);
+	lua_pushvalue(to, -1);
+	lua_pushinteger(from, luaL_ref(to, copiedto));
+	lua_settable(from, copiedfrom);
+	
+	/* Traverse table */
+	lua_pushnil(from);
+	while(lua_next(from, idx) != 0){
+		if(copy_value_(from, to, -2, copiedfrom, copiedto)){
+			if(copy_value_(from, to, -1, copiedfrom, copiedto)){
+				lua_settable(to, -3);
+			}else{
+				lua_pop(to, 1);
+			}
+		}
+		lua_pop(from, 1);
+	}
+}
+
+static int writer(lua_State *L, const void *data, size_t size, void *buffer){
+	luaL_addlstring((luaL_Buffer *)buffer, (const char *)data, size);
+	return 0; // 0 means no errors
+}
+
+static int copy_function(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
+	/* C-functions can be copied over simply */
+	if(lua_iscfunction(from, idx)){
+		lua_pushcfunction(to, lua_tocfunction(from, idx));
+		return 1;
+	}
+	
+	/* Dump function to buffer */
+	luaL_Buffer buffer;
+	luaL_buffinit(from, &buffer);
+	lua_pushvalue(from, idx);
+	lua_dump(from, writer, &buffer, 0);
+	luaL_pushresult(&buffer);
+	
+	/* Retrieve buffer content as string */
+	size_t len;
+	const char *data = lua_tolstring(from, -1, &len);
+	lua_pop(from, 2);
+	
+	/* Get original function info */
+	lua_Debug info;
+	lua_pushvalue(from, idx);
+	lua_getinfo(from, ">nu", &info);
+	
+	/* Load buffer back to function */
+	int status = luaL_loadbuffer(to, data, len, info.name);
+	if(status != LUA_OK){
+		fprintf(stderr, "[C] Could not load Lua code: %s\n", lua_tostring(to, -1));
+		return 0;
+	}
+	
+	/* Copy upvalues */
+	for(unsigned char i = 1; i <= info.nups; i++){
+		lua_getupvalue(from, idx, i);
+		if(!copy_value_(from, to, -1, copiedfrom, copiedto)) return 0;
+		lua_pop(from, 1);
+		lua_setupvalue(to, -2, i);
+	}
+	
+	return 1;
+}
 
 static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
 	idx = lua_absindex(from, idx);
@@ -191,40 +273,10 @@ static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, 
 		case LUA_TSTRING:
 			lua_pushstring(to, lua_tostring(from, idx)); break;
 		case LUA_TTABLE:
-			/* Check if the table has already been copied (recursive table) */
-			lua_pushvalue(from, idx);
-			if(lua_gettable(from, copiedfrom) != LUA_TNIL){
-				// Found the table, reference it instead of copying recursively
-				lua_rawgeti(to, copiedto, lua_tointeger(from, -1));
-				lua_pop(from, 1);
-				break;
-			}
-			lua_pop(from, 1);
-			
-			lua_newtable(to);
-
-			/* Store new table in "copied" table */
-			lua_pushvalue(from, idx);
-			lua_pushvalue(to, -1);
-			lua_pushinteger(from, luaL_ref(to, copiedto));
-			lua_settable(from, copiedfrom);
-			
-			/* Traverse table */
-			lua_pushnil(from);
-			while(lua_next(from, idx) != 0){
-				if(copy_value_(from, to, -2, copiedfrom, copiedto)){
-					if(copy_value_(from, to, -1, copiedfrom, copiedto)){
-						lua_settable(to, -3);
-					}else{
-						lua_pop(to, 1);
-					}
-				}
-				lua_pop(from, 1);
-			}
-			break;
+			copy_table(from, to, idx, copiedfrom, copiedto); break;
 		case LUA_TFUNCTION:
-			if(!lua_iscfunction(from, idx)) return 0;
-			lua_pushcfunction(to, lua_tocfunction(from, idx)); break;
+			if(!copy_function(from, to, idx, copiedfrom, copiedto)) return 0;
+			break;
 		case LUA_TTHREAD:
 		default:
 			return 0;
@@ -308,7 +360,7 @@ int safethread_pcall(lua_State *L){
 		return 2;
 	}
 	
-	luaL_argcheck(L, lua_iscfunction(L, 2), 2, "only C-functions allowed");
+	luaL_argcheck(L, lua_isfunction(L, 2), 2, "expected function");
 	int n_args = lua_gettop(L)-2;
 	lock_mutex(t->mutex);
 	// Wait until thread has initialised
