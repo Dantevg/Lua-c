@@ -22,157 +22,6 @@
 
 /* C library definitions */
 
-// Gets called in the new thread
-#if defined(_WIN32) || defined(__WIN32__)
-DWORD WINAPI safethread_run(LPVOID data){
-#else
-void *safethread_run(void *data){
-#endif
-	Thread *t = (Thread*)data;
-	lock_mutex(t->mutex); // Immediately lock mutex
-	int quit = !mb_run(t->L, 0, 0); // TODO: handle return values
-	if(quit){
-		t->state = THREAD_DEAD; // Lua state has closed
-		return 0;
-	}
-	t->state = THREAD_ACTIVE;
-	signal_cond(t->cond);
-	
-	while(!quit){
-		quit = event_loop(t->L);
-	}
-	
-	t->state = THREAD_DEAD;
-	unlock_mutex(t->mutex);
-	return 0;
-}
-
-/* Lua API definitions */
-
-/*** Create a new thread.
- * @function new
- * @tparam string path the path to the file to execute in the new thread
- * @param[opt] ... any arguments which will be passed to `fn`
- * @treturn Thread
- */
-int safethread_new(lua_State *L){
-	const char *path = luaL_checkstring(L, 1);
-	
-	/* Create Thread struct / userdata */
-	Thread *t = lua_newuserdata(L, sizeof(Thread)); // stack: {t, (args?), fn}
-	
-	/* Create new Lua state */
-	t->L = mb_init();
-	
-	/* Put Thread struct in registry */
-	lua_pushlightuserdata(t->L, t);
-	lua_setfield(t->L, LUA_REGISTRYINDEX, "mb_thread");
-	
-	/* Load thread file */
-	if(!mb_load(t->L, path)){
-		lua_close(t->L);
-		return 0;
-	}
-	
-	// TODO: handle arguments
-	
-	/* Create hardware thread and mutex */
-	t->state = THREAD_INIT; // Inactive
-	create_mutex(t->mutex);
-	create_cond(t->cond);
-	create_thread(t->thread, safethread_run, t);
-	
-	luaL_setmetatable(L, "Thread");
-	return 1;
-}
-
-/*** Sleep the current thread for an amount of time.
- * Unlike the `os.sleep` provided by MoonBox, this function does not
- * call the event loop, and instead makes the thread idle.
- * @function sleep
- * @tparam number seconds
- */
-int safethread_sleep(lua_State *L){
-	/* Get self thread */
-	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
-	Thread *t = lua_touserdata(L, -1);
-	lua_pop(L, 1);
-	
-	lua_Integer microseconds = lua_tonumber(L, 1) * 1000000;
-	struct timespec ts;
-	ts.tv_sec = microseconds * 1e-6;
-	ts.tv_nsec = (microseconds % 1000000) * 1000;
-	
-	unlock_mutex(t->mutex);
-	nanosleep(&ts, NULL);
-	lock_mutex(t->mutex);
-	
-	return 0;
-}
-
-/*** Exit the current thread.
- * Like `os.exit`, but stops only this thread instead of the whole process.
- * @function exit
- */
-int safethread_exit(lua_State *L){
-	/* Get self thread */
-	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
-	Thread *t = lua_touserdata(L, -1);
-	lua_pop(L, 1);
-	
-	t->state = THREAD_DEAD;
-	unlock_mutex(t->mutex);
-	exit_thread();
-	
-	return 0;
-}
-
-/*** Get the current thread.
- * @function self
- * @treturn Thread the current thread
- */
-int safethread_self(lua_State *L){
-	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
-	luaL_setmetatable(L, "Thread");
-	return 1;
-}
-
-/// @type Thread
-
-/*** Wait for a thread to complete.
- * @function wait
- * @return the values returned from the thread function
- */
-int safethread_wait(lua_State *L){
-	/* Get Lua thread */
-	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {t}
-	if(t->state == THREAD_DEAD) return 0; // Don't wait for a thread that has already stopped
-	
-	/* Wait for thread and get its return values */
-	join_thread(t->thread);
-	destroy_mutex(t->mutex);
-	// TODO: handle return values
-	t->state = 0; // Inactive
-	
-	return 0;
-}
-
-/*** Immediately stop a thread.
- * @function kill
- */
-int safethread_kill(lua_State *L){
-	/* Get Lua thread */
-	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {t}
-	if(t->state == THREAD_DEAD) return 0; // Don't wait for a thread that has already stopped
-	
-	/* Send SIGINT to thread */
-	kill_thread(t->thread);
-	destroy_mutex(t->mutex);
-	t->state = 0; // Inactive
-	
-	return 0;
-}
-
 // Forward declarations
 static int move_value(lua_State*, lua_State*, int);
 static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto);
@@ -326,6 +175,160 @@ static void copy_values(lua_State *from, lua_State *to, int n){
 static void move_values(lua_State *from, lua_State *to, int n){
 	copy_values(from, to, n);
 	lua_pop(from, n);
+}
+
+// Gets called in the new thread
+#if defined(_WIN32) || defined(__WIN32__)
+DWORD WINAPI safethread_run(LPVOID data){
+#else
+void *safethread_run(void *data){
+#endif
+	Thread *t = (Thread*)data;
+	lock_mutex(t->mutex); // Immediately lock mutex
+	if(lua_gettop(t->L) > 1 && lua_pcall(t->L, lua_gettop(t->L) - 2, LUA_MULTRET, 1) == LUA_OK){
+		// Immediately stop execution when main chunk returns false
+		// int quit = lua_isboolean(t->L, -1) && lua_toboolean(t->L, -1) == 0;
+		
+		t->state = THREAD_ACTIVE;
+		signal_cond(t->cond);
+		
+		int quit = 0;
+		while(!quit){
+			quit = event_loop(t->L);
+		}
+		lua_pop(t->L, 1);
+	}
+	
+	t->state = THREAD_DEAD;
+	unlock_mutex(t->mutex);
+	return 0;
+}
+
+/* Lua API definitions */
+
+/*** Create a new thread.
+ * @function new
+ * @tparam[opt] function fn the function to execute in the new thread
+ * @param[opt] ... any arguments which will be passed to `fn`
+ * @treturn Thread
+ */
+int safethread_new(lua_State *L){
+	/* Create Thread struct / userdata */
+	Thread *t = lua_newuserdata(L, sizeof(Thread)); // stack: {t, (args?), fn}
+	
+	/* Create new Lua state */
+	t->L = mb_init();
+	
+	/* Put Thread struct in registry */
+	lua_pushlightuserdata(t->L, t);
+	lua_setfield(t->L, LUA_REGISTRYINDEX, "mb_thread");
+	
+	/* Create hardware mutex and condition variable */
+	t->state = THREAD_INIT;
+	create_mutex(t->mutex);
+	create_cond(t->cond);
+	
+	/* Load thread chunk */
+	if(lua_gettop(L) > 1){
+		lua_rotate(L, 1, 1);
+		move_values(L, t->L, lua_gettop(L) - 1);
+	}
+	
+	/* Create and start thread */
+	create_thread(t->thread, safethread_run, t);
+	
+	luaL_setmetatable(L, "Thread");
+	return 1;
+}
+
+/*** Sleep the current thread for an amount of time.
+ * Unlike the `os.sleep` provided by MoonBox, this function does not
+ * call the event loop, and instead makes the thread idle.
+ * @function sleep
+ * @tparam number seconds
+ */
+int safethread_sleep(lua_State *L){
+	/* Get self thread */
+	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
+	Thread *t = lua_touserdata(L, -1);
+	lua_pop(L, 1);
+	
+	lua_Integer microseconds = lua_tonumber(L, 1) * 1000000;
+	struct timespec ts;
+	ts.tv_sec = microseconds * 1e-6;
+	ts.tv_nsec = (microseconds % 1000000) * 1000;
+	
+	unlock_mutex(t->mutex);
+	nanosleep(&ts, NULL);
+	lock_mutex(t->mutex);
+	
+	return 0;
+}
+
+/*** Exit the current thread.
+ * Like `os.exit`, but stops only this thread instead of the whole process.
+ * @function exit
+ */
+int safethread_exit(lua_State *L){
+	/* Get self thread */
+	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
+	Thread *t = lua_touserdata(L, -1);
+	lua_pop(L, 1);
+	
+	t->state = THREAD_DEAD;
+	unlock_mutex(t->mutex);
+	exit_thread();
+	
+	return 0;
+}
+
+/*** Get the current thread.
+ * @function self
+ * @treturn Thread the current thread
+ */
+int safethread_self(lua_State *L){
+	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
+	luaL_setmetatable(L, "Thread");
+	return 1;
+}
+
+/// @type Thread
+
+/*** Wait for a thread to complete.
+ * @function wait
+ * @return the values returned from the thread function
+ */
+int safethread_wait(lua_State *L){
+	/* Get Lua thread */
+	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {t}
+	if(t->state == THREAD_DEAD) return 0; // Don't wait for a thread that has already stopped
+	
+	/* Wait for thread and close it */
+	join_thread(t->thread);
+	destroy_mutex(t->mutex);
+	t->state = THREAD_DEAD;
+	
+	/* Get return values */
+	int top = lua_gettop(L);
+	move_values(t->L, L, lua_gettop(t->L) - 1);
+	
+	return lua_gettop(L) - top;
+}
+
+/*** Immediately stop a thread.
+ * @function kill
+ */
+int safethread_kill(lua_State *L){
+	/* Get Lua thread */
+	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {t}
+	if(t->state == THREAD_DEAD) return 0; // Don't wait for a thread that has already stopped
+	
+	/* Send SIGINT to thread */
+	kill_thread(t->thread);
+	destroy_mutex(t->mutex);
+	t->state = 0; // Inactive
+	
+	return 0;
 }
 
 /*** Execute a function in a thread.
