@@ -270,8 +270,11 @@ static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, 
 			lua_pushlightuserdata(to, lua_touserdata(from, idx)); break;
 		case LUA_TNUMBER:
 			lua_pushnumber(to, lua_tonumber(from, idx)); break;
-		case LUA_TSTRING:
-			lua_pushstring(to, lua_tostring(from, idx)); break;
+		case LUA_TSTRING: {
+			size_t len;
+			const char *str = lua_tolstring(from, idx, &len);
+			lua_pushlstring(to, str, len); break;
+		}
 		case LUA_TTABLE:
 			copy_table(from, to, idx, copiedfrom, copiedto); break;
 		case LUA_TFUNCTION:
