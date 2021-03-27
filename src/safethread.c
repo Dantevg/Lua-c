@@ -24,7 +24,7 @@
 /* C library definitions */
 
 // Forward declarations
-static int move_value(lua_State*, lua_State*, int);
+static int move_value(lua_State*, lua_State*);
 static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto);
 
 static int try_cached_copy(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
@@ -183,8 +183,8 @@ static int copy_value(lua_State *from, lua_State *to, int idx){
 	return success;
 }
 
-static int move_value(lua_State *from, lua_State *to, int idx){
-	int success = copy_value(from, to, idx);
+static int move_value(lua_State *from, lua_State *to){
+	int success = copy_value(from, to, -1);
 	lua_pop(from, 1);
 	return success;
 }
@@ -212,11 +212,19 @@ void *safethread_run(void *data){
 	Thread *t = (Thread*)data;
 	lock_mutex(t->mutex); // Immediately lock mutex
 	
+	if(lua_gettop(t->L) > 1 && lua_pcall(t->L, 0, LUA_MULTRET, 1) != LUA_OK){
+		lua_pop(t->L, 1);
+	}
+	int base = lua_gettop(t->L);
+	
+	t->state = THREAD_IDLE;
+	signal_cond(t->cond);
+	
 	while(t->state != THREAD_DEAD){
 		switch(t->state){
 			case THREAD_ACTIVE:
-				if(lua_pcall(t->L, lua_gettop(t->L) - 3, LUA_MULTRET, 1) == LUA_OK){
-					lua_pcall(t->L, lua_gettop(t->L) - 2, 0, 1);
+				if(lua_pcall(t->L, lua_gettop(t->L) - base - 2, LUA_MULTRET, 1) == LUA_OK){
+					lua_pcall(t->L, lua_gettop(t->L) - base - 1, 0, 1);
 				}else{
 					lua_pop(t->L, 2);
 				}
@@ -242,12 +250,11 @@ void *safethread_run(void *data){
 /*** Create a new thread.
  * @function new
  * @tparam[opt] function fn the function to execute in the new thread
- * @param[opt] ... any arguments which will be passed to `fn`
  * @treturn Thread
  */
 int safethread_new(lua_State *L){
 	/* Create Thread struct / userdata */
-	Thread *t = lua_newuserdata(L, sizeof(Thread)); // stack: {t, (args?), fn}
+	Thread *t = lua_newuserdata(L, sizeof(Thread)); // stack: {t, fn}
 	
 	/* Create new Lua state */
 	t->L = mb_init();
@@ -256,12 +263,15 @@ int safethread_new(lua_State *L){
 	lua_pushlightuserdata(t->L, t);
 	lua_setfield(t->L, LUA_REGISTRYINDEX, "mb_thread");
 	
-	/* Create hardware mutex and condition variable */
-	t->state = THREAD_IDLE;
+	/* Create mutex and condition variable */
+	t->state = THREAD_INIT;
 	create_mutex(t->mutex);
 	create_cond(t->cond);
 	
-	/* Create and start thread */
+	/* Push initial function */
+	if(lua_gettop(L) >= 2 && lua_isfunction(L, 1)) copy_value(L, t->L, 1);
+	
+	/* Create hardware thread and start it */
 	create_thread(t->thread, safethread_run, t);
 	
 	luaL_setmetatable(L, "Thread");
@@ -411,7 +421,7 @@ int safethread_pcall(lua_State *L){
 	int base = lua_gettop(t->L) - n_args - 1;
 	if(lua_pcall(t->L, n_args, LUA_MULTRET, 0) != LUA_OK){
 		lua_pushboolean(L, 0);
-		move_value(t->L, L, -1); // Error will be on top of thread stack
+		move_value(t->L, L); // Error will be on top of thread stack
 		unlock_mutex(t->mutex);
 		return 2;
 	}
@@ -449,7 +459,7 @@ static int exec_async(lua_State *L){
 	
 	/* Move callback or nop */
 	if(lua_gettop(L) >= 1){
-		move_value(L, t->L, 1);
+		move_value(L, t->L);
 	}else{
 		lua_pushcfunction(t->L, nop);
 	}
@@ -502,6 +512,13 @@ int safethread_pushEvent(lua_State *L){
 	return 0;
 }
 
+int safethread__call(lua_State *L){
+	lua_pushcfunction(L, safethread_new);
+	lua_replace(L, 1);
+	lua_call(L, lua_gettop(L) - 1, 1);
+	return 1;
+}
+
 static const struct luaL_Reg safethread_f[] = {
 	{"new", safethread_new},
 	{"sleep", safethread_sleep},
@@ -518,6 +535,12 @@ static const struct luaL_Reg safethread_f[] = {
 LUAMOD_API int luaopen_safethread(lua_State *L){
 	lua_newtable(L); // stack: {table}
 	luaL_setfuncs(L, safethread_f, 0);
+	
+	/* Thread table metatable */
+	lua_newtable(L);
+	lua_pushcfunction(L, safethread__call);
+	lua_setfield(L, -2, "__call");
+	lua_setmetatable(L, -2);
 	
 	/* Create Thread metatable */
 	if(!luaL_newmetatable(L, "Thread")){ // stack: {mt, table, ...}
