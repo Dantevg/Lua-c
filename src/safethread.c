@@ -5,6 +5,7 @@
  */
 
 #include <time.h> // for nanosleep
+#include <string.h> // for strcmp
 
 #if !defined(_WIN32) && !defined(__WIN32__)
 	#define _REENTRANT // needed for pthread_kill
@@ -95,12 +96,17 @@ static int copy_function(lua_State *from, lua_State *to, int idx, int copiedfrom
 		return 0;
 	}
 	
-	/* Copy upvalues, optionally skip _ENV at upvalue-index 1 */
-	for(unsigned char i = 2 - SHOULD_COPY_FUNCTION_ENV; i <= info.nups; i++){
-		lua_getupvalue(from, idx, i);
+	/* Copy upvalues, optionally skip upvalue with name _ENV */
+	for(unsigned char i = 1; i <= info.nups; i++){
+		const char *name = lua_getupvalue(from, idx, i);
+		if(!name) continue;
+		if(SHOULD_SKIP_FUNCTION_ENV && strcmp(name, "_ENV") == 0){
+			lua_pop(from, 1);
+			continue;
+		}
 		if(!copy_value_(from, to, -1, copiedfrom, copiedto)) return 0;
 		lua_pop(from, 1);
-		lua_setupvalue(to, -2, i);
+		if(!lua_setupvalue(to, -2, i)) lua_pop(to, 1);
 	}
 	
 	return 1;
@@ -108,7 +114,8 @@ static int copy_function(lua_State *from, lua_State *to, int idx, int copiedfrom
 
 static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
 	idx = lua_absindex(from, idx);
-	switch(lua_type(from, idx)){
+	int type = lua_type(from, idx);
+	switch(type){
 		case LUA_TNONE:
 		case LUA_TNIL:
 			lua_pushnil(to); break;
@@ -134,9 +141,9 @@ static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, 
 			return 0;
 	}
 	
-	/* Also copy its metatable (not for strings), but silently fail when that does not work */
-	if(lua_type(from, idx) != LUA_TSTRING && lua_getmetatable(from, idx)){
-		// TODO: check whether string metatable was really default (not modified with debug library)
+	/* Also copy its metatable (only for tables and userdata),
+		but silently fail when that does not work */
+	if((type == LUA_TTABLE || type == LUA_TUSERDATA) && lua_getmetatable(from, idx)){
 		if(copy_value_(from, to, -1, copiedfrom, copiedto)){
 			lua_setmetatable(to, -2);
 		}
