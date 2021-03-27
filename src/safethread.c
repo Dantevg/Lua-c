@@ -363,12 +363,11 @@ int safethread_kill(lua_State *L){
  * userdata in multiple threads!)
  * - `string`
  * - `table` (handles recursive / self-referential tables)
- * - `function` (only C-functions)
+ * - `function`
  * 
  * Uncopyable types:
  * 
  * - `thread`
- * - `function` defined in Lua
  * 
  * @function pcall
  * @tparam function fn
