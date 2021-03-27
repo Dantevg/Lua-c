@@ -22,6 +22,24 @@ do
 end
 
 do
+	-- More environment stuff
+	local t = thread.new(function() x = 10 end)
+	local y = 20
+	z = 30
+	local _, a, b, c = t:pcall(function()
+		x, y, z = (x or 0)+1, (y or 0)+1, (z or 0)+1
+		return x, y, z
+	end)
+	assert(x == nil)
+	assert(a == 11)
+	assert(y == 20)
+	assert(b == 21)
+	assert(z == 30)
+	assert(c == 1)
+	t:wait()
+end
+
+do
 	-- Recursive references
 	local t = thread.new(function() end)
 	function f(tbl)
