@@ -211,16 +211,24 @@ void *safethread_run(void *data){
 #endif
 	Thread *t = (Thread*)data;
 	lock_mutex(t->mutex); // Immediately lock mutex
-	if(lua_gettop(t->L) > 1 && lua_pcall(t->L, lua_gettop(t->L) - 2, LUA_MULTRET, 1) == LUA_OK){
-		// Immediately stop execution when main chunk returns false
-		// int quit = lua_isboolean(t->L, -1) && lua_toboolean(t->L, -1) == 0;
-		
-		t->state = THREAD_ACTIVE;
-		signal_cond(t->cond);
-		
-		int quit = 0;
-		while(!quit){
-			quit = event_loop(t->L);
+	
+	while(t->state != THREAD_DEAD){
+		switch(t->state){
+			case THREAD_ACTIVE:
+				if(lua_pcall(t->L, lua_gettop(t->L) - 3, LUA_MULTRET, 1) == LUA_OK){
+					lua_pcall(t->L, lua_gettop(t->L) - 2, 0, 1);
+				}else{
+					lua_pop(t->L, 2);
+				}
+				t->state = THREAD_IDLE;
+				signal_cond(t->cond);
+				break;
+			case THREAD_IDLE:
+				event_loop(t->L);
+				break;
+			default:
+				sched_yield();
+				break;
 		}
 	}
 	
@@ -249,15 +257,9 @@ int safethread_new(lua_State *L){
 	lua_setfield(t->L, LUA_REGISTRYINDEX, "mb_thread");
 	
 	/* Create hardware mutex and condition variable */
-	t->state = THREAD_INIT;
+	t->state = THREAD_IDLE;
 	create_mutex(t->mutex);
 	create_cond(t->cond);
-	
-	/* Load thread chunk */
-	if(lua_gettop(L) > 1){
-		lua_rotate(L, 1, 1);
-		move_values(L, t->L, lua_gettop(L) - 1);
-	}
 	
 	/* Create and start thread */
 	create_thread(t->thread, safethread_run, t);
@@ -303,6 +305,8 @@ int safethread_exit(lua_State *L){
 	t->state = THREAD_DEAD;
 	unlock_mutex(t->mutex);
 	exit_thread();
+	destroy_mutex(t->mutex);
+	destroy_cond(t->cond);
 	
 	return 0;
 }
@@ -328,10 +332,16 @@ int safethread_wait(lua_State *L){
 	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {t}
 	if(t->state == THREAD_DEAD) return 0; // Don't wait for a thread that has already stopped
 	
-	/* Wait for thread and close it */
+	/* Wait for thread to become idle */
+	lock_mutex(t->mutex);
+	while(t->state != THREAD_IDLE) wait_cond(t->cond, t->mutex);
+	t->state = THREAD_DEAD;
+	unlock_mutex(t->mutex);
+	
+	/* Close thread */
 	join_thread(t->thread);
 	destroy_mutex(t->mutex);
-	t->state = THREAD_DEAD;
+	destroy_cond(t->cond);
 	
 	/* Get return values */
 	int top = lua_gettop(L);
@@ -348,10 +358,11 @@ int safethread_kill(lua_State *L){
 	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {t}
 	if(t->state == THREAD_DEAD) return 0; // Don't wait for a thread that has already stopped
 	
-	/* Send SIGINT to thread */
+	/* Kill thread */
+	t->state = THREAD_DEAD;
 	kill_thread(t->thread);
 	destroy_mutex(t->mutex);
-	t->state = 0; // Inactive
+	destroy_cond(t->cond);
 	
 	return 0;
 }
@@ -393,14 +404,15 @@ int safethread_pcall(lua_State *L){
 	luaL_argcheck(L, lua_isfunction(L, 2), 2, "expected function");
 	int n_args = lua_gettop(L)-2;
 	lock_mutex(t->mutex);
-	// Wait until thread has initialised
-	while(t->state == THREAD_INIT) wait_cond(t->cond, t->mutex);
+	// Wait until thread is idle
+	while(t->state != THREAD_IDLE) wait_cond(t->cond, t->mutex);
 	move_values(L, t->L, n_args+1);
 	
 	int base = lua_gettop(t->L) - n_args - 1;
 	if(lua_pcall(t->L, n_args, LUA_MULTRET, 0) != LUA_OK){
 		lua_pushboolean(L, 0);
 		move_value(t->L, L, -1); // Error will be on top of thread stack
+		unlock_mutex(t->mutex);
 		return 2;
 	}
 	
@@ -409,6 +421,65 @@ int safethread_pcall(lua_State *L){
 	move_values(t->L, L, n_ret);
 	unlock_mutex(t->mutex);
 	return n_ret + 1;
+}
+
+static int nop(lua_State *L){
+	return 0;
+}
+
+// upvalue 1: Thread
+// upvalue 2: n args
+// upvalue 3: function
+// rest of upvalues: arguments
+static int exec_async(lua_State *L){
+	/* Get Lua thread */
+	Thread *t = luaL_checkudata(L, lua_upvalueindex(1), "Thread"); // stack: {callback}
+	if(t->state == THREAD_DEAD){
+		// Thread has stopped
+		lua_pushboolean(L, 0);
+		lua_pushstring(L, "thread has stopped");
+		return 2;
+	}
+	
+	luaL_argcheck(L, lua_isfunction(L, 1) || lua_gettop(L) == 0, 1, "expected function");
+	
+	/* Wait until thread is idle */
+	lock_mutex(t->mutex);
+	while(t->state != THREAD_IDLE) wait_cond(t->cond, t->mutex);
+	
+	/* Move callback or nop */
+	if(lua_gettop(L) >= 1){
+		move_value(L, t->L, 1);
+	}else{
+		lua_pushcfunction(t->L, nop);
+	}
+	
+	/* Move function and arguments */
+	int n_args = lua_tointeger(L, lua_upvalueindex(2));
+	for(int i = 3; i <= n_args + 3; i++){
+		lua_pushvalue(L, lua_upvalueindex(i));
+	}
+	move_values(L, t->L, n_args + 1);
+	t->state = THREAD_ACTIVE;
+	unlock_mutex(t->mutex);
+	
+	lua_pushboolean(L, 1);
+	return 1;
+}
+
+/*** Execute a function in a thread, asynchronously.
+ * @function async
+ * @tparam function fn
+ * @param[opt] ... args
+ * @treturn function to be called with an optional callback
+ */
+int safethread_async(lua_State *L){
+	luaL_checkudata(L, 1, "Thread"); // stack: {(args?), fn, t}
+	luaL_argcheck(L, lua_isfunction(L, 2), 2, "expected function");
+	lua_pushinteger(L, lua_gettop(L) - 2);
+	lua_insert(L, 2);
+	lua_pushcclosure(L, exec_async, lua_gettop(L));
+	return 1;
 }
 
 /***
@@ -439,6 +510,7 @@ static const struct luaL_Reg safethread_f[] = {
 	{"wait", safethread_wait},
 	{"kill", safethread_kill},
 	{"pcall", safethread_pcall},
+	{"async", safethread_async},
 	{"pushEvent", safethread_pushEvent},
 	{NULL, NULL}
 };

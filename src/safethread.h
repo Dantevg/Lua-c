@@ -12,9 +12,9 @@
 #define SHOULD_USE_THREAD_ENV 1
 
 typedef enum ThreadState {
-	THREAD_INIT,   // Thread has not yet run
-	THREAD_ACTIVE, // Thread is active
-	THREAD_DEAD,   // Thread has stopped
+	THREAD_IDLE,   // lua_State is inactive
+	THREAD_ACTIVE, // lua_State has work queued
+	THREAD_DEAD,   // Thread has stopped. The OS thread does not exist anymore
 } ThreadState;
 
 typedef struct Thread {

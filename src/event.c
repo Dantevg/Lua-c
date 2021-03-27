@@ -241,20 +241,19 @@ void event_poll(lua_State *L){
 int event_loop(lua_State *L){
 	uint32_t loop_start = SDL_GetTicks();
 	
-	if(lua_getfield(L, LUA_REGISTRYINDEX, "event_queue") != LUA_TTABLE){
-		lua_pop(L, 1);
-		return 1;
-	} // stack: {queue}
-	
-	/* Poll for SDL events */
-	event_poll(L);
-	
-	/* Handle Lua events */
-	for(int i = 1; i <= table_getn(L, -1); i++){
-		lua_geti(L, -1, i); // stack: {event, queue, ...}
-		event_dispatch_event(L); // stack: {queue, ...}
-		table_remove(L, -1, i);
-		lua_pop(L, 1);
+	int quit = 1;
+	if(lua_getfield(L, LUA_REGISTRYINDEX, "event_queue") == LUA_TTABLE){ // stack: {queue}
+		/* Poll for SDL events */
+		event_poll(L);
+		
+		/* Handle Lua events */
+		for(int i = 1; i <= table_getn(L, -1); i++){
+			lua_geti(L, -1, i); // stack: {event, queue, ...}
+			event_dispatch_event(L); // stack: {queue, ...}
+			table_remove(L, -1, i);
+			lua_pop(L, 1);
+		}
+		quit = 0;
 	}
 	lua_pop(L, 1); // stack: {}
 	
@@ -271,7 +270,7 @@ int event_loop(lua_State *L){
 	}
 	if(t) lock_mutex(t->mutex); // lock mutex again
 	
-	return 0;
+	return quit;
 }
 
 /* Lua API definitions */
