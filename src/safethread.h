@@ -6,10 +6,10 @@
 
 /* C library definitions */
 
-// Whether to skip the upvalue with name _ENV when copying functions
-// When 1, skips copying _ENV so globals at time of function definition are invisible
+// Whether to use the thread's env when copying functions
+// When 1, skips copying _ENV and replaces it with the thread's global env
 // When 0, copies _ENV so globals inside the thread are invisible
-#define SHOULD_SKIP_FUNCTION_ENV 1
+#define SHOULD_USE_THREAD_ENV 1
 
 typedef enum ThreadState {
 	THREAD_INIT,   // Thread has not yet run

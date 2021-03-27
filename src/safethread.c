@@ -112,11 +112,11 @@ static int copy_function(lua_State *from, lua_State *to, int idx, int copiedfrom
 	for(unsigned char i = 1; i <= info.nups; i++){
 		const char *name = lua_getupvalue(from, idx, i);
 		if(!name) continue;
-		if(SHOULD_SKIP_FUNCTION_ENV && strcmp(name, "_ENV") == 0){
-			lua_pop(from, 1);
-			continue;
+		if(SHOULD_USE_THREAD_ENV && strcmp(name, "_ENV") == 0){
+			lua_rawgeti(to, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
+		}else{
+			if(!copy_value_(from, to, -1, copiedfrom, copiedto)) return 0;
 		}
-		if(!copy_value_(from, to, -1, copiedfrom, copiedto)) return 0;
 		lua_pop(from, 1);
 		if(!lua_setupvalue(to, -2, i)) lua_pop(to, 1);
 	}
