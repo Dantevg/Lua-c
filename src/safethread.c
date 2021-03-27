@@ -333,6 +333,25 @@ int safethread_self(lua_State *L){
 
 /// @type Thread
 
+/*** Get a thread's status.
+ * @function status
+ * @treturn string status
+ */
+int safethread_status(lua_State *L){
+	/* Get Lua thread */
+	Thread *t = luaL_checkudata(L, 1, "Thread"); // stack: {t}
+	
+	switch(t->state){
+		case THREAD_INIT: lua_pushstring(L, "init"); break;
+		case THREAD_IDLE: lua_pushstring(L, "idle"); break;
+		case THREAD_ACTIVE: lua_pushstring(L, "active"); break;
+		case THREAD_DEAD: lua_pushstring(L, "dead"); break;
+		default: lua_pushstring(L, "(unknown)"); break;
+	}
+	
+	return 1;
+}
+
 /*** Wait for a thread to complete.
  * @function wait
  * @return the values returned from the thread function
@@ -482,6 +501,7 @@ static int exec_async(lua_State *L){
  * @tparam function fn
  * @param[opt] ... args
  * @treturn function to be called with an optional callback
+ * @usage thread:async(function(x, y) return x - y, 42, 10)(print) --> 32
  */
 int safethread_async(lua_State *L){
 	luaL_checkudata(L, 1, "Thread"); // stack: {(args?), fn, t}
@@ -524,6 +544,7 @@ static const struct luaL_Reg safethread_f[] = {
 	{"sleep", safethread_sleep},
 	{"exit", safethread_exit},
 	{"self", safethread_self},
+	{"status", safethread_status},
 	{"wait", safethread_wait},
 	{"kill", safethread_kill},
 	{"pcall", safethread_pcall},
