@@ -27,24 +27,33 @@
 static int move_value(lua_State*, lua_State*, int);
 static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto);
 
-static void copy_table(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
-	/* Check if the table has already been copied (recursive table) */
+static int try_cached_copy(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
 	lua_pushvalue(from, idx);
 	if(lua_gettable(from, copiedfrom) != LUA_TNIL){
-		// Found the table, reference it instead of copying recursively
+		// Found the value, reference it instead of copying
 		lua_rawgeti(to, copiedto, lua_tointeger(from, -1));
 		lua_pop(from, 1);
-		return;
+		return 1;
 	}
 	lua_pop(from, 1);
-	
-	lua_newtable(to);
+	return 0;
+}
 
-	/* Store new table in "copied" table */
+static void store_cache(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
 	lua_pushvalue(from, idx);
 	lua_pushvalue(to, -1);
 	lua_pushinteger(from, luaL_ref(to, copiedto));
 	lua_settable(from, copiedfrom);
+}
+
+static void copy_table(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
+	/* Check if the table has already been copied (recursive table) */
+	if(try_cached_copy(from, to, idx, copiedfrom, copiedto)) return;
+	
+	lua_newtable(to);
+
+	/* Store new table in "copied" table */
+	store_cache(from, to, idx, copiedfrom, copiedto);
 	
 	/* Traverse table */
 	lua_pushnil(from);
@@ -71,6 +80,9 @@ static int copy_function(lua_State *from, lua_State *to, int idx, int copiedfrom
 		lua_pushcfunction(to, lua_tocfunction(from, idx));
 		return 1;
 	}
+	
+	/* Check if the function has already been copied */
+	if(try_cached_copy(from, to, idx, copiedfrom, copiedto)) return 1;
 	
 	/* Dump function to buffer */
 	luaL_Buffer buffer;
@@ -108,6 +120,9 @@ static int copy_function(lua_State *from, lua_State *to, int idx, int copiedfrom
 		lua_pop(from, 1);
 		if(!lua_setupvalue(to, -2, i)) lua_pop(to, 1);
 	}
+	
+	/* Store new function in "copied" table */
+	store_cache(from, to, idx, copiedfrom, copiedto);
 	
 	return 1;
 }
