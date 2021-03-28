@@ -127,6 +127,27 @@ static int copy_function(lua_State *from, lua_State *to, int idx, int copiedfrom
 	return 1;
 }
 
+// Try to set metatable that is already registered with luaL_newmetatable instead of copying
+static int try_registed_metatable(lua_State *from, lua_State *to){
+	lua_getfield(from, -1, "__name");
+	const char *name = lua_tostring(from, -1);
+	lua_pop(from, 1);
+	if(name == NULL) return 0;
+	
+	/* Check if metatable is registered in from */
+	int from_has = (luaL_getmetatable(from, name) != LUA_TNIL);
+	lua_pop(from, 1);
+	if(!from_has) return 0;
+	
+	/* Check if metatable is also registered in to */
+	int to_has = (luaL_getmetatable(to, name) != LUA_TNIL);
+	lua_pop(to, 1);
+	if(!to_has) return 0;
+	
+	luaL_setmetatable(to, name);
+	return 1;
+}
+
 static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
 	idx = lua_absindex(from, idx);
 	int type = lua_type(from, idx);
@@ -163,7 +184,8 @@ static int copy_value_(lua_State *from, lua_State *to, int idx, int copiedfrom, 
 	/* Also copy its metatable (only for tables and userdata),
 		but silently fail when that does not work */
 	if((type == LUA_TTABLE || type == LUA_TUSERDATA) && lua_getmetatable(from, idx)){
-		if(copy_value_(from, to, -1, copiedfrom, copiedto)){
+		if(!try_registed_metatable(from, to)
+				&& copy_value_(from, to, -1, copiedfrom, copiedto)){
 			lua_setmetatable(to, -2);
 		}
 		lua_pop(from, 1);
