@@ -335,7 +335,7 @@ int safethread_self(lua_State *L){
 
 /*** Get a thread's status.
  * @function status
- * @treturn string status
+ * @treturn string status, one of `"init"`, `"idle"`, `"active"`, `"dead"`.
  */
 int safethread_status(lua_State *L){
 	/* Get Lua thread */

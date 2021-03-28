@@ -40,6 +40,9 @@ int safethread_exit(lua_State *L);
 // Get the current thread
 int safethread_self(lua_State *L);
 
+// Get a thread's status
+int safethread_status(lua_State *L);
+
 // Wait for a thread to complete
 int safethread_wait(lua_State *L);
 
@@ -48,6 +51,9 @@ int safethread_kill(lua_State *L);
 
 // Execute a function in a thread
 int safethread_pcall(lua_State *L);
+
+// Execute a function in a thread, asynchronously
+int safethread_async(lua_State *L);
 
 // Push an event on the queue in the thread
 int safethread_pushEvent(lua_State *L);
