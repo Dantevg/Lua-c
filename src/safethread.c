@@ -75,8 +75,14 @@ static int writer(lua_State *L, const void *data, size_t size, void *buffer){
 }
 
 static int copy_function(lua_State *from, lua_State *to, int idx, int copiedfrom, int copiedto){
+	/* Get original function name and number of upvalues */
+	lua_Debug info;
+	lua_pushvalue(from, idx);
+	lua_getinfo(from, ">nu", &info);
+	
 	/* C-functions can be copied over simply */
 	if(lua_iscfunction(from, idx)){
+		if(info.nups > 0) return 0; // Don't copy c-functions with upvalues for now
 		lua_pushcfunction(to, lua_tocfunction(from, idx));
 		return 1;
 	}
@@ -95,11 +101,6 @@ static int copy_function(lua_State *from, lua_State *to, int idx, int copiedfrom
 	size_t len;
 	const char *data = lua_tolstring(from, -1, &len);
 	lua_pop(from, 2);
-	
-	/* Get original function info */
-	lua_Debug info;
-	lua_pushvalue(from, idx);
-	lua_getinfo(from, ">nu", &info);
 	
 	/* Load buffer back to function */
 	int status = luaL_loadbuffer(to, data, len, info.name);

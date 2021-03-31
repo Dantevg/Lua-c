@@ -35,7 +35,7 @@
 	#define unlock_mutex(m) pthread_mutex_unlock(&(m))
 	
 	#define create_cond(c) pthread_cond_init(&(c), NULL)
-	#define destroy_cond(c) pthread_cond_destroy(&(c), NULL)
+	#define destroy_cond(c) pthread_cond_destroy(&(c))
 	#define wait_cond(c, m) pthread_cond_wait(&(c), &(m))
 	#define signal_cond(c) pthread_cond_signal(&(c))
 #endif
