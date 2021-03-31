@@ -3,20 +3,24 @@
 #if defined(_WIN32) || defined(__WIN32__)
 	#include <windows.h>
 	#define THREAD HANDLE
-	#define MUTEX HANDLE
+	#define MUTEX CRITICAL_SECTION // Use more lightweight critical section as mutex
+	#define CONDITION CONDITION_VARIABLE
 	
 	#define create_thread(thread, fn, arg) (thread) = CreateThread(NULL, 0, (fn), (arg), 0, NULL)
 	#define join_thread(thread) WaitForSingleObject((thread), INFINITE); CloseHandle(thread)
-	#define kill_thread(thread) WaitForSingleObject((thread), 0); CloseHandle(thread)
+	#define kill_thread(thread) TerminateThread((thread), 0); CloseHandle(thread)
 	#define self_thread() GetCurrentThread()
 	#define exit_thread() ExitThread(0)
 	
-	#define create_mutex(m) (m) = CreateMutexA(NULL, FALSE, NULL)
-	#define destroy_mutex(m) CloseHandle(m)
-	#define lock_mutex(m) WaitForSingleObject((m), INFINITE)
-	#define unlock_mutex(m) ReleaseMutex(m)
+	#define create_mutex(m) InitializeCriticalSection(&(m))
+	#define destroy_mutex(m) DeleteCriticalSection(&(m))
+	#define lock_mutex(m) EnterCriticalSection(&(m))
+	#define unlock_mutex(m) LeaveCriticalSection(&(m))
 	
-	// TODO: condition variables, kill_thread using TerminateThread?
+	#define create_cond(c) InitializeConditionVariable(&(c))
+	#define destroy_cond(c) (void)(c)
+	#define wait_cond(c, m) SleepConditionVariableCS(&(c), &(m), INFINITE)
+	#define signal_cond(c) WakeConditionVariable(&(c))
 #else
 	#include <pthread.h>
 	#define THREAD pthread_t

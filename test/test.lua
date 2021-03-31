@@ -7,6 +7,7 @@ end
 print("Automatic tests")
 test("auto/buffer.lua")
 test("auto/require.lua")
+test("auto/safethread.lua")
 
 print("Manual tests")
 test("hello.lua")
