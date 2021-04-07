@@ -246,8 +246,18 @@ void *safethread_run(void *data){
 	while(t->state != THREAD_DEAD){
 		switch(t->state){
 			case THREAD_ACTIVE:
-				if(lua_pcall(t->L, lua_gettop(t->L) - base - 2, LUA_MULTRET, 1) == LUA_OK){
-					lua_pcall(t->L, lua_gettop(t->L) - base - 1, 0, 1);
+				if(lua_pcall(t->L, lua_gettop(t->L) - base - 2, LUA_MULTRET, 1) == LUA_OK && t->cb_id != 0){
+					/* Call callback in original thread */
+					int n_ret = lua_gettop(t->L) - base - 1;
+					lock_mutex(t->cb_t->mutex);
+					while(t->cb_t->state != THREAD_IDLE) wait_cond(t->cb_t->cond, t->cb_t->mutex);
+					lua_rawgeti(t->cb_t->L, LUA_REGISTRYINDEX, t->cb_id);
+					move_values(t->L, t->cb_t->L, n_ret);
+					lua_pcall(t->cb_t->L, n_ret, 0, 1);
+					luaL_unref(t->cb_t->L, LUA_REGISTRYINDEX, t->cb_id);
+					unlock_mutex(t->cb_t->mutex);
+					t->cb_id = 0;
+					t->cb_t = NULL;
 				}else{
 					lua_pop(t->L, 2);
 				}
@@ -475,10 +485,6 @@ int safethread_pcall(lua_State *L){
 	return n_ret + 1;
 }
 
-static int nop(lua_State *L){
-	return 0;
-}
-
 // upvalue 1: Thread
 // upvalue 2: n args
 // upvalue 3: function
@@ -499,12 +505,11 @@ static int exec_async(lua_State *L){
 	lock_mutex(t->mutex);
 	while(t->state != THREAD_IDLE) wait_cond(t->cond, t->mutex);
 	
-	/* Move callback or nop */
-	if(lua_gettop(L) >= 1){
-		move_value(L, t->L);
-	}else{
-		lua_pushcfunction(t->L, nop);
-	}
+	/* Register callback in registry */
+	t->cb_id = lua_gettop(L) >= 1 ? luaL_ref(L, LUA_REGISTRYINDEX) : 0;
+	lua_getfield(L, LUA_REGISTRYINDEX, "mb_thread");
+	t->cb_t = lua_touserdata(L, -1);
+	lua_pop(L, 1);
 	
 	/* Move function and arguments */
 	int n_args = lua_tointeger(L, lua_upvalueindex(2));

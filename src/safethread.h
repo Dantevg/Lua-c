@@ -18,12 +18,16 @@ typedef enum ThreadState {
 	THREAD_DEAD,   // Thread has stopped. The OS thread does not exist anymore
 } ThreadState;
 
+typedef struct Thread Thread; // forward-declare
+
 typedef struct Thread {
 	lua_State *L;
 	ThreadState state;
 	THREAD thread;
 	MUTEX mutex;
 	CONDITION cond;
+	Thread *cb_t;
+	int cb_id;
 } Thread;
 
 /* Lua API definitions */
