@@ -791,15 +791,17 @@ stream.group.__call = stream.get
 -- Returns a `Stream` of `Streams`.
 -- @function group
 -- @tparam function fn
+-- @tparam boolean keepEmpty
 -- @treturn Stream
 -- @usage stream.table({1,2,1,3,2,2})
 -- 	:group(function(x, prev) return not prev or x >= prev end)
 -- 	:map(function(s) return s:string() end) -- s is a Stream here
 -- 	:table() --> {"12","13","22"}
-function stream.group.new(source, fn)
+function stream.group.new(source, fn, keepEmpty)
 	local self = {}
 	self.source = source
 	self.fn = fn or function() return true end
+	self.keepEmpty = keepEmpty
 	self.buffer = nil
 	
 	self.get = coroutine.wrap(function()
@@ -807,7 +809,7 @@ function stream.group.new(source, fn)
 		for x in self.source do
 			if self.fn(x, self.buffer[#self.buffer], #self.buffer) then -- add to group
 				table.insert(self.buffer, x)
-			elseif #self.buffer > 0 then -- prevent empty groups
+			elseif #self.buffer > 0 or self.keepEmpty then -- prevent empty groups
 				coroutine.yield(stream.table(self.buffer))
 				if self.fn(x, nil, 0) then -- start new buffer
 					self.buffer = {x}
@@ -929,6 +931,7 @@ end
 -- Alias for `group(function(x) return x ~= at end)`
 -- @function splitAt
 -- @param at
+-- @tparam boolean keepEmpty
 -- @treturn Stream
 -- @see group
 -- @usage
@@ -936,8 +939,8 @@ end
 -- 	:splitAt(" ")
 -- 	:map(stream.string)
 -- 	:table() --> {"hello", "world"}
-function stream.splitAt(source, at)
-	return setmetatable(source:group(stream.op.neq(at)), {
+function stream.splitAt(source, at, keepEmpty)
+	return setmetatable(source:group(stream.op.neq(at), keepEmpty), {
 		__index = stream.group,
 		__tostring = function(self)
 			return string.format("%s -> SplitAt %q", source, at)
