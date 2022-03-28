@@ -1,1 +1,1 @@
-dofile "res/lua.lua"
+dofile(_MB_RES_DIR.."/lua.lua")

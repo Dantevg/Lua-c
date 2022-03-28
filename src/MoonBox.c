@@ -61,6 +61,10 @@ lua_State *mb_init(){
 	lua_pushstring(L, "MoonBox " VERSION);
 	lua_setglobal(L, "_MB_VERSION");
 	
+	/* Push MoonBox res path */
+	lua_pushstring(L, BASE_PATH "res/");
+	lua_setglobal(L, "_MB_RES_DIR");
+	
 	/* Push new os.clock and os.sleep */
 	lua_getglobal(L, "os");
 	lua_pushcfunction(L, mb_os_clock);

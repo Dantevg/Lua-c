@@ -4,7 +4,7 @@ local tc = prequire "terminalcolours" -- Can do without colours
 local autocomplete = prequire "luacomplete" -- Don't *need* autocompletion
 local pretty = prequire "pretty"
 
-local historyPath = "res/.luahistory.txt"
+local historyPath = _MB_RES_DIR..".luahistory.txt"
 
 local trace = {}
 local dotrace = false
