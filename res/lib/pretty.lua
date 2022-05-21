@@ -17,11 +17,11 @@ function pretty.special(x)
 	return string.format("%s[%s]",
 		tc(tc.bright, tc.fg.magenta), tostring(x))
 end
-local function prettyprint(x, long)
+local function prettyprint(x, long, ...)
 	local t = type(x)
 	
 	if pretty[t] and not rawget(getmetatable(x) or {}, "__tostring") then
-		return pretty[t](x, long)..tc(reset)
+		return pretty[t](x, long, ...)..tc(reset)
 	else
 		return nop(x)..tc(reset)
 	end
@@ -38,28 +38,39 @@ pretty["nil"] = function(x) return tc(tc.reset, tc.fg.grey)..tostring(x) end
 pretty["number"] = function(x) return tc(tc.reset, tc.fg.cyan)..tostring(x) end
 pretty["string"] = function(x) return tc(tc.reset, tc.fg.green)..'"'..x..'"' end
 pretty["boolean"] = function(x) return tc(tc.reset, tc.fg.yellow)..tostring(x) end
-pretty["table"] = function(x, long)
+pretty["table"] = function(x, maxdepth, multiline, depth)
 	if type(x) ~= "table" and not rawget(getmetatable(x) or {}, "__pairs") then
 		return pretty.error("not a table")
 	end
-	if not long then return pretty.special(x) end
+	if maxdepth == true then maxdepth = 128 end
+	if not maxdepth then maxdepth = 0 end
+	depth = depth or 0
+	if depth >= maxdepth then return pretty.special(x) end
 	
 	local contents = {}
 	
 	if type(x) == "table" then
 		for _, v in ipairs(x) do
-			table.insert(contents, prettyprint(v))
+			table.insert(contents, prettyprint(v, maxdepth, multiline, depth + 1))
 		end
 	end
 	
 	for k, v in pairs(x) do
 		if not contents[k] then
-			table.insert(contents, prettykey(k).." = "..prettyprint(v))
+			table.insert(contents, prettykey(k).." = "..prettyprint(v, maxdepth, multiline, depth + 1))
 		end
 	end
 	
-	return tc(reset).."{ "..table.concat(contents, ", ").." }"
-		..(getmetatable(x) and tc(tc.fg.grey).." + mt" or "")
+	if multiline then
+		local indent = string.rep("  ", depth)
+		local newindent = indent.."  "
+		return tc(reset).."{\n"
+			..newindent..table.concat(contents, ",\n"..newindent).."\n"
+			..indent.."}"..(getmetatable(x) and tc(tc.fg.grey).." + mt" or "")
+	else
+		return tc(reset).."{ "..table.concat(contents, ", ").." }"
+			..(getmetatable(x) and tc(tc.fg.grey).." + mt" or "")
+	end
 end
 pretty["function"] = function(x, long)
 	if type(x) ~= "function" then return pretty.error("not a function") end
