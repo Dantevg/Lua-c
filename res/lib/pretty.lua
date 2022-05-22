@@ -19,9 +19,14 @@ function pretty.special(x)
 end
 local function prettyprint(x, long, ...)
 	local t = type(x)
+	local mt = getmetatable(x) or {}
 	
-	if pretty[t] and not rawget(getmetatable(x) or {}, "__tostring") then
-		return pretty[t](x, long, ...)..tc(reset)
+	if pretty[t] and not (type(mt) == "table" and rawget(mt, "__tostring")) then
+		if type(mt) ~= "table" then
+			return pretty[t](x, long, ...)..tc(tc.reset, tc.fg.grey).." (metatable is a "..type(mt).."!)"..tc(reset)
+		else
+			return pretty[t](x, long, ...)..tc(reset)
+		end
 	else
 		return nop(x)..tc(reset)
 	end
@@ -38,6 +43,7 @@ pretty["nil"] = function(x) return tc(tc.reset, tc.fg.grey)..tostring(x) end
 pretty["number"] = function(x) return tc(tc.reset, tc.fg.cyan)..tostring(x) end
 pretty["string"] = function(x) return tc(tc.reset, tc.fg.green)..'"'..x..'"' end
 pretty["boolean"] = function(x) return tc(tc.reset, tc.fg.yellow)..tostring(x) end
+
 pretty["table"] = function(x, maxdepth, multiline, depth)
 	if type(x) ~= "table" and not rawget(getmetatable(x) or {}, "__pairs") then
 		return pretty.error("not a table")
@@ -72,6 +78,7 @@ pretty["table"] = function(x, maxdepth, multiline, depth)
 			..(getmetatable(x) and tc(tc.fg.grey).." + mt" or "")
 	end
 end
+
 pretty["function"] = function(x, long)
 	if type(x) ~= "function" then return pretty.error("not a function") end
 	local d = debug.getinfo(x, "S")
@@ -96,6 +103,7 @@ pretty["function"] = function(x, long)
 	file:close()
 	return str..tc(reset).."\n"..table.concat(contents, "\n")
 end
+
 pretty["thread"] = pretty.special
 pretty["userdata"] = pretty.special
 
