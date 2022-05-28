@@ -9,84 +9,97 @@ end
 
 local pretty = {}
 
-pretty.reset = {tc.reset, tc.bright}
+pretty.colours = {}
+pretty.colours._reset   = tc(tc.reset, tc.bright)
+pretty.colours._special = tc(tc.bright, tc.fg.magenta)
+pretty.colours._mt      = tc(tc.reset, tc.fg.grey)
+pretty.colours._nil     = tc(tc.reset, tc.fg.grey)
+pretty.colours._number  = tc(tc.reset, tc.fg.cyan)
+pretty.colours._string  = tc(tc.reset, tc.fg.green)
+pretty.colours._boolean = tc(tc.reset, tc.fg.yellow)
+pretty.colours._error   = tc(tc.bright, tc.fg.red)
 
-local reset = pretty.reset
-local function nop(x) return tc(reset)..tostring(x) end
-function pretty.special(x)
-	return string.format("%s[%s]",
-		tc(tc.bright, tc.fg.magenta), tostring(x))
+function pretty:colour(name)
+	return self.coloured and self.colours["_"..tostring(name)] or ""
 end
-local function prettyprint(x, long, ...)
+
+function pretty:nop(x) return self:colour("reset")..tostring(x) end
+
+function pretty:special(x)
+	return string.format("%s[%s]", self:colour("special"), tostring(x))
+end
+
+function pretty:prettyprint(x, ...)
 	local t = type(x)
 	local mt = getmetatable(x) or {}
 	
-	if pretty[t] and not (type(mt) == "table" and rawget(mt, "__tostring")) then
+	if self[t] and not (type(mt) == "table" and rawget(mt, "__tostring")) then
 		if type(mt) ~= "table" then
-			return pretty[t](x, long, ...)..tc(tc.reset, tc.fg.grey).." (metatable is a "..type(mt).."!)"..tc(reset)
+			return self[t](self, x, ...)..self:colour("mt")
+				.." (metatable is a "..type(mt).."!)"..self:colour("reset")
 		else
-			return pretty[t](x, long, ...)..tc(reset)
+			return self[t](self, x, ...)..self.colour("reset")
 		end
 	else
-		return nop(x)..tc(reset)
+		return self:nop(x)..self:colour("reset")
 	end
 end
-local function prettykey(x)
+
+function pretty:prettykey(x)
 	if type(x) == "string" and x:match("^[%a_][%w_]*$") then
 		return tostring(x)
 	else
-		return "["..prettyprint(x).."]"
+		return "["..self:prettyprint(x).."]"
 	end
 end
 
-pretty["nil"] = function(x) return tc(tc.reset, tc.fg.grey)..tostring(x) end
-pretty["number"] = function(x) return tc(tc.reset, tc.fg.cyan)..tostring(x) end
-pretty["string"] = function(x) return tc(tc.reset, tc.fg.green)..'"'..x..'"' end
-pretty["boolean"] = function(x) return tc(tc.reset, tc.fg.yellow)..tostring(x) end
+pretty["nil"] = function(self, x) return self:colour("nil")..tostring(x) end
+pretty["number"] = function(self, x) return self:colour("number")..tostring(x) end
+pretty["string"] = function(self, x) return self:colour("string")..'"'..x..'"' end
+pretty["boolean"] = function(self, x) return self:colour("boolean")..tostring(x) end
 
-pretty["table"] = function(x, maxdepth, multiline, depth)
+pretty["table"] = function(self, x, depth)
 	if type(x) ~= "table" and not rawget(getmetatable(x) or {}, "__pairs") then
-		return pretty.error("not a table")
+		return self:error("not a table")
 	end
-	if maxdepth == true then maxdepth = 128 end
-	if not maxdepth then maxdepth = 0 end
 	depth = depth or 0
-	if depth >= maxdepth then return pretty.special(x) end
+	if depth >= self.deep then return self:special(x) end
 	
 	local contents = {}
 	
 	if type(x) == "table" then
 		for _, v in ipairs(x) do
-			table.insert(contents, prettyprint(v, maxdepth, multiline, depth + 1))
+			table.insert(contents, self:prettyprint(v, depth + 1))
 		end
 	end
 	
 	for k, v in pairs(x) do
 		if not contents[k] then
-			table.insert(contents, prettykey(k).." = "..prettyprint(v, maxdepth, multiline, depth + 1))
+			table.insert(contents, self:prettykey(k).." = "..self:prettyprint(v, depth + 1))
 		end
 	end
 	
-	if multiline then
+	if self.multiline then
 		local indent = string.rep("  ", depth)
 		local newindent = indent.."  "
-		return tc(reset).."{\n"
+		return self:colour("reset").."{\n"
 			..newindent..table.concat(contents, ",\n"..newindent).."\n"
-			..indent.."}"..(getmetatable(x) and tc(tc.fg.grey).." + mt" or "")
+			..indent..self:colour("reset").."}"
+			..(getmetatable(x) and self:colour("mt").." + mt" or "")
 	else
-		return tc(reset).."{ "..table.concat(contents, ", ").." }"
-			..(getmetatable(x) and tc(tc.fg.grey).." + mt" or "")
+		return self:colour("reset").."{ "..table.concat(contents, ", ")..self:colour("reset").." }"
+			..(getmetatable(x) and self:colour("mt").." + mt" or "")
 	end
 end
 
-pretty["function"] = function(x, long)
-	if type(x) ~= "function" then return pretty.error("not a function") end
+pretty["function"] = function(self, x)
+	if type(x) ~= "function" then return self:error("not a function") end
 	local d = debug.getinfo(x, "S")
 	local filename = d.short_src:match("([^/]+)$")
 	local str = string.format("%s[%s @ %s:%d]",
-		tc(tc.bright, tc.fg.magenta), tostring(x), filename, d.linedefined)
+		self:colour("special"), tostring(x), filename, d.linedefined)
 		
-	if not long or d.source:sub(1,1) ~= "@" or d.source == "@stdin" then
+	if self.deep == 0 or d.source:sub(1,1) ~= "@" or d.source == "@stdin" then
 		return str
 	end
 	
@@ -101,16 +114,37 @@ pretty["function"] = function(x, long)
 		i = i+1
 	end
 	file:close()
-	return str..tc(reset).."\n"..table.concat(contents, "\n")
+	return str..self:colour("reset").."\n"..table.concat(contents, "\n")
 end
 
 pretty["thread"] = pretty.special
 pretty["userdata"] = pretty.special
 
-pretty["error"] = function(x)
-	return tc(tc.bright, tc.fg.red)..tostring(x)
+pretty["error"] = function(self, x)
+	return self:colour("error")..tostring(x)
 end
 
+function pretty.new(options)
+	local self = setmetatable({}, pretty)
+	options = options or {}
+	if options.deep ~= nil then self.deep = options.deep end
+	if options.multiline ~= nil then self.multiline = options.multiline end
+	if options.coloured ~= nil then self.coloured = options.coloured end
+	
+	if self.deep == true then self.deep = 128 end
+	if not self.deep then self.deep = 0 end
+	
+	return self
+end
+
+pretty.deep = true
+pretty.multiline = false
+pretty.coloured = true
+pretty.instance = pretty.new()
+
+pretty.__index = pretty
+pretty.__call = pretty.prettyprint
+
 return setmetatable(pretty, {
-	__call = function(_, ...) return prettyprint(...) end,
+	__call = function(_, ...) return pretty.instance:prettyprint(...) end,
 })
