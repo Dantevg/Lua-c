@@ -23,10 +23,10 @@ function pretty:colour(name)
 	return self.coloured and self.colours["_"..tostring(name)] or ""
 end
 
-function pretty:nop(x) return self:colour("reset")..tostring(x) end
+function pretty:nop(x) return self:colour("reset")..tostring(x)..self:colour("reset") end
 
 function pretty:special(x)
-	return string.format("%s[%s]", self:colour("special"), tostring(x))
+	return string.format("%s[%s]%s", self:colour("special"), tostring(x), self:colour("reset"))
 end
 
 function pretty:prettyprint(x, ...)
@@ -38,10 +38,10 @@ function pretty:prettyprint(x, ...)
 			return self[t](self, x, ...)..self:colour("mt")
 				.." (metatable is a "..type(mt).."!)"..self:colour("reset")
 		else
-			return self[t](self, x, ...)..self.colour("reset")
+			return self[t](self, x, ...)
 		end
 	else
-		return self:nop(x)..self:colour("reset")
+		return self:nop(x)
 	end
 end
 
@@ -53,10 +53,10 @@ function pretty:prettykey(x)
 	end
 end
 
-pretty["nil"] = function(self, x) return self:colour("nil")..tostring(x) end
-pretty["number"] = function(self, x) return self:colour("number")..tostring(x) end
-pretty["string"] = function(self, x) return self:colour("string")..'"'..x..'"' end
-pretty["boolean"] = function(self, x) return self:colour("boolean")..tostring(x) end
+pretty["nil"]     = function(self, x) return self:colour("nil")        ..tostring(x)..self:colour("reset") end
+pretty["number"]  = function(self, x) return self:colour("number")     ..tostring(x)..self:colour("reset") end
+pretty["string"]  = function(self, x) return self:colour("string")..'"'..tostring(x)..self:colour("string")..'"'..self:colour("reset") end
+pretty["boolean"] = function(self, x) return self:colour("boolean")    ..tostring(x)..self:colour("reset") end
 
 pretty["table"] = function(self, x, depth)
 	if type(x) ~= "table" and not rawget(getmetatable(x) or {}, "__pairs") then
@@ -85,10 +85,10 @@ pretty["table"] = function(self, x, depth)
 		return self:colour("reset").."{\n"
 			..newindent..table.concat(contents, ",\n"..newindent).."\n"
 			..indent..self:colour("reset").."}"
-			..(getmetatable(x) and self:colour("mt").." + mt" or "")
+			..(getmetatable(x) and self:colour("mt").." + mt"..self:colour("reset") or "")
 	else
 		return self:colour("reset").."{ "..table.concat(contents, ", ")..self:colour("reset").." }"
-			..(getmetatable(x) and self:colour("mt").." + mt" or "")
+			..(getmetatable(x) and self:colour("mt").." + mt"..self:colour("reset") or "")
 	end
 end
 
@@ -114,14 +114,14 @@ pretty["function"] = function(self, x)
 		i = i+1
 	end
 	file:close()
-	return str..self:colour("reset").."\n"..table.concat(contents, "\n")
+	return str..self:colour("reset").."\n"..table.concat(contents, "\n")..self:colour("reset")
 end
 
 pretty["thread"] = pretty.special
 pretty["userdata"] = pretty.special
 
 pretty["error"] = function(self, x)
-	return self:colour("error")..tostring(x)
+	return self:colour("error")..tostring(x)..self:colour("reset")
 end
 
 function pretty.new(options)
@@ -137,14 +137,13 @@ function pretty.new(options)
 	return self
 end
 
-pretty.deep = true
+pretty.deep = 128
 pretty.multiline = false
 pretty.coloured = true
-pretty.instance = pretty.new()
 
 pretty.__index = pretty
 pretty.__call = pretty.prettyprint
 
 return setmetatable(pretty, {
-	__call = function(_, ...) return pretty.instance:prettyprint(...) end,
+	__call = function(_, ...) return pretty:prettyprint(...) end,
 })

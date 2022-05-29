@@ -38,21 +38,21 @@ if not pretty then
 	pretty = setmetatable(
 		{reset = {}},
 		{
-			__call = function(_, s) return s end,
-			__index = function() return function(s) return s end end,
+			__call = function(_, _, s) return s end,
+			__index = function() return function(_, s) return s end end,
 		}
 	)
 end
 
 -- Add trace prettyprint
-pretty.trace = function(x)
+function pretty:trace(x)
 	local args = {}
 	for _, arg in ipairs(x.args) do
-		table.insert(args, tc(tc.reset)..tostring(arg[1])..": "..pretty(arg[2]))
+		table.insert(args, self:colour("reset")..tostring(arg[1])..": "..pretty(self, arg[2]))
 	end
 	return string.format("%s(%s%s) %s",
-		x.name or x.source, table.concat(args, ", "), tc(pretty.reset),
-		pretty["function"](x.func))
+		x.name or x.source, table.concat(args, ", "), self:colour("reset"),
+		pretty["function"](self, x.func))
 end
 
 
@@ -62,19 +62,19 @@ local commands = {}
 function commands.table(arg)
 	local tbl = _G[arg]
 	if not tbl then return end
-	print(pretty.table(tbl, true))
+	print(pretty:table(tbl))
 end
 
 function commands.metatable(arg)
 	local mt = getmetatable(_G[arg])
 	if not mt then return end
-	print(pretty.table(mt, true))
+	print(pretty:table(mt))
 end
 
 commands["function"] = function(arg)
 	local fn = _G[arg]
 	if not fn then return end
-	print(pretty["function"](fn, true))
+	print(pretty["function"](fn))
 end
 
 function commands.require(arg)
@@ -84,7 +84,7 @@ function commands.require(arg)
 	if success then
 		_G[arg] = result
 	else
-		print(pretty.error(result))
+		print(pretty:error(result))
 	end
 end
 
@@ -110,7 +110,7 @@ function commands.complete(arg)
 	if not autocomplete then autocomplete = require "luacomplete" end
 	local completions = autocomplete(arg or "")
 	for _, completion in ipairs(completions) do
-		print(tc(tc.fg.grey)..arg..tc(pretty.reset)..completion)
+		print(tc(tc.fg.grey)..arg..pretty:colour("reset")..completion)
 	end
 end
 
@@ -143,7 +143,7 @@ commands.q = commands.exit
 
 
 local function onerror(err)
-	print(debug.traceback(pretty.error(err), 2))
+	print(debug.traceback(pretty:error(err), 2))
 end
 
 local function result(success, ...)
@@ -156,7 +156,7 @@ local function result(success, ...)
 	-- Print results
 	env.it = t[1]
 	for i = 1, select("#", ...) do
-		print(pretty(t[i], true))
+		print(pretty(t[i]))
 	end
 	
 	-- Print debug trace
@@ -165,10 +165,10 @@ local function result(success, ...)
 		if trace[i].type == "return" then
 			level = level-1
 		elseif trace[i].type == "call" then
-			print(tc(pretty.reset)
+			print(pretty:colour("reset")
 				..string.rep(unicode and "\u{2502} " or "| ", level)
 				..(unicode and "\u{251c}\u{2574}" or "|-")
-				..pretty.trace(trace[i]))
+				..pretty:trace(trace[i]))
 			level = level+1
 		end
 	end
@@ -220,7 +220,7 @@ while true do
 		local fn, err = load("return "..input, "=stdin", "t")
 		if not fn then fn, err = multiline(input) end
 		if not fn then
-			print(pretty.error(err))
+			print(pretty:error(err))
 		else
 			trace = {}
 			if dotrace then debug.sethook(hook, "cr") end
