@@ -87,6 +87,21 @@ function tc.colour(...)
 	return tc.start..table.concat(arg, ";").."m"
 end
 
+-- Parse colour codes like "{reset}" or "{fg.red}"
+function tc.parse(str)
+	-- Pattern captures:
+	-- a = ([^%.}]*) = everything before a '.' or '}'
+	-- b =   ([^}]*) = everything before a '}'
+	return (str:gsub("{([^%.}]*)%.?([^}]*)}", function(a, b)
+		if tc[a] and b == "" then
+			return tc.colour(tc[a])
+		else
+			if b == "" and tc.fg[a] then a, b = "fg", a end
+			if tc[a] and tc[a][b] then return tc.colour(tc[a][b]) end
+		end
+	end))
+end
+
 return setmetatable(tc, {
 	__call = function(_, ...) return tc.colour(...) end,
 })
