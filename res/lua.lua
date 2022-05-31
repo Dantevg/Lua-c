@@ -48,11 +48,11 @@ end
 function pretty:trace(x)
 	local args = {}
 	for _, arg in ipairs(x.args) do
-		table.insert(args, self:colour("reset")..tostring(arg[1])..": "..pretty(self, arg[2]))
+		table.insert(args, self:colour("reset")..tostring(arg[1])..": "..self(arg[2]))
 	end
 	return string.format("%s(%s%s) %s",
 		x.name or x.source, table.concat(args, ", "), self:colour("reset"),
-		pretty["function"](self, x.func))
+		pretty["function"](pretty.new {deep = false}, x.func))
 end
 
 
